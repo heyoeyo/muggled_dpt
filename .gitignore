@@ -1,0 +1,16 @@
+# Model weights
+*.pt
+*.pth
+
+# Cache files
+*.pyc
+__pycache__
+
+# Common environment names
+venv/
+.venv/
+env/
+.env/
+
+# Catch-all for local ignorables
+ignore/
