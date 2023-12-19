@@ -8,6 +8,10 @@ This repo contains a simplified implementation of the very cool depth estimation
 
 While the focus of this implementation is on readability, there are also some performance improvements (40-60% on my GPU at least) due to caching of positional encodings (at the cost of higher VRAM usage!).
 
+## Usage
+
+The purpose of this repo is not really to provide a usable tool/implementation of the DPT depth prediction models, instead the focus is on providing an easy to follow code base, to help understand how the model(s) are structured. The plan is to (eventually) include READMEs in each major folder detailing the different parts of the codebase.
+
 ## Getting started
 
 This repo includes two demo scripts, [run_image.py](https://github.com/heyoeyo/muggled_dpt/blob/main/run_image.py) and [run_video.py](https://github.com/heyoeyo/muggled_dpt/blob/main/run_video.py). To use these scripts, you'll need to first have [Python](https://www.python.org/) (v3.6+) installed, then set up a virtual environment and install some additional requirements.
@@ -53,7 +57,7 @@ python run_image.py
 ```
 You can also add  `--help` to the end of this command to see a list of additional flags you can set when running this script.
 
-If you don't provide an image path (using the `-i` flag), then you will be asked to provide one when you run the script, likewise for a path to the model weights. Afterwards, a window will pop-up, with various sliders that can be used to modify the depth visualization. These let you adjust the contrast of the depth visualization, as well as remove a 'plane-of-best-fit', which can often remove the 'floor' from the depth prediction.
+If you don't provide an image path (using the `-i` flag), then you will be asked to provide one when you run the script, likewise for a path to the model weights. Afterwards, a window will pop-up, with various sliders that can be used to modify the depth visualization. These let you adjust the contrast of the depth visualization, as well as remove a plane-of-best-fit, which can often remove the 'floor' from the depth prediction. You can press `s` to save the current depth image.
 
 ## Run Video (or webcam)
 
