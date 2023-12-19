@@ -5,6 +5,8 @@
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
+import os
+import datetime as dt
 import argparse
 from time import perf_counter
 
@@ -18,6 +20,7 @@ from lib.demo_helpers.misc import get_default_device_string, make_device_config,
 from lib.demo_helpers.loading import ask_for_path, ask_for_model_path
 from lib.demo_helpers.visualization import DisplayWindow
 from lib.demo_helpers.plane_fit import estimate_plane_of_best_fit
+from lib.demo_helpers.saving import save_image
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -28,6 +31,7 @@ default_device = get_default_device_string()
 default_image_path = None
 default_model_path = None
 default_display_size = 800
+default_base_size = None
 
 # Define script arguments
 parser = argparse.ArgumentParser(description="Script used to run MiDaS DPT depth-estimation on a single image")
@@ -43,6 +47,8 @@ parser.add_argument("-f32", "--use_float32", default=False, action="store_true",
                     help="Use 32-bit floating point model weights. Note: this doubles VRAM usage")
 parser.add_argument("-ar", "--use_aspect_ratio", default=False, action="store_true",
                     help="Process the image at it's original aspect ratio, if the model supports it")
+parser.add_argument("-b", "--base_size_px", default=default_base_size, type=int,
+                    help="Override base (e.g. 384, 512) model size. Must be multiple of 32")
 
 # For convenience
 args = parser.parse_args()
@@ -52,6 +58,8 @@ display_size_px = args.display_size
 device_str = args.device
 use_float32 = args.use_float32
 force_square_resolution = not args.use_aspect_ratio
+model_base_size = args.base_size_px
+override_base_size = (model_base_size is not None)
 
 # Hard-code no-cache usage, since there is no benefit if the model only runs once
 use_cache = False
@@ -71,6 +79,8 @@ model_path = ask_for_model_path(__file__, arg_model_path)
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
 model_config_dict, dpt_model = make_beit_dpt_from_midas_v31(model_path, use_cache)
 dpt_imgproc = make_opencv_image_prepost_processor(model_config_dict)
+if override_base_size:
+    dpt_imgproc.override_base_size(model_base_size)
 
 # Move model to selected device
 dpt_model.to(**device_config_dict)
@@ -133,7 +143,11 @@ plane_depth = estimate_plane_of_best_fit(depth_norm)
 prev_plane_removal_pct = None
 depth_1ch = depth_norm
 
-print("", "Displaying results", "  - Press esc or q to quit", sep="\n", flush=True)
+print("", "Displaying results",
+      "  - Press s to save depth image",
+      "  - Press esc or q to quit",
+      "",
+      sep="\n", flush=True)
 while True:
     
     # Read window trackbars
@@ -154,12 +168,10 @@ while True:
     # Make sure we actually get min < max thresholds & non-zero delta to avoid divide-by-zero
     thresh_min, thresh_max = sorted([thresh_min, thresh_max])
     thresh_delta = max(0.001, thresh_max - thresh_min)
+    depth_thresholded = np.clip((depth_1ch - thresh_min) / thresh_delta, 0.0, 1.0)
     
-    # Threshold depth data & convert to uint8 for display
-    renorm_depth = np.clip((depth_1ch - thresh_min) / thresh_delta, 0.0, 1.0)
-    depth_uint8 = np.uint8(np.round(255.0*renorm_depth))
-    
-    # Apply histogram equalization & inversion if needed & make color mapped depth image
+    # Produce colored depth image for display
+    depth_uint8 = np.uint8(np.round(255.0*depth_thresholded))
     if histo_equalize: depth_uint8 = cv2.equalizeHist(depth_uint8)
     if invert_depth: depth_uint8 = 255 - depth_uint8
     depth_color = dpt_imgproc.apply_colormap(depth_uint8, cmaps_list[cmap_idx])
@@ -167,9 +179,14 @@ while True:
     # Display original image along with colored depth result
     sidebyside_display = np.hstack((scaled_input_img, depth_color))
     window.imshow(sidebyside_display)
-    req_break, _ = window.waitKey(20)
+    req_break, keypress = window.waitKey(20)
     if req_break:
         break
+    
+    # Save depth image on 's' keypress
+    if keypress == ord("s"):
+        ok_save, save_path = save_image(depth_color, image_path)
+        if ok_save: print("SAVED:", save_path)
 
 # Clean up windows
 cv2.destroyAllWindows()

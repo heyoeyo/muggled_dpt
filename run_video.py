@@ -28,6 +28,7 @@ default_video_path = None
 default_model_path = None
 default_display_size = 800
 default_display_ms = None
+default_base_size = None
 
 # Define script arguments
 parser = argparse.ArgumentParser(description="Script used to run MiDaS DPT depth-estimation on a video")
@@ -47,6 +48,8 @@ parser.add_argument("-f32", "--use_float32", default=False, action="store_true",
                     help="Use 32-bit floating point model weights. Note: this doubles VRAM usage")
 parser.add_argument("-ar", "--use_aspect_ratio", default=False, action="store_true",
                     help="Process the video at it's original aspect ratio, if the model supports it")
+parser.add_argument("-b", "--base_size_px", default=default_base_size, type=int,
+                    help="Override base (e.g. 384, 512) model size. Must be multiple of 32")
 parser.add_argument("-cam", "--use_webcam", default=False, action="store_true",
                     help="Use a webcam as the video input, instead of a file")
 
@@ -60,6 +63,8 @@ device_str = args.device
 use_cache = not args.no_cache
 use_float32 = args.use_float32
 force_square_resolution = not args.use_aspect_ratio
+model_base_size = args.base_size_px
+override_base_size = (model_base_size is not None)
 use_webcam = args.use_webcam
 
 # Set up device config
@@ -78,6 +83,8 @@ model_path = ask_for_model_path(__file__, arg_model_path)
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
 model_config_dict, dpt_model = make_beit_dpt_from_midas_v31(model_path, enable_relpos_cache = use_cache)
 dpt_imgproc = make_opencv_image_prepost_processor(model_config_dict)
+if override_base_size:
+    dpt_imgproc.override_base_size(model_base_size)
 
 # Move model to selected device
 dpt_model.to(**device_config_dict)
@@ -123,7 +130,8 @@ print("", "Displaying results",
       "  - Click & drag to move playback",
       "  - Press esc or q to quit",
       "  - Reported inference time is affected by display rate!",
-      "      -> Use flag: '-t 1' for better results", sep="\n", flush=True)
+      "      -> Use flag: '-t 1' for better results",
+      "", sep="\n", flush=True)
 for frame in vreader:
     
     # Read window trackbars
@@ -151,7 +159,7 @@ for frame in vreader:
         depth_tensor = dpt_imgproc.convert_to_uint8(scaled_prediction).to("cpu", non_blocking = True)
         depth_uint8 = depth_tensor.squeeze().numpy()
     
-    # Apply display formatting & make color mapped depth image
+    # Produce colored depth image for display
     if histo_equalize: depth_uint8 = cv2.equalizeHist(depth_uint8)
     if invert_depth: depth_uint8 = 255 - depth_uint8
     depth_color = dpt_imgproc.apply_colormap(depth_uint8, cmaps_list[cmap_idx])

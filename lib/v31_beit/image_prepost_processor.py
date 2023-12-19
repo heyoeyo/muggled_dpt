@@ -68,6 +68,19 @@ class DPTImageProcessor:
         
         # Convert to tensor with unit batch dimension. Shape goes from: CxHxW -> 1xCxHxW
         return torch.from_numpy(img_norm).unsqueeze(0)
+    
+    # .................................................................................................................
+    
+    def override_base_size(self, override_size_px):
+        
+        '''
+        Function used to alter the preprocessor base sizing. This causes the model
+        to run at a lower/higher resolution (by scaling up position encodings).
+        Mostly for experimentation, usually makes things worse
+        '''
+        
+        self.base_size_px = round(override_size_px / self._to_multiples) * self._to_multiples
+        return self.base_size_px
 
     # .................................................................................................................
     
