@@ -10,7 +10,7 @@ import torch
 from .dpt_model import MuggledDPT
 
 from .v31_beit.image_prepost_processor import DPTImageProcessor
-from .v31_beit.image_encoder_model import ViTModel4Stage
+from .v31_beit.image_encoder_model import BEiTModel4Stage
 from .v31_beit.reassembly_model import ReassembleModel
 from .v31_beit.fusion_model import FusionModel
 from .v31_beit.head_model import MonocularDepthHead
@@ -56,7 +56,7 @@ def make_beit_dpt(features_per_token, num_heads, num_blocks, reassembly_features
     
     # Construct model components
     imgenc_model = \
-        ViTModel4Stage(features_per_token, num_heads, num_blocks, patch_size_px, base_patch_grid_hw, enable_relpos_cache)
+        BEiTModel4Stage(features_per_token, num_heads, num_blocks, patch_size_px, base_patch_grid_hw, enable_relpos_cache)
     reassembly_model = ReassembleModel(features_per_token, reassembly_features_list, fusion_channels)
     fusion_model = FusionModel(fusion_channels)
     head_model = MonocularDepthHead(fusion_channels)

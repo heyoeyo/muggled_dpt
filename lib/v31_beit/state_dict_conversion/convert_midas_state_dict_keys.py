@@ -28,6 +28,7 @@ def convert_midas_state_dict_keys(config_dict, midas_state_dict):
     # Get sizing info needed to properly format transformer stages
     num_stages = len(config_dict["reassembly_features_list"])
     blocks_per_stage = config_dict["num_blocks"] // num_stages
+    num_heads = config_dict["num_heads"]
     
     # Allocate storage for state dict of each (new) model component
     imgenc_sd = {}
@@ -45,9 +46,9 @@ def convert_midas_state_dict_keys(config_dict, midas_state_dict):
         orig_key = str(orig_key)
         weight_or_bias = orig_key.split(".")[-1]
         
-        new_key = _convert_imageenc_keys(orig_key, blocks_per_stage)
+        new_key = _convert_imgenc_keys(orig_key, blocks_per_stage)
         if found_key(new_key):
-            imgenc_sd[new_key] = orig_data
+            imgenc_sd[new_key] = _convert_qv_bias_tensors(new_key, orig_data, num_heads)
             continue
         
         new_key = _convert_reassembly_keys(orig_key, weight_or_bias)
@@ -79,7 +80,34 @@ def convert_midas_state_dict_keys(config_dict, midas_state_dict):
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Component functions
 
-def _convert_imageenc_keys(key, blocks_per_stage):
+def _convert_qv_bias_tensors(key, key_tensor, num_heads):
+    
+    '''
+    Reshapes the q/v-bias tensors so that they can be added after the qkv linear layer
+    The original model creates a qkv bias tensor and inserts it into the linear layer
+    computation on every model run. This isn't especially slow or inefficient, but
+    it's a very messy implementation.
+    
+    The reshaping follows the self-attention block reshaping, which requires the
+    bias values to have a shape of: BxHxNxf, where f is F/H (features per head),
+    however, we can have a unitary dimension in place of B & N, since the
+    bias values are shared across these dimensions!
+    The stored values (that we're changing) are F-length vectors.
+    
+    Note that all the weirdness with the qkv bias is due to the k-bias
+    being all zeros! (and is presumably meant to be untrainable)
+    '''
+    
+    is_bias_key = any((target in key) for target in ["q_bias", "v_bias"])
+    if is_bias_key:
+        new_tensor = key_tensor.reshape(1, num_heads, 1, -1)
+        return new_tensor
+    
+    return key_tensor
+
+# .....................................................................................................................
+
+def _convert_imgenc_keys(key, blocks_per_stage):
     
     '''
     Converts keys associated with the image encoder component of the model
@@ -87,6 +115,7 @@ def _convert_imageenc_keys(key, blocks_per_stage):
         - cls token
         - patch embedding
         - transformer blocks (including relative positional encodings)
+        - Reshape q/v bias values, to be used additively
     '''
     
     # Convert cls token

@@ -16,20 +16,20 @@ from .components.relative_positional_encoder import RelativePositionEncoding
 #%% Main model
 
 
-class ViTModel4Stage(nn.Module):
+class BEiTModel4Stage(nn.Module):
     
     '''
-    Simplified implementation of the BeIT backbone model, used in:
-        "Vision Transformers for Dense Prediction"
-        By: René Ranftl, Alexey Bochkovskiy, Vladlen Koltun
-        @ https://arxiv.org/abs/2103.13413
+    Simplified implementation of the BEiT backbone model, used in:
+        BEiT: BERT Pre-Training of Image Transformers
+        Hangbo Bao, Li Dong, Songhao Piao, Furu Wei
+        @ https://arxiv.org/abs/2106.08254
     
     The code here is derived from the timm library:
         @ https://github.com/huggingface/pytorch-image-models
     
     This implementation removes most of the flexibility as well as the training-specific
     elements of the original implementation, for the sake of clarity. It is also modified
-    in such a way as to be purpose-built for use in the MiDas v3.1 BeiT model
+    in such a way as to be purpose-built for use in the MiDas v3.1 BEiT model
     (e.g. the forward method explicitly returns the 4 internal tokens needed for DPT)
     '''
     
@@ -284,10 +284,11 @@ class SelfAttentionRelPos(nn.Module):
         self.qk_scale_factor = features_per_head ** -0.5
         
         # Set up query/key/value weights & bias parameters
+        # Note: bias is set up separate from weights, because there is no k-bias!
+        bias_shape = (1, num_heads, 1, features_per_head)
+        self.q_bias = nn.Parameter(torch.empty(bias_shape))
+        self.v_bias = nn.Parameter(torch.empty(bias_shape))
         self.qkv = nn.Linear(features_per_token, internal_feature_count * 3, bias=False)
-        self.q_bias = nn.Parameter(torch.empty(internal_feature_count))
-        self.register_buffer('k_bias', torch.zeros(internal_feature_count), persistent=False)
-        self.v_bias = nn.Parameter(torch.empty(internal_feature_count))
         
         # Set up position encoding
         self.relpos_enc = RelativePositionEncoding(num_heads, base_patch_grid_hw)
@@ -313,7 +314,7 @@ class SelfAttentionRelPos(nn.Module):
             1. Use input tokens to make new set of tokens: Q, K, V (there are H copies of Q, K & V)
             2. Calculate (attention) A = dotproduct(Q, K) * qk_scale
             3. Add relative positional encoding to attention, A = A + relpos_encoding
-            4. Calculate (weights) W = softmax(A)
+            4. Calculate (weights) W = softmax(A), calculated on the N 'columns' of A
             5. Calculate output = W * V
             6. Apply final linear/feed-forward layer on output token feature values (output has shape: NxF)
         '''
@@ -321,22 +322,15 @@ class SelfAttentionRelPos(nn.Module):
         # Get input shape, which we'll need to proeprly reshape intermediate results
         B, N, F = tokens.shape
         
-        # Create query-key-value bias terms, to go with weights
-        # Note: We do this here, because the key bias is a special 'all-zeros' untrained component
-        qkv_bias = torch.cat((self.q_bias, self.k_bias, self.v_bias))
-        
-        # Calculate all query/key/value 'tokens', for all heads, in a single pass
-        # Shape: BxNxF -> BxNx(3F), factor of 3 corresponds to separate q/k/v copies!
-        qkv = torch.nn.functional.linear(tokens, weight=self.qkv.weight, bias=qkv_bias)
-        
         # Convert shape: BxNx(3F) -> BxNx3xHxf -> 3xBxHxNxf, so that we can split the q/k/v components
+        qkv = self.qkv(tokens)
         qkv = qkv.reshape(B, N, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)
         q, k, v = qkv.unbind(0)
         
-        # Add bias terms (we don't do this as part of the linear layer, since the key tokens don't have a bias!)
+        # Add bias terms (we don't do this as part of the linear layer, since the k-tokens don't have a bias!)
         # -> bias has shape: BxHxNxf
-        # q = q + self.q_bias
-        # v = v + self.v_bias
+        q = q + self.q_bias
+        v = v + self.v_bias
         
         # Perform 'scaled dot-product' attention (see: 'Attention is all you need' paper)
         # BxHxNxf @ BxHxfxN -> BxHxNxN
@@ -371,7 +365,7 @@ class MLP2Layers(nn.Module):
         @ https://github.com/huggingface/pytorch-image-models/blob/23e7f177242e7516e8e3fc02ea1071b8cbc41ca8/timm/layers/mlp.py#L13
     
     This implementation removes most of the flexibility options, so that only the functionality used
-    by the BEIT implementation remains. Also removes training-related (i.e. dropout) components.
+    by the BEiT implementation remains. Also removes training-related (i.e. dropout) components.
     
     This model is a simple feed-forward network, which is intended to be used at the end of each
     transformer block. Note that it defaults to including an 'expansion' type of hidden layer
