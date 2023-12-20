@@ -40,6 +40,8 @@ parser.add_argument("-s", "--display_size", default=default_display_size, type=i
                     help="Controls size of displayed results (default: {})".format(default_display_size))
 parser.add_argument("-t", "--display_ms", default=default_display_ms,
                     help="Time to display each frame. Set to 1 to run as fast as possible. Will use video FPS otherwise")
+parser.add_argument("-sync", "--force_sync", default=False, action="store_true",
+                    help="Force synchronous GPU usage, so that every frame of video is processed")
 parser.add_argument("-d", "--device", default=default_device, type=str,
                     help="Device to use when running model (ex: 'cpu', 'cuda', 'mps')")
 parser.add_argument("-nc", "--no_cache", default=False, action="store_true",
@@ -59,6 +61,7 @@ arg_video_path = args.video_path
 arg_model_path = args.model_path
 display_size_px = args.display_size
 display_ms_override = args.display_ms
+use_async = not args.force_sync
 device_str = args.device
 use_cache = not args.no_cache
 use_float32 = args.use_float32
@@ -156,7 +159,7 @@ for frame in vreader:
         
         # Prepare depth data for display
         scaled_prediction = dpt_imgproc.scale_prediction(prediction, disp_wh)
-        depth_tensor = dpt_imgproc.convert_to_uint8(scaled_prediction).to("cpu", non_blocking = True)
+        depth_tensor = dpt_imgproc.convert_to_uint8(scaled_prediction).to("cpu", non_blocking = use_async)
         depth_uint8 = depth_tensor.squeeze().numpy()
     
     # Produce colored depth image for display
