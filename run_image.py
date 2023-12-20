@@ -5,8 +5,6 @@
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
-import os
-import datetime as dt
 import argparse
 from time import perf_counter
 
