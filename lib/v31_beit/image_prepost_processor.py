@@ -161,15 +161,19 @@ class DPTImageProcessor:
             depth_normalized_0_to_1
         '''
         
-        # Handle negative infinities
+        # Handle negative infinities (for pytorch or numpy input)
         pred_min = tensor_or_array.min()
-        if pred_min in {-torch.inf, -np.inf}:
+        try:                   is_neginf = pred_min.isinf()
+        except AttributeError: is_neginf = np.isinf(pred_min)
+        if is_neginf:
             tensor_or_array[tensor_or_array == pred_min] = 0
             return DPTImageProcessor.normalize_01(tensor_or_array)
         
         # Handle positive infinities
         pred_max = tensor_or_array.max()
-        if pred_max in {torch.inf, np.inf}:
+        try:                   is_posinf = pred_max.isinf()
+        except AttributeError: is_posinf = np.isinf(pred_max)
+        if is_posinf:
             tensor_or_array[tensor_or_array == pred_max] = 0
             return DPTImageProcessor.normalize_01(tensor_or_array)
         
