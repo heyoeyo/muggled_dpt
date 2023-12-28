@@ -101,7 +101,7 @@ disp_wh = (int(disp_w), int(disp_h))
 t1 = perf_counter()
 
 # Run the model and move the result to the cpu (in case it was on GPU)
-print("", "Computing depth...", sep="\n", flush=True)
+print("", "Computing inverse depth...", sep="\n", flush=True)
 img_tensor = img_tensor.to(**device_config_dict)
 prediction = dpt_model.inference(img_tensor)
 
@@ -126,13 +126,13 @@ cmaps_list = [cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, None]
 
 # Set up window with trackbar controls
 cv2.destroyAllWindows()
-window = DisplayWindow("Depth Result")
-invert_tbar = window.add_trackbar("Invert", 1)
+window = DisplayWindow("Inverse Depth Result")
 contrast_tbar = window.add_trackbar("High contrast", 1)
+reverse_tbar = window.add_trackbar("Reverse colors", 1)
 cmap_tbar = window.add_trackbar("Color map", len(cmaps_list) - 1)
 ramp_tbar = window.add_trackbar("Remove ramp", 100)
-mint_tbar = window.add_trackbar("Min Depth Threshold", 100)
-maxt_tbar = window.add_trackbar("Max Depth Threshold", 100, 100)
+mint_tbar = window.add_trackbar("Min Depth Threshold", 1000)
+maxt_tbar = window.add_trackbar("Max Depth Threshold", 1000, 1000)
 
 # Calculate a plane-of-best-fit, so we can (potentially) remove it during display
 plane_depth = estimate_plane_of_best_fit(depth_norm)
@@ -149,12 +149,12 @@ print("", "Displaying results",
 while True:
     
     # Read window trackbars
-    invert_depth = invert_tbar.read() > 0
     histo_equalize = contrast_tbar.read() > 0
+    reverse_colors = reverse_tbar.read() > 0
     cmap_idx = cmap_tbar.read()
     plane_removal_pct = ramp_tbar.read()
-    thresh_min = mint_tbar.read() / 100.0
-    thresh_max = maxt_tbar.read() / 100.0
+    thresh_min = mint_tbar.read() / 1000.0
+    thresh_max = maxt_tbar.read() / 1000.0
     
     # Re-calculate depth image if plane removal changes
     removal_factor_changed = (plane_removal_pct != prev_plane_removal_pct)
@@ -171,7 +171,7 @@ while True:
     # Produce colored depth image for display
     depth_uint8 = np.uint8(np.round(255.0*depth_thresholded))
     if histo_equalize: depth_uint8 = cv2.equalizeHist(depth_uint8)
-    if invert_depth: depth_uint8 = 255 - depth_uint8
+    if reverse_colors: depth_uint8 = 255 - depth_uint8
     depth_color = dpt_imgproc.apply_colormap(depth_uint8, cmaps_list[cmap_idx])
     
     # Display original image along with colored depth result
