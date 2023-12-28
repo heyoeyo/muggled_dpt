@@ -10,7 +10,9 @@ While the focus of this implementation is on readability, there are also some pe
 
 ## Usage
 
-The purpose of this repo is not really to provide a usable tool/implementation of the DPT depth prediction models, instead the focus is on providing an easy to follow code base, to help understand how the model(s) are structured. The plan is to (eventually) include READMEs in each major folder detailing the different parts of the codebase.
+The purpose of this repo is not really to provide a usable tool/implementation of the DPT depth prediction models, instead the focus is on providing an easy to follow code base to help with understand how the model(s) are structured. The plan is to (eventually) include READMEs in each major folders detailing the different parts of the code base.
+
+To understand the model structure, consider starting with the implementation of the [DPT module](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/dpt_model.py), I'd recommended comparing this to the information in the [original preprint](https://arxiv.org/abs/2103.13413), particularly figure 1 in the paper. If you'd like to better understand how to make use of the model, check out the code of the [run_image.py](https://github.com/heyoeyo/muggled_dpt/blob/main/run_image.py) demo script.
 
 ## Getting started
 
@@ -77,6 +79,10 @@ The depth predictions are made _asynchrounously_, (i.e. only when the GPU is rea
 
 **Note:** The original DPT implementation is not designed for consistency across video frames, so the results can be very noisy looking. If you actually need video depth estimation, consider [Consistent Depth of Moving Objects in Video](https://dynamic-video-depth.github.io/) and the listed related works.
 
+
+## Note on depth results
+
+The results from the DPT model are technically the _multiplicative inverse depth_ (i.e. `1/depth`) rather than a direct depth map. This has two important consequences. First, the objects 'closest to the camera' will actually have the largest reported (depth) values, objects further in the distance will have values closer to zero. Secondly, the output from the model will appear to have compressed distances, with objects far away seemingly very close to foreground objects. If you intend to use the depth result as if it were a 3D model, it's better to invert the model output first, to avoid distortion due to the inverse scaling.
 
 # TODOs
 - Inevitable bugfixes

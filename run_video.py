@@ -116,9 +116,9 @@ cmaps_list = [cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, None]
 
 # Set up window with trackbar controls
 cv2.destroyAllWindows()
-window = DisplayWindow("Depth Result")
-invert_tbar = window.add_trackbar("Invert", 1)
+window = DisplayWindow("Inverse Depth Result")
 contrast_tbar = window.add_trackbar("High contrast", 1)
+reverse_tbar = window.add_trackbar("Reverse colors", 1)
 cmap_tbar = window.add_trackbar("Color map", len(cmaps_list) - 1)
 
 # Set up playback indicator, used to control video position
@@ -138,8 +138,8 @@ print("", "Displaying results",
 for frame in vreader:
     
     # Read window trackbars
-    invert_depth = invert_tbar.read() > 0
     histo_equalize = contrast_tbar.read() > 0
+    reverse_colors = reverse_tbar.read() > 0
     cmap_idx = cmap_tbar.read()
     
     # Only process frame data when the device is ready
@@ -164,7 +164,7 @@ for frame in vreader:
     
     # Produce colored depth image for display
     if histo_equalize: depth_uint8 = cv2.equalizeHist(depth_uint8)
-    if invert_depth: depth_uint8 = 255 - depth_uint8
+    if reverse_colors: depth_uint8 = 255 - depth_uint8
     depth_color = dpt_imgproc.apply_colormap(depth_uint8, cmaps_list[cmap_idx])
         
     # Display results
