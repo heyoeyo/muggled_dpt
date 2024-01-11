@@ -115,7 +115,7 @@ class RelativePositionEncoding(nn.Module):
     # .................................................................................................................
     
     @staticmethod
-    def _generate_relative_position_index(patch_grid_hw):
+    def _generate_relative_position_index(patch_grid_hw, device=None):
         
         '''
         Function which generates a patterned matrix of integers which are used as indices into
@@ -144,6 +144,7 @@ class RelativePositionEncoding(nn.Module):
         '''
         
         # For clarity
+        int_dtype = torch.int32
         grid_h, grid_w = patch_grid_hw
         num_tokens = grid_h * grid_w + 1
         output_hw = (num_tokens, num_tokens)
@@ -151,7 +152,9 @@ class RelativePositionEncoding(nn.Module):
         max_abs_w_idx = grid_w - 1
         
         # Generate counting patterns used to create indexing table
-        coords = torch.stack(torch.meshgrid([torch.arange(grid_h), torch.arange(grid_w)], indexing="ij"))
+        all_y_idxs = torch.arange(grid_h, dtype=int_dtype, device=device)
+        all_x_idxs = torch.arange(grid_w, dtype=int_dtype, device=device)
+        coords = torch.stack(torch.meshgrid([all_y_idxs, all_x_idxs], indexing="ij"))
         coords_flatten = torch.flatten(coords, 1)
         # coords_flatten has shape: 2xA, A = grid area = grid_h*grid_w
         # Example: on the left below is a 2x3 grid showing each (x,y) coordinate,
@@ -217,7 +220,7 @@ class RelativePositionEncoding(nn.Module):
         
         # Build final result, which uses the x/y coords sum to uniquely index all token-to-token entries,
         # and prepends the special cls entries to the first row & column
-        relative_position_index = torch.zeros(size=output_hw, dtype=torch.int64)
+        relative_position_index = torch.zeros(size=output_hw, dtype=int_dtype, device=device)
         relative_position_index[1:, 1:] = relative_coords.sum(-1)
         relative_position_index[0, 0:] = cls_to_token_index
         relative_position_index[0:, 0] = token_to_cls_index
@@ -294,11 +297,10 @@ class RelativePositionEncoding(nn.Module):
         
         # Create full table by combining upscaled table with cls entries of the original table
         new_relpos_bias_lut = torch.cat([new_token_lut, ref_cls_lut])
-        
         # Make final bias by indexing into bias table, using proper indexing input
         # -> idx shape: N x N
         # -> bias shape: (N * N) x Heads, N is number of tokens
-        relpos_idx = self._generate_relative_position_index(patch_grid_hw)
+        relpos_idx = self._generate_relative_position_index(patch_grid_hw, new_relpos_bias_lut.device)
         relpos_bias = new_relpos_bias_lut[relpos_idx.view(-1)]     # <- This step is extremely slow!
         
         # Reshape bias values to match attention tensor shape: Heads x N x N
