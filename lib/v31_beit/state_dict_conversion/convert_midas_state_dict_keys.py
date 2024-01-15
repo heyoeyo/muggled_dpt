@@ -31,6 +31,7 @@ def convert_midas_state_dict_keys(config_dict, midas_state_dict):
     num_heads = config_dict["num_heads"]
     
     # Allocate storage for state dict of each (new) model component
+    patch_embed_sd = {}
     imgenc_sd = {}
     reassemble_sd = {}
     fusion_sd = {}
@@ -45,6 +46,11 @@ def convert_midas_state_dict_keys(config_dict, midas_state_dict):
         # For convenience, get the last term in the layer name (usually 'weight' or 'bias')
         orig_key = str(orig_key)
         weight_or_bias = orig_key.split(".")[-1]
+        
+        new_key = _convert_patch_embed_keys(orig_key, weight_or_bias)
+        if found_key(new_key):
+            patch_embed_sd[new_key] = orig_data
+            continue
         
         new_key = _convert_imgenc_keys(orig_key, blocks_per_stage)
         if found_key(new_key):
@@ -68,6 +74,7 @@ def convert_midas_state_dict_keys(config_dict, midas_state_dict):
     
     # Bundle new state dict model components together for easier handling
     new_state_dict = {
+        "patch_embed": patch_embed_sd,
         "imgencoder": imgenc_sd,
         "reassemble": reassemble_sd,
         "fusion": fusion_sd,
@@ -79,6 +86,25 @@ def convert_midas_state_dict_keys(config_dict, midas_state_dict):
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Component functions
+
+# .....................................................................................................................
+
+def _convert_patch_embed_keys(key, weight_or_bias):
+    
+    '''
+    Handles conversion of layers that belong to the patch embedding component of the model
+    In the original model weights, these layers all begin with: "pretrained.model.patch_embed"
+    '''
+    
+    # Convert patch_embed
+    patch_embed_prefix = "pretrained.model.patch_embed"
+    if key.startswith(patch_embed_prefix):
+        new_key = "proj.{}".format(weight_or_bias)
+        return new_key
+    
+    return None
+
+# .....................................................................................................................
 
 def _convert_qv_bias_tensors(key, key_tensor, num_heads):
     
@@ -113,20 +139,12 @@ def _convert_imgenc_keys(key, blocks_per_stage):
     Converts keys associated with the image encoder component of the model
     Takes care of:
         - cls token
-        - patch embedding
         - transformer blocks (including relative positional encodings)
-        - Reshape q/v bias values, to be used additively
     '''
     
     # Convert cls token
     if key == "pretrained.model.cls_token":
         new_key = "cls_token"
-        return new_key
-    
-    # Convert patch_embed
-    patch_embed_prefix = "pretrained.model.patch_embed"
-    if key.startswith(patch_embed_prefix):
-        new_key = key.replace(patch_embed_prefix, "patch_embed")
         return new_key
     
     # Group pretrained.blocks (this is the bulk of the ViT model)

@@ -8,7 +8,6 @@
 import torch
 import torch.nn as nn
 
-from .components.patch_embed import PatchEmbed
 from .components.relative_positional_encoder import RelativePositionEncoding
 
 
@@ -36,7 +35,7 @@ class BEiTModel4Stage(nn.Module):
     # .................................................................................................................
     
     def __init__(self, features_per_token=1024, num_heads=16, num_layers=24,
-                 patch_size_px=16, base_patch_grid_hw = (32,32), enable_relpos_cache = False):
+                 base_patch_grid_hw = (32,32), enable_relpos_cache = False):
         
         # Inherit from parent
         super().__init__()
@@ -47,8 +46,7 @@ class BEiTModel4Stage(nn.Module):
         self.num_layers = num_layers
         self.enable_cache = enable_relpos_cache
         
-        # Set up input components, which convert image to 1D patch tokens + the readout token
-        self.patch_embed = PatchEmbed(features_per_token, patch_size_px)
+        # Set up classifier/global token (called 'readout' token in original paper)
         self.cls_token = nn.Parameter(torch.empty(1, 1, features_per_token))
 
         # Generate multiple transformer stages (layers of transformer blocks)
@@ -59,22 +57,19 @@ class BEiTModel4Stage(nn.Module):
     
     # .................................................................................................................
     
-    def forward(self, image_tensor_bchw):
+    def forward(self, patch_tokens, patch_grid_hw):
         
         '''
-        Main function of model. Takes in an image and returns tokens from 4 intermediate stage.
-        Also returns the patch embedding spatial size (height & width), needed for relative positional
-        encoding in later processing steps.
+        Main function of model.
+        Takes in image patch tokens and the image patch sizing (needed for positional encoding).
+        Returns tokens from 4 intermediate stages
         '''
-        
-        # Run patch embedding to convert image (2D) to patch tokens (1D)
-        tokens, patch_grid_hw = self.patch_embed(image_tensor_bchw)
         
         # Append the readout ('cls') token to image patch tokens, for all batches
         # -> Important, readout is assumed to be 0-th token for reassembly stages later on!
-        num_batch = tokens.shape[0]
+        num_batch = patch_tokens.shape[0]
         readout_token_per_batch = self.cls_token.expand(num_batch, -1, -1)
-        tokens = torch.cat((readout_token_per_batch, tokens), dim=1)
+        tokens = torch.cat((readout_token_per_batch, patch_tokens), dim=1)
         
         # Cache relative position encoding, if needed
         if self.enable_cache:
@@ -86,7 +81,7 @@ class BEiTModel4Stage(nn.Module):
         stage_3_tokens = self.stages[2](stage_2_tokens, patch_grid_hw)
         stage_4_tokens = self.stages[3](stage_3_tokens, patch_grid_hw)
         
-        return (stage_1_tokens, stage_2_tokens, stage_3_tokens, stage_4_tokens, patch_grid_hw)
+        return stage_1_tokens, stage_2_tokens, stage_3_tokens, stage_4_tokens
     
     # .................................................................................................................
     

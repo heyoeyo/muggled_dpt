@@ -15,12 +15,14 @@ from torch.nn.functional import interpolate as tensor_resize
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Classes
 
-class DPTImageProcessor:
+class DPTImagePrep:
     
     '''
     Image pre-/post-processor for MiDaS v3.1 BeiT DPT model.
     These models (BeiT-large-512, BeiT-base-384, etc.) support input images
-    of varying sizes, as long as the width & height are both divisible by the model patch size
+    of varying sizes, as long as the width & height are both divisible by the model patch size times 2
+    -> Factor of 2 is needed to allow downsampling (by factor of 2) of image patch grid, which is done
+       in the reassembly part of the model!
     '''
     
     # Hard-coded mean & standard deviation normalization values
@@ -29,9 +31,9 @@ class DPTImageProcessor:
     
     # .................................................................................................................
     
-    def __init__(self, base_size_px, scale_to_multiples = 32):
+    def __init__(self, base_size_px, patch_size_px = 16):
         self.base_size_px = base_size_px
-        self._to_multiples = int(scale_to_multiples)
+        self._to_multiples = int(2 * patch_size_px)
     
     # .................................................................................................................
     
@@ -151,8 +153,8 @@ class DPTImageProcessor:
     
     # .................................................................................................................
     
-    @staticmethod
-    def normalize_01(tensor_or_array):
+    @classmethod
+    def normalize_01(cls, tensor_or_array):
         
         '''
         Helper used to normalize depth prediction, to 0-to-1 range.
@@ -167,7 +169,7 @@ class DPTImageProcessor:
         except AttributeError: is_neginf = np.isinf(pred_min)
         if is_neginf:
             tensor_or_array[tensor_or_array == pred_min] = 0
-            return DPTImageProcessor.normalize_01(tensor_or_array)
+            return cls.normalize_01(tensor_or_array)
         
         # Handle positive infinities
         pred_max = tensor_or_array.max()
@@ -175,14 +177,14 @@ class DPTImageProcessor:
         except AttributeError: is_posinf = np.isinf(pred_max)
         if is_posinf:
             tensor_or_array[tensor_or_array == pred_max] = 0
-            return DPTImageProcessor.normalize_01(tensor_or_array)
+            return cls.normalize_01(tensor_or_array)
         
         return (tensor_or_array - pred_min) / (pred_max - pred_min)
     
     # .................................................................................................................
     
-    @staticmethod
-    def convert_to_uint8(depth_prediction_tensor):
+    @classmethod
+    def convert_to_uint8(cls, depth_prediction_tensor):
         
         '''
         Helper used to convert depth prediction into 0-255 uint8 range,
@@ -193,7 +195,7 @@ class DPTImageProcessor:
             depth_as_uint8_tensor
         '''
         
-        return (255.0 * DPTImageProcessor.normalize_01(depth_prediction_tensor)).byte()
+        return (255.0 * cls.normalize_01(depth_prediction_tensor)).byte()
     
     # .................................................................................................................
     
@@ -214,10 +216,3 @@ class DPTImageProcessor:
         return cv2.applyColorMap(image_uint8_1ch, opencv_colormap_code)
     
     # .................................................................................................................
-
-
-# ---------------------------------------------------------------------------------------------------------------------
-#%% Functions
-
-
-

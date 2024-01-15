@@ -26,12 +26,18 @@ class MuggledDPT(nn.Module):
     
     # .................................................................................................................
     
-    def __init__(self, image_encoder_4stage_model, reassemble_4stage_model, fusion_4stage_model, head_model):
+    def __init__(self,
+                 patch_embed_model,
+                 image_encoder_4stage_model,
+                 reassemble_4stage_model,
+                 fusion_4stage_model,
+                 head_model):
         
         # Inherit from parent
         super().__init__()
         
         # Store models for use in forward pass
+        self.patch_embed = patch_embed_model
         self.imgencoder = image_encoder_4stage_model
         self.reassemble = reassemble_4stage_model
         self.fusion = fusion_4stage_model
@@ -44,9 +50,22 @@ class MuggledDPT(nn.Module):
     
     def forward(self, image_rgb_normalized_bchw):
         
-        # Process input image with image encoder to get tokens/features from multiple stages
+        '''
+        Depth prediction function. Expects an image of shape BxCxHxW, with RGB ordering.
+        Pixel values should be between 0.0 and 1.0. The image dimensions (H & W) should be divisible
+        by twice the patch size (e.g. divisible by 32 for default settings).
+        Use the 'verify_input(...)' function to test inputs if needed.
+        
+        Returns single channel inverse-depth 'image' of shape: BxHxW
+        '''
+        
+        # Convert image (shape: BxCxHxW) to patch tokens (shape: BxN'xF)
+        # (the number of tokens is 1 less than transformer tokens, since a cls/readout token gets included!)
+        patch_tokens, patch_grid_hw = self.patch_embed(image_rgb_normalized_bchw)
+        
+        # Process tokens with transformer and retrieve results from multiple stages
         # (Each stage has the same shape: BxNxF -> B batches, N tokens, F features per token)
-        stage_1, stage_2, stage_3, stage_4, patch_grid_hw = self.imgencoder.forward(image_rgb_normalized_bchw)
+        stage_1, stage_2, stage_3, stage_4 = self.imgencoder.forward(patch_tokens, patch_grid_hw)
         
         # Re-assemble transformer tokens (shape: BxNxF) into image-like tensors (shape: BxFxHxW)
         # (Note each of the stages has a different width & height due to up-/down-scaling)
@@ -94,10 +113,12 @@ class MuggledDPT(nn.Module):
         assert ok_channels, "Bad image channels! Image should have 3 channels: RGB (got {})".format(C)
         
         # Check input image shape
-        ok_height = (H % 16 == 0)
-        ok_width = (W % 16 == 0)
+        # -> Needs to be divisble by 16 for patch embedding
+        # -> Patch grid size itself needs to be divisible by 2 for downscaling
+        ok_height = (H % 32 == 0)
+        ok_width = (W % 32 == 0)
         assert (ok_height and ok_width), \
-            "Bad width/height! Image must have height ({}) & width ({}) both divisible by 16".format(H, W)
+            "Bad width/height! Image must have height ({}) & width ({}) both divisible by 32".format(H, W)
         
         # Check matching device
         img_device = image_rgb_normalized_bchw.device
@@ -126,9 +147,3 @@ class MuggledDPT(nn.Module):
         return True
     
     # .................................................................................................................
-    
-
-
-# ---------------------------------------------------------------------------------------------------------------------
-#%% Functions
-

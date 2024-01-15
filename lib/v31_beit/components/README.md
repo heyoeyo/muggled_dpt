@@ -2,26 +2,6 @@
 
 This folder contains smaller sub-components of the BEiT DPT model.
 
-## Patch Embed
-
-The patch embedding module is responsible for 'dicing up' the input image into tokens for the image encoder transformer model. More specifically, RGB images are split into 3-channel `16x16` patches, with no overlap. Each patch is linearly projected so that it becomes an `Fx1` vector (where `F` is the number of features per token of the transformer model), and each of the patches (now vectors, aka tokens) is grouped into a single `NxF` tensor (where `N` is the number of patches/tokens).
-
-<p align="center">
-  <img src=".readme_assets/dice_explainer.webp">
-</p>
-
-It's worth noting that the dicing and projection steps are very elegantly handled using a single (strided, to avoid overlap) [convolution layer](https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html). Each step of the convolution takes one of the 16x16 RGB patches and converts it into a single number (via a [dot product](https://en.wikipedia.org/wiki/Dot_product)), so that a single convolution kernel applied to the whole image produces a grid of numbers matching the patch grid size. For example, for the 224x384 RGB image shown, one convolution kernel results in a 14x24 grid of numbers.
-
-<p align="center">
-  <img src=".readme_assets/conv_explainer.webp">
-</p>
-
-This is repeated with `F` convolution kernels to create `F` grids of numbers. Each grid of numbers can be thought of as being stacked on top of one another. Each column or stack of numbers corresponds to a single _token_. Since each stack corresponds to one of the image patches, the number of tokens matches the patch sizing (for the example shown, the patch sizing is 14x24, so there are 14*24 = 336 tokens). The example below shows the number of features per token (`F`) as only 32, but this varies with model size and is in the 500-1000 range in practice.
-
-<p align="center">
-  <img src=".readme_assets/conv_stack.webp">
-</p>
-
 ## Readout Projection
 
 In addition to processing the image patch tokens, the transformer model also includes an extra token (often called the 'cls' token or in this case the 'readout' token), which is commonly meant to encode some sort of global information about the data, since it doesn't correspond to an image patch. This can be useful in classification tasks, for example. While the DPT models aren't performing classification, the original authors found that merging the readout token into the image patch tokens provided a slight accuracy improvement over other approaches. The preprint (["Vision Transformers for Dense Prediction"](https://arxiv.org/abs/2103.13413)) contains an **Ablations** section which details their testing (see table 7). 
@@ -89,19 +69,19 @@ Note that the indexing matrix may seem incorrect since there are no +/- y offset
 
 ### Storage & Representation
 
-It's important to note that the lookup table is stored/learned for a specific value of `w` and `h` (i.e. patch grid sizing), which depends on the model. For example a grid sizing of 14x24 may be used, which corresponds to a 224x384px input image (see the patch embedding example above). The maximum x-offset in the table will be `w-1` (this is as far as way as one patch can be from another if there are `w` patches horizontally), and likewise the maximum y-offset is `h-1`. These offsets can also occur in the opposite direction (i.e. negative offsets), which means there is a total of `2(w-1)+1` unique x-offset values (the +1 is to account for the 0 offset), and `2(h-1)+1` unique y-offsets. So finally, we can say that the total number of unique (x,y) offset pairs is: 
+It's important to note that the lookup table is stored/learned for a specific value of `w` and `h` (i.e. patch grid sizing), which depends on the model. For example a grid sizing of 32x32 may be used, which corresponds to a 512x512px input image. The maximum x-offset in the table will be `w-1` (this is as far as way as one patch can be from another if there are `w` patches horizontally), and likewise the maximum y-offset is `h-1`. These offsets can also occur in the opposite direction (i.e. negative offsets), which means there is a total of `2(w-1)+1` unique x-offset values (the +1 is to account for the 0 offset), and `2(h-1)+1` unique y-offsets. So finally, we can say that the total number of unique (x,y) offset pairs is:
 $$\text{Number of (x,y) pairs } = (2(w-1)+1)(2(h-1)+1)$$
 $$= (2w - 1)(2h - 1)$$
 
-So the lookup table for a 14x24 sized patch grid will contain 1269 rows. In practice, the table (and index matrix) do not explicitly represent the (x,y) offset pairs, instead all of the indexing is handled using integers, as is standard practice when working with arrays/matrices. Note that the number of rows in the table is approximately `4N` and the table has `H` columns (`N` is the number of tokens, `H` is the number of transformer heads). This usually _significantly_ smaller than the `NxN` 2D bias matrix which is generated from the table, which is one reason to learn the lookup table instead of the bias directly.
+So the lookup table for a 32x32 sized patch grid will contain 3969 rows. In practice, the table (and index matrix) do not explicitly represent the (x,y) offset pairs, instead all of the indexing is handled using integers, as is standard practice when working with arrays/matrices.
 
 ### The Readout (cls) Token
 
-In addition to the image patch tokens, there is also a special 'readout' token which is processed by the transformer model. This token is therefore represented within the attention matrix of the model, and needs to be accounted for by the position encoding 'bias' matrix that gets added. However, the readout token does not have a spatial interpretation and is not part of the patch grid that the lookup table is built from. To handle this discrepancy, 3 additional entries are appended to the end of the lookup table (so that, for example, the 14x24 table ends up with 1272 entries), these represent the 'relative offset' of the `patch-to-readout` encoding, `readout-to-patch` encoding and `readout-to-readout` encoding. During the attention computation within the transformer model, the readout token is the 0th-indexed token, so it ends up affecting the 0th row and 0th column of the attention matrix. More specifically, the top row represents the `readout-to-patch` attention, the left-most column is the `patch-to-readout` attention and the top-left entry is the `readout-to-readout` attention. The indexing matrix needs to be modified to reference these special readout positional encodings, which is not shown in the simple example above, but can be seen in the source code.
+In addition to the image patch tokens, there is also a special 'readout' token which is processed by the transformer model. This token is therefore represented within the attention matrix of the model, and needs to be accounted for by the position encoding 'bias' matrix that gets added. However, the readout token does not have a spatial interpretation and is not part of the patch grid that the lookup table is built from. To handle this discrepancy, 3 additional entries are appended to the end of the lookup table (so that, for example, the 32x32 table ends up with 3972 entries), these represent the 'relative offset' of the `patch-to-readout` encoding, `readout-to-patch` encoding and `readout-to-readout` encoding. During the attention computation within the transformer model, the readout token is the 0th-indexed token, so it ends up affecting the 0th row and 0th column of the attention matrix. More specifically, the top row represents the `readout-to-patch` attention, the left-most column is the `patch-to-readout` attention and the top-left entry is the `readout-to-readout` attention. The indexing matrix needs to be modified to reference these special readout positional encodings, which is not shown in the simple example above, but can be seen in the source code.
 
 ### Scaling & Interpolation
 
-While the model learns and stores a lookup table for a fixed patch grid size and therefore a fixed input image size, the implementation supports scaling to larger image sizes as well as different aspect ratios. To handle a different patch size, the lookup table is first reshaped into the original patch size (e.g. 14x24), then scaled to the new desired size (e.g. 3x40), and then turned back into a single row (per head) lookup table. This can be thought of as introducing new intermediate non-integer offset tuples like (+1.5, -0.5), which are interpolated from the original learned values. Note that the indexing table must also be scaled up to properly index the newly sized lookup table.
+While the model learns and stores a lookup table for a fixed patch grid size and therefore a fixed input image size, the implementation supports scaling to larger image sizes as well as different aspect ratios. To handle a different patch size, the lookup table is first reshaped into the original patch size (e.g. 32x32), then scaled to the new desired size (e.g. 36x48), and then turned back into a single row (per head) lookup table. This can be thought of as introducing new intermediate non-integer offset tuples like (+1.5, -0.5), which are interpolated from the original learned values. Note that the indexing table must also be scaled up to properly index the newly sized lookup table.
 
 ### Advantages/Disadvantages
 The benefit of this lookup table + indexing approach is that it enforces the uniqueness of each encoding. For example, the offset (+1, 0) will be re-used by many token pairs, but exists only once in the lookup table as a learnable parameter of the model. However, this adds complexity to an already complicated system and so simplifying the implementation of positional encodings seems like one obvious area for future improvements for this model architecture.
