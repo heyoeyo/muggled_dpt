@@ -7,7 +7,7 @@
 
 import torch
 
-from .dpt_model import MuggledDPT
+from .dpt_model import DPTModel
 
 from .v31_beit.components.image_prep import DPTImagePrep
 from .v31_beit.patch_embed import PatchEmbed
@@ -69,7 +69,7 @@ def make_beit_dpt(features_per_token, num_heads, num_blocks, reassembly_features
     head_model = MonocularDepthHead(fusion_channels)
     
     # Build combined DPT model!
-    dpt_model = MuggledDPT(patch_embed_model, imgenc_model, reassembly_model, fusion_model, head_model)
+    dpt_model = DPTModel(patch_embed_model, imgenc_model, reassembly_model, fusion_model, head_model)
     
     return dpt_model
 

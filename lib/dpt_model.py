@@ -12,7 +12,7 @@ import torch.nn as nn
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Classes
 
-class MuggledDPT(nn.Module):
+class DPTModel(nn.Module):
     
     '''
     Simplified implementation of a 'Dense Prediction Transformer' model, described in:
