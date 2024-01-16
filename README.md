@@ -34,10 +34,13 @@ Then install the requirements (or you could install them manually from the [requ
 ```bash
 pip install -r requirements.txt
 ```
-Note that if you're using Windows and want to use an Nvidia GPU or if you're on Linux and don't have a GPU, you'll need to use a slightly different install command to make use of your hardware setup. You can use the [Pytorch installer guide](https://pytorch.org/get-started/locally/) to figure out the command to use. For example, for GPU use on Windows it may look something like:
+If you're using Windows and want to use an Nvidia GPU or if you're on Linux and don't have a GPU, you'll need to use a slightly different install command to make use of your hardware setup. You can use the [Pytorch installer guide](https://pytorch.org/get-started/locally/) to figure out the command to use. For example, for GPU use on Windows it may look something like:
 ```bash
+pip3 uninstall torch  # <-- Do this first if you already installed from the requirements.txt file
 pip3 install torch --index-url https://download.pytorch.org/whl/cu121
 ```
+
+**Note**: With the Windows install as-is, you may get an error about a `missing c10.dll` dependency. Downloading and installing this [mysterious .exe file](https://aka.ms/vs/16/release/vc_redist.x64.exe) seems to fix the problem.
 
 ### Model Weights
 

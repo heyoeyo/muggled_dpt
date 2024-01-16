@@ -27,7 +27,7 @@ class DeviceChecker:
             self._stream = torch.cuda.current_stream(device_str)
             self._have_stream = True
             
-        except (AttributeError, ValueError):
+        except (AssertionError, AttributeError, ValueError):
             # Assume this happens when cuda isn't available, so use dummy that is always ready
             pass
     
