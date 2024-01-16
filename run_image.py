@@ -15,7 +15,7 @@ import torch
 from lib.make_beit_dpt import make_beit_dpt_from_midas_v31, make_opencv_image_prepost_processor
 
 from lib.demo_helpers.misc import get_default_device_string, make_device_config, print_config_feedback
-from lib.demo_helpers.loading import ask_for_path, ask_for_model_path
+from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from lib.demo_helpers.visualization import DisplayWindow
 from lib.demo_helpers.plane_fit import estimate_plane_of_best_fit
 from lib.demo_helpers.saving import save_image
@@ -66,8 +66,8 @@ use_cache = False
 device_config_dict = make_device_config(device_str, use_float32)
 
 # Get pathing to resources, if not provided already
-image_path = ask_for_path(arg_image_path, "image")
-model_path = ask_for_model_path(__file__, arg_model_path)
+image_path = ask_for_path_if_missing(arg_image_path, "image")
+model_path = ask_for_model_path_if_missing(__file__, arg_model_path)
 
 
 # ---------------------------------------------------------------------------------------------------------------------

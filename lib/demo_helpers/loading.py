@@ -14,10 +14,22 @@ import os.path as osp
 
 # .....................................................................................................................
 
-def ask_for_path(path = None, file_type = "file"):
+def clean_path_str(path = None):
+    
+    '''
+    Helper used to interpret user-given pathes correctly
+    Import for Windows, since 'copy path' on file explorer includes quotations!
+    '''
+    
+    path_str = "" if path is None else str(path)
+    return osp.expanduser(path_str).strip().replace('"', "").replace("'", "")
+
+# .....................................................................................................................
+
+def ask_for_path_if_missing(path = None, file_type = "file"):
     
     # Bail if we get a good path
-    path = "" if path is None else path
+    path = clean_path_str(path)
     if osp.exists(path):
         return path
     
@@ -25,12 +37,9 @@ def ask_for_path(path = None, file_type = "file"):
     try:
         while True:
             print("", flush=True)
-            path = input("Enter path to {}: ".format(file_type))
+            path = clean_path_str(input("Enter path to {}: ".format(file_type)))
             if osp.exists(path): break
-            print("",
-                  "",
-                  "Invalid {} path!".format(file_type),
-                  sep="\n", flush=True)
+            print("", "", "Invalid {} path!".format(file_type), sep="\n", flush=True)
         
     except KeyboardInterrupt:
         quit()
@@ -39,28 +48,26 @@ def ask_for_path(path = None, file_type = "file"):
 
 # .....................................................................................................................
 
-def ask_for_model_path(file_dunder, model_path = None):
+def ask_for_model_path_if_missing(file_dunder, model_path = None):
     
-    # Get all existing model weight files (in weights folder)
+    # Bail if we get a good path
+    path_was_given = model_path is not None
+    model_path = clean_path_str(model_path)
+    if osp.exists(model_path):
+        return model_path
+    
+    # If we're given a path that doesn't exist, use it to match to similarly named model files
+    # -> This allows the user to select models using substrings, e.g. 'large_5' to match to 'beit_large_512'
     model_file_paths = get_model_weights_paths(file_dunder)
+    if path_was_given:
+        model_file_paths = list(filter(lambda p: model_path in osp.basename(p), model_file_paths))
     
-    # If we're given a model path but it doesn't exist, check if it matches a name in model weights folder
-    if model_path is not None and not osp.exists(model_path):
-        for each_path in model_file_paths:
-            each_model_name = osp.basename(each_path)
-            contains_name = model_path in each_model_name
-            if contains_name:
-                model_path = each_path
-                break
-            pass
-        pass
-    
-    # If a model path isn't given, try to auto-load the smallest model from the weights folder
-    if model_path is None and len(model_file_paths) > 0:
+    # If we have model files remaining (after filtering), pick the one with the smallest file size to auto-load
+    if len(model_file_paths) > 0:
         model_path = min(model_file_paths, key=osp.getsize)
     
     # If we still don't have a model path, ask the user
-    model_path = ask_for_path(model_path, "model weights")
+    model_path = ask_for_path_if_missing(model_path, "model weights")
     
     return model_path
 
