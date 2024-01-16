@@ -25,8 +25,13 @@ from .v31_beit.state_dict_conversion.convert_midas_state_dict_keys import conver
 
 def make_beit_dpt_from_midas_v31(path_to_midas_v31_weights, enable_relpos_cache = False):
     
+    # Load model weights with fail check in case weights are in cuda format and user doesn't have cuda
+    try:
+        midas_state_dict = torch.load(path_to_midas_v31_weights)
+    except RuntimeError:
+        midas_state_dict = torch.load(path_to_midas_v31_weights, map_location="cpu")
+        
     # Get model config from weights (i.e. beit_large_512 vs beit_base_384) & convert to new keys/state dict
-    midas_state_dict = torch.load(path_to_midas_v31_weights)
     config_dict = get_model_config_from_midas_state_dict(midas_state_dict)
     new_state_dict = convert_midas_state_dict_keys(config_dict, midas_state_dict)
     
