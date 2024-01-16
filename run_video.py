@@ -133,7 +133,7 @@ print("", "Displaying results",
       "  - Click & drag to move playback",
       "  - Press esc or q to quit",
       "  - Reported inference time is affected by display rate!",
-      "      -> Use flag: '-t 1' for better results",
+      "      -> Use flags: '-sync -t 1' for better results",
       "", sep="\n", flush=True)
 for frame in vreader:
     

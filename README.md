@@ -75,7 +75,7 @@ As with the image script, you can add `--help` to the end of this command to see
 
 You will be asked to provide a path to a video file & model weights, if you don't provide these through flags. Then, a window will pop-up with various sliders, similar to the image script. Additionally, there is a playback indicator which you can control (i.e. jump around the video) by clicking and dragging your mouse on any part of the displayed image.
 
-The depth predictions are made _asynchrounously_, (i.e. only when the GPU is ready to do more processing). This leads to smoother playback/interaction, but the depth results may appear choppy. You can adjust the display timing using the `--display_ms` flag, larger values will give slower playback but less choppy depth predictions. Note that the display time affects the reported inference speed, so if you want to get accurate timing numbers, set the value to `1`.
+The depth predictions are made _asynchrounously_, (i.e. only when the GPU is ready to do more processing). This leads to smoother playback/interaction, but the depth results may appear choppy. You can adjust the display timing using the `--display_ms` flag, larger values will give slower playback but less choppy depth predictions. Note that the display time affects the reported inference speed, so if you want to get accurate timing numbers, set the value to `1`. You can also add the `-sync` flag to force synchrounous playback.
 
 **Note:** The original DPT implementation is not designed for consistency across video frames, so the results can be very noisy looking. If you actually need video depth estimation, consider [Consistent Depth of Moving Objects in Video](https://dynamic-video-depth.github.io/) and the listed related works.
 
