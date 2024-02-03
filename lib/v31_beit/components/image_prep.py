@@ -154,37 +154,39 @@ class DPTImagePrep:
     # .................................................................................................................
     
     @classmethod
-    def normalize_01(cls, tensor_or_array):
+    def normalize_01(cls, data, check_inf = True):
         
         '''
         Helper used to normalize depth prediction, to 0-to-1 range.
-        Also handles infinity values (can result when using lower float precision)
+        Can also handle infinity values (which can result when using lower float precision),
+        however this seems to 'block' on cuda (i.e. it force a synchronization)
+        
         Returns:
             depth_normalized_0_to_1
         '''
         
         # Handle negative infinities (for pytorch or numpy input)
-        pred_min = tensor_or_array.min()
-        try:                   is_neginf = pred_min.isinf()
-        except AttributeError: is_neginf = np.isinf(pred_min)
-        if is_neginf:
-            tensor_or_array[tensor_or_array == pred_min] = 0
-            return cls.normalize_01(tensor_or_array)
+        pred_min = data.min()
+        if check_inf:
+            func_to_use = torch.isinf if isinstance(data, torch.Tensor) else np.isposinf
+            if func_to_use(pred_min):
+                data[data == pred_min] = 0
+                return cls.normalize_01(data, check_inf)
         
         # Handle positive infinities
-        pred_max = tensor_or_array.max()
-        try:                   is_posinf = pred_max.isinf()
-        except AttributeError: is_posinf = np.isinf(pred_max)
-        if is_posinf:
-            tensor_or_array[tensor_or_array == pred_max] = 0
-            return cls.normalize_01(tensor_or_array)
+        pred_max = data.max()
+        if check_inf:
+            func_to_use = torch.isinf if isinstance(data, torch.Tensor) else np.isposinf
+            if func_to_use(pred_max):
+                data[data == pred_max] = 0
+                return cls.normalize_01(data, check_inf)
         
-        return (tensor_or_array - pred_min) / (pred_max - pred_min)
+        return (data - pred_min) / (pred_max - pred_min)
     
     # .................................................................................................................
     
     @classmethod
-    def convert_to_uint8(cls, depth_prediction_tensor):
+    def convert_to_uint8(cls, depth_prediction_tensor, non_blocking = False):
         
         '''
         Helper used to convert depth prediction into 0-255 uint8 range,
@@ -195,7 +197,7 @@ class DPTImagePrep:
             depth_as_uint8_tensor
         '''
         
-        return (255.0 * cls.normalize_01(depth_prediction_tensor)).byte()
+        return (255.0 * cls.normalize_01(depth_prediction_tensor, check_inf = not non_blocking)).byte()
     
     # .................................................................................................................
     

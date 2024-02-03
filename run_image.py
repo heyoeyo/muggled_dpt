@@ -69,6 +69,10 @@ device_config_dict = make_device_config(device_str, use_float32)
 image_path = ask_for_path_if_missing(arg_image_path, "image")
 model_path = ask_for_model_path_if_missing(__file__, arg_model_path)
 
+# Libraries make poor use of threading? Reduces cpu usage with no loss of speed
+cv2.setNumThreads(1)
+torch.set_num_threads(1)
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Load resources

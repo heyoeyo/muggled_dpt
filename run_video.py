@@ -8,6 +8,7 @@
 import argparse
 from time import perf_counter
 
+import torch
 import cv2
 import numpy as np
 
@@ -27,7 +28,7 @@ default_device = get_default_device_string()
 default_video_path = None
 default_model_path = None
 default_display_size = 800
-default_display_ms = None
+default_display_ms = 1
 default_base_size = None
 
 # Define script arguments
@@ -38,8 +39,8 @@ parser.add_argument("-m", "--model_path", default=default_model_path,
                     help="Path to DPT model weights")
 parser.add_argument("-s", "--display_size", default=default_display_size, type=int,
                     help="Controls size of displayed results (default: {})".format(default_display_size))
-parser.add_argument("-t", "--display_ms", default=default_display_ms,
-                    help="Time to display each frame. Set to 1 to run as fast as possible. Will use video FPS otherwise")
+parser.add_argument("-t", "--display_ms", default=default_display_ms, type=int,
+                    help="Time to display each frame. Set to 0 to use the video FPS")
 parser.add_argument("-sync", "--force_sync", default=False, action="store_true",
                     help="Force synchronous GPU usage, so that every frame of video is processed")
 parser.add_argument("-d", "--device", default=default_device, type=str,
@@ -61,7 +62,7 @@ arg_video_path = args.video_path
 arg_model_path = args.model_path
 display_size_px = args.display_size
 display_ms_override = args.display_ms
-use_async = not args.force_sync
+force_sync = args.force_sync
 device_str = args.device
 use_cache = not args.no_cache
 use_float32 = args.use_float32
@@ -77,6 +78,10 @@ device_stream = DeviceChecker(device_str)
 # Get pathing to resources, if not provided already
 video_path = ask_for_path_if_missing(arg_video_path, "video") if not use_webcam else 0
 model_path = ask_for_model_path_if_missing(__file__, arg_model_path)
+
+# Libraries make poor use of threading? Reduces cpu usage with no loss of speed
+cv2.setNumThreads(1)
+torch.set_num_threads(1)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -98,7 +103,7 @@ dpt_model.eval()
 
 # Set up access to video
 vreader = LoopingVideoReader(video_path, display_size_px)
-video_frame_delay_ms = vreader.get_frame_delay_ms() if (display_ms_override is None) else max(1, int(display_ms_override))
+video_frame_delay_ms = vreader.get_frame_delay_ms() if (display_ms_override == 0) else max(1, int(display_ms_override))
 disp_wh = vreader.disp_wh
 
 # Get example frame so we can provide sizing info feedback
@@ -119,6 +124,7 @@ window = DisplayWindow("Inverse Depth Result")
 contrast_tbar = window.add_trackbar("High contrast", 1)
 reverse_tbar = window.add_trackbar("Reverse colors", 1)
 cmap_tbar = window.add_trackbar("Color map", len(cmaps_list) - 1)
+sync_tbar = window.add_trackbar("Force Sync", 1, int(force_sync))
 
 # Set up playback indicator, used to control video position
 playback_ctrl = PlaybackIndicatorCB(vreader)
@@ -131,8 +137,6 @@ t_ready_last, time_ms_model = perf_counter(), 0
 print("", "Displaying results",
       "  - Click & drag to move playback",
       "  - Press esc or q to quit",
-      "  - Reported inference time is affected by display rate!",
-      "      -> Use flags: '-sync -t 1' for better results",
       "", sep="\n", flush=True)
 for frame in vreader:
     
@@ -140,6 +144,7 @@ for frame in vreader:
     histo_equalize = contrast_tbar.read() > 0
     reverse_colors = reverse_tbar.read() > 0
     cmap_idx = cmap_tbar.read()
+    use_async = sync_tbar.read() == 0
     
     # Only process frame data when the device is ready
     if device_stream.is_ready():
@@ -158,7 +163,7 @@ for frame in vreader:
         
         # Prepare depth data for display
         scaled_prediction = dpt_imgproc.scale_prediction(prediction, disp_wh)
-        depth_tensor = dpt_imgproc.convert_to_uint8(scaled_prediction).to("cpu", non_blocking = use_async)
+        depth_tensor = dpt_imgproc.convert_to_uint8(scaled_prediction, use_async).to("cpu", non_blocking = use_async)
         depth_uint8 = depth_tensor.squeeze().numpy()
     
     # Produce colored depth image for display
