@@ -66,7 +66,7 @@ class ReassembleBlock(nn.Module):
     
     '''
     According to paper, reassembly consists of 3 steps + 1 undocumented (?) step:
-        1. Read
+        1. Read (handle readout token)
         2. Concatenate (into image-like tensor)
         3. Project + Resample
         4. Project channels to match fusion input sizing (not documented in paper!)
@@ -94,10 +94,10 @@ class ReassembleBlock(nn.Module):
     
     # .................................................................................................................
     
-    def forward(self, image_patch_tokens_bnc, patch_grid_hw):
+    def forward(self, tokens_bnc, patch_grid_hw):
         
         # Get rid of 'readout' token (Convert BxNxC -> Bx(N-1)xC)
-        output = self.readout_proj(image_patch_tokens_bnc)
+        output = self.readout_proj(tokens_bnc)
         
         # Convert to image-like tensor, along with projection (change channel count) + re-sampling spatially
         output = self.token_to_2d(output, patch_grid_hw)
@@ -152,7 +152,7 @@ class TokensTo2DLayer(nn.Module):
     
     # .................................................................................................................
     
-    def forward(self, image_patch_tokens_bnc, patch_grid_hw):
+    def forward(self, tokens_bnc, patch_grid_hw):
         
         '''
         Assume input tokens have shape:
@@ -167,7 +167,7 @@ class TokensTo2DLayer(nn.Module):
         '''
         
         # Transpose to get tokens in last dimension: BxDxN
-        output = torch.transpose(image_patch_tokens_bnc, 1, 2)
+        output = torch.transpose(tokens_bnc, 1, 2)
         
         # Expand last (token) dimension into HxW to get image-like (patch-grid) shape: BxDxN -> BxDxHxW
         output = torch.unflatten(output, 2, patch_grid_hw)
