@@ -12,7 +12,7 @@ import cv2
 import numpy as np
 import torch
 
-from lib.make_beit_dpt import make_beit_dpt_from_midas_v31, make_opencv_image_prepost_processor
+from lib.make_dpt import make_dpt_from_midas_v31
 
 from lib.demo_helpers.misc import get_default_device_string, make_device_config, print_config_feedback
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
@@ -73,10 +73,9 @@ model_path = ask_for_model_path_if_missing(__file__, arg_model_path)
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Load resources
 
-# Load model
+# Load model & image pre-processor
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
-model_config_dict, dpt_model = make_beit_dpt_from_midas_v31(model_path, use_cache)
-dpt_imgproc = make_opencv_image_prepost_processor(model_config_dict)
+model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_midas_v31(model_path, enable_relpos_cache = use_cache)
 if override_base_size:
     dpt_imgproc.override_base_size(model_base_size)
 

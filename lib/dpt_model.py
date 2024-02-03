@@ -52,30 +52,30 @@ class DPTModel(nn.Module):
         
         '''
         Depth prediction function. Expects an image of shape BxCxHxW, with RGB ordering.
-        Pixel values should be between 0.0 and 1.0. The image dimensions (H & W) should be divisible
-        by twice the patch size (e.g. divisible by 32 for default settings).
+        Pixel values should be between 0.0 and 1.0.
         Use the 'verify_input(...)' function to test inputs if needed.
         
         Returns single channel inverse-depth 'image' of shape: BxHxW
         '''
         
-        # Convert image (shape: BxCxHxW) to patch tokens (shape: BxN'xF)
-        # (the number of tokens is 1 less than transformer tokens, since a cls/readout token gets included!)
+        # Convert image (shape: BxCxHxW) to patch tokens (shape: BxNixF)
+        # -> The number of tokens, Ni based on the number of image patches, which varies with image size
         patch_tokens, patch_grid_hw = self.patch_embed(image_rgb_normalized_bchw)
         
         # Process tokens with transformer and retrieve results from multiple stages
-        # (Each stage has the same shape: BxNxF -> B batches, N tokens, F features per token)
+        # -> Each stage has shape: BxNsxF -> B batches, Ns tokens, F features per token
+        # -> Depending on implementation (e.g. swinv2), Ns may be different for each stage!
         stage_1, stage_2, stage_3, stage_4 = self.imgencoder.forward(patch_tokens, patch_grid_hw)
         
-        # Re-assemble transformer tokens (shape: BxNxF) into image-like tensors (shape: BxFxHxW)
-        # (Note each of the stages has a different width & height due to up-/down-scaling)
-        upx4, upx2, noscale, downx2 = self.reassemble(stage_1, stage_2, stage_3, stage_4, patch_grid_hw)
+        # Convert transformer tokens into image-like tensors (shape: BxFxHrxWr)
+        # -> Note each of the reassembly outputs have different height (Hr) and width (Wr)
+        reasm_1, reasm_2, reasm_3, reasm_4 = self.reassemble(stage_1, stage_2, stage_3, stage_4, patch_grid_hw)
         
         # Generate a single (fused) feature map from multi-stage input & project into (1ch) depth image output
-        fused_feature_map = self.fusion.forward(upx4, upx2, noscale, downx2)
+        fused_feature_map = self.fusion.forward(reasm_1, reasm_2, reasm_3, reasm_4)
         depth_image = self.head.forward(fused_feature_map)
         
-        # Remove unitary channel dimension (shape goes from: Bx1xHxW -> BxHxW)
+        # Remove unitary channel dimension for output (shape goes from: Bx1xHxW -> BxHxW)
         return depth_image.squeeze(dim = 1)
     
     # .................................................................................................................

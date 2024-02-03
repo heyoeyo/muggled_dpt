@@ -5,8 +5,6 @@
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
-import torch
-
 from .dpt_model import DPTModel
 
 from .v31_beit.components.image_prep import DPTImagePrep
@@ -23,25 +21,28 @@ from .v31_beit.state_dict_conversion.convert_midas_state_dict_keys import conver
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Functions
 
-def make_beit_dpt_from_midas_v31(path_to_midas_v31_weights, enable_relpos_cache = False):
+# .....................................................................................................................
+
+def make_beit_dpt_from_midas_v31_state_dict(midas_v31_state_dict, enable_relpos_cache = False, strict_load = True):
     
-    # Load model weights with fail check in case weights are in cuda format and user doesn't have cuda
-    try:
-        midas_state_dict = torch.load(path_to_midas_v31_weights)
-    except RuntimeError:
-        midas_state_dict = torch.load(path_to_midas_v31_weights, map_location="cpu")
-        
+    # Feedback on using non-strict loading
+    if not strict_load:
+        print("",
+              "WARNING:",
+              "  Loading model weights without 'strict' mode enabled!",
+              "  Some weights may be missing or unused!", sep = "\n", flush = True)
+    
     # Get model config from weights (i.e. beit_large_512 vs beit_base_384) & convert to new keys/state dict
-    config_dict = get_model_config_from_midas_state_dict(midas_state_dict)
-    new_state_dict = convert_midas_state_dict_keys(config_dict, midas_state_dict)
+    config_dict = get_model_config_from_midas_state_dict(midas_v31_state_dict)
+    new_state_dict = convert_midas_state_dict_keys(config_dict, midas_v31_state_dict)
     
     # Load model & set model weights
     dpt_model = make_beit_dpt(**config_dict, enable_relpos_cache = enable_relpos_cache)
-    dpt_model.patch_embed.load_state_dict(new_state_dict["patch_embed"])
-    dpt_model.imgencoder.load_state_dict(new_state_dict["imgencoder"])
-    dpt_model.reassemble.load_state_dict(new_state_dict["reassemble"])
-    dpt_model.fusion.load_state_dict(new_state_dict["fusion"])
-    dpt_model.head.load_state_dict(new_state_dict["head"])
+    dpt_model.patch_embed.load_state_dict(new_state_dict["patch_embed"], strict_load)
+    dpt_model.imgencoder.load_state_dict(new_state_dict["imgencoder"], strict_load)
+    dpt_model.reassemble.load_state_dict(new_state_dict["reassemble"], strict_load)
+    dpt_model.fusion.load_state_dict(new_state_dict["fusion"], strict_load)
+    dpt_model.head.load_state_dict(new_state_dict["head"], strict_load)
     
     return config_dict, dpt_model
 

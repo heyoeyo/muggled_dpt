@@ -56,10 +56,10 @@ class FusionModel(nn.Module):
     def forward(self, upx4_featuremap, upx2_featuremap, noscale_featuremap, downx2_featuremap):
         
         # Fuse all results together
-        fuse_3 = self.blocks[3](downx2_featuremap)           # downx2 (top-most)
-        fuse_2 = self.blocks[2](noscale_featuremap, fuse_3)  # noscale
-        fuse_1 = self.blocks[1](upx2_featuremap, fuse_2)     # upx2
-        fuse_0 = self.blocks[0](upx4_featuremap, fuse_1)     # upx4
+        fuse_3 = self.blocks[3](downx2_featuremap)
+        fuse_2 = self.blocks[2](noscale_featuremap, fuse_3)
+        fuse_1 = self.blocks[1](upx2_featuremap, fuse_2)
+        fuse_0 = self.blocks[0](upx4_featuremap, fuse_1)
         
         return fuse_0
     

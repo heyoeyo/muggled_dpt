@@ -127,3 +127,22 @@ def find_match_by_lut(input_str, from_to_lut):
 
 # .....................................................................................................................
 
+def get_suffix_terms(input_str, num_suffix_terms = 1):
+    
+    '''
+    Takes an input string and extras the last 'n' period-separated terms.
+    For example, given the string:
+        input_str = "layer.0.block.1.fc1.weight"
+    
+    Then: get_suffix_terms(input_str, 3) would return the last 3 terms:
+        "1.fc1.weight"
+    
+    Note that this also works with negative 'n', in which case it returns
+    all but the 'n' first terms. For example: get_suffix_terms(input_str, -2)
+    will remove the first 2 terms:
+        "block.1.fc1.weight"
+    '''
+    
+    return ".".join(input_str.split(".")[-num_suffix_terms:])
+
+# .....................................................................................................................

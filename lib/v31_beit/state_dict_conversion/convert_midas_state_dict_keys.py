@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
-from .key_regex import get_nth_integer, has_prefix, replace_prefix, find_match_by_lut
+from .key_regex import get_nth_integer, has_prefix, replace_prefix, find_match_by_lut, get_suffix_terms
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -45,7 +45,7 @@ def convert_midas_state_dict_keys(config_dict, midas_state_dict):
         
         # For convenience, get the last term in the layer name (usually 'weight' or 'bias')
         orig_key = str(orig_key)
-        weight_or_bias = orig_key.split(".")[-1]
+        weight_or_bias = get_suffix_terms(orig_key, 1)
         
         new_key = _convert_patch_embed_keys(orig_key, weight_or_bias)
         if found_key(new_key):
