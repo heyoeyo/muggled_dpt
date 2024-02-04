@@ -32,15 +32,10 @@ class ReassembleModel(nn.Module):
     
     # .................................................................................................................
     
-    def __init__(self, num_vit_features, hidden_channels_list, num_output_channels):
+    def __init__(self, hidden_channels_list, num_output_channels):
         
         # Inherit from parent
         super().__init__()
-        
-        # Make sure we get exactly 4 vit feature counts (one from each stage)
-        ok_vit_counts = len(num_vit_features) == 4
-        assert ok_vit_counts, "Expecting 4 ViT channel counts, got: {}".format(num_vit_features)
-        vit_1, vit_2, vit_3, vit_4 = num_vit_features
         
         # Make sure we get exactly 4 hidden channel counts
         ok_hidden_counts = len(hidden_channels_list) == 4
@@ -48,10 +43,10 @@ class ReassembleModel(nn.Module):
         hidden_1, hidden_2, hidden_3, hidden_4 = hidden_channels_list
         
         # Build reassembly blocks for each transformer output stage
-        self.spatial_noscale = ReassembleBlock(vit_1, hidden_1, num_output_channels, downscale_factor=1)
-        self.spatial_downx2 = ReassembleBlock(vit_2, hidden_2, num_output_channels, downscale_factor=2)
-        self.spatial_downx4 = ReassembleBlock(vit_3, hidden_3, num_output_channels, downscale_factor=4)
-        self.spatial_downx8 = ReassembleBlock(vit_4, hidden_4, num_output_channels, downscale_factor=8)
+        self.spatial_noscale = ReassembleBlock(hidden_1, num_output_channels, downscale_factor=1)
+        self.spatial_downx2 = ReassembleBlock(hidden_2, num_output_channels, downscale_factor=2)
+        self.spatial_downx4 = ReassembleBlock(hidden_3, num_output_channels, downscale_factor=4)
+        self.spatial_downx8 = ReassembleBlock(hidden_4, num_output_channels, downscale_factor=8)
     
     # .................................................................................................................
     
@@ -94,7 +89,7 @@ class ReassembleBlock(nn.Module):
     
     # .................................................................................................................
     
-    def __init__(self, num_vit_features, num_hidden_channels, num_output_channels, downscale_factor = 1):
+    def __init__(self, num_hidden_channels, num_output_channels, downscale_factor = 1):
         
         # Inherit from parent
         super().__init__()

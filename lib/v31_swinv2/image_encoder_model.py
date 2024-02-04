@@ -8,7 +8,7 @@
 import torch.nn as nn
 
 from .components.misc_helpers import MLP2Layers
-from .components.patch_merge import PatchMerge
+from .components.patch_merge import PatchMerge, NoMerge
 from .components.windowed_attention import WindowAttentionWithRelPos
 
 
@@ -35,10 +35,9 @@ class SwinV2Model4Stages(nn.Module):
     # .................................................................................................................
     
     def __init__(self,
-                 features_per_patch = 96,
+                 features_per_stage = (96, 192, 384, 768),
                  heads_per_stage = (3,6,12,24),
                  layers_per_stage = (2,2,6,2),
-                 patch_grid_hw = (64,64),
                  window_size_hw = (16,16),
                  pretrained_window_size_per_stage = (16,16,16,8),
                  enable_cache = True,
@@ -47,36 +46,20 @@ class SwinV2Model4Stages(nn.Module):
         # Inherit from parent
         super().__init__()
         
-        # Store config
-        self.features_per_patch = features_per_patch
-        self.window_size_hw = window_size_hw
-        self.patch_grid_hw = patch_grid_hw
-
-        # Figure out the patch sizing at each layer (changes due to match merging)
-        num_stages = len(heads_per_stage)
-        base_grid_h, base_grid_w = patch_grid_hw
-        base_patch_shape_hwc = (base_grid_h, base_grid_w, features_per_patch)
-        patch_shape_hwc_per_merge = PatchMerge.compute_patch_shape_per_merge(base_patch_shape_hwc, num_stages)
-        
         # Build stages
         stage_iter = zip(layers_per_stage, heads_per_stage, pretrained_window_size_per_stage)
         self.stages = nn.ModuleList()
         for stage_idx, (num_layers, num_heads, pretrained_window_size) in enumerate(stage_iter):
             
-            # Determine the input (to patch merge) and output (from merge) patch shape for each stage
-            num_prev_merges = max(stage_idx - 1, 0)
-            in_shape_hwc = patch_shape_hwc_per_merge[num_prev_merges]
-            out_shape_hwc = patch_shape_hwc_per_merge[stage_idx]
-            
-            # We don't need patch merging on the first-most block
-            need_patch_merge = stage_idx > 0
-            patch_merge_module = PatchMerge(in_shape_hwc) if need_patch_merge else None
+            # Compute per-stage configuration
+            num_in_features = features_per_stage[max(0, stage_idx - 1)]
+            num_out_features = features_per_stage[stage_idx]
             
             swin_stage = SwinStage(
-                patch_merge_module = patch_merge_module,
                 num_layers = num_layers,
                 num_heads = num_heads,
-                patch_shape_hwc = out_shape_hwc,
+                features_per_token_in = num_in_features,
+                features_per_token_out = num_out_features,
                 window_size_hw = window_size_hw,
                 pretrained_window_size = pretrained_window_size,
                 enable_cache = enable_cache,
@@ -88,7 +71,7 @@ class SwinV2Model4Stages(nn.Module):
     
     # .................................................................................................................
     
-    def forward(self, patch_tokens, patch_grid_hw = None):
+    def forward(self, patch_tokens, patch_grid_hw):
         
         '''
         Main function of model.
@@ -97,10 +80,10 @@ class SwinV2Model4Stages(nn.Module):
         '''
         
         # Perform 4-stage processing, grabbing intermediate results
-        stage_1_tokens = self.stages[0](patch_tokens)
-        stage_2_tokens = self.stages[1](stage_1_tokens)
-        stage_3_tokens = self.stages[2](stage_2_tokens)
-        stage_4_tokens = self.stages[3](stage_3_tokens)
+        stage_1_tokens, stage_1_grid_hw = self.stages[0](patch_tokens, patch_grid_hw)
+        stage_2_tokens, stage_2_grid_hw = self.stages[1](stage_1_tokens, stage_1_grid_hw)
+        stage_3_tokens, stage_3_grid_hw = self.stages[2](stage_2_tokens, stage_2_grid_hw)
+        stage_4_tokens, _ = self.stages[3](stage_3_tokens, stage_3_grid_hw)
         
         return stage_1_tokens, stage_2_tokens, stage_3_tokens, stage_4_tokens
     
@@ -110,7 +93,7 @@ class SwinV2Model4Stages(nn.Module):
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Model components
 
-class SwinStage(nn.Sequential):
+class SwinStage(nn.Module):
     
     '''
     Simplified implementation of a single stage within the SwinV2 transformer model.
@@ -128,24 +111,27 @@ class SwinStage(nn.Sequential):
     
     # .................................................................................................................
     
-    def __init__(self, patch_merge_module, num_layers, num_heads, patch_shape_hwc, window_size_hw,
+    def __init__(self, num_layers, num_heads, features_per_token_in, features_per_token_out, window_size_hw,
                  pretrained_window_size=None, enable_cache = True):
         
+        # Inherit from parent
+        super().__init__()
+        
         # Inclue pre-merge step, if needed
-        block_list = []
-        if patch_merge_module is not None:
-            block_list.append(patch_merge_module)
+        need_merge = features_per_token_in != features_per_token_out
+        self.patch_merge = PatchMerge(features_per_token_in, features_per_token_out) if need_merge else NoMerge()
         
         # Bundle shared block arguments for clarity
         shared_attn_kwargs = {
             "num_heads": num_heads,
-            "patch_shape_hwc": patch_shape_hwc,
+            "features_per_token": features_per_token_out,
             "window_size_hw": window_size_hw,
             "pretrained_window_size": pretrained_window_size,
             "enable_cache": enable_cache,
         }
         
         # Build window/shifted-window transformer blocks
+        block_list = []
         num_block_pairs = num_layers // 2
         for i in range(num_block_pairs):
             
@@ -157,8 +143,18 @@ class SwinStage(nn.Sequential):
             block2 = SwinTransformerBlock(**shared_attn_kwargs, is_shift_block=True)
             block_list.append(block2)
         
-        # Set up block sequence, from parent class
-        super().__init__(*block_list)
+        # Store swin blocks
+        self.blocks = nn.ModuleList(block_list)
+    
+    # .................................................................................................................
+    
+    def forward(self, tokens, patch_grid_hw):
+        
+        tokens, out_grid_hw = self.patch_merge(tokens, patch_grid_hw)
+        for block in self.blocks:
+            tokens = block(tokens, out_grid_hw)
+        
+        return tokens, out_grid_hw
     
     # .................................................................................................................
 
@@ -182,15 +178,14 @@ class SwinTransformerBlock(nn.Module):
     
     # .................................................................................................................
     
-    def __init__(self, num_heads, patch_shape_hwc, window_size_hw, pretrained_window_size,
+    def __init__(self, num_heads, features_per_token, window_size_hw, pretrained_window_size,
                  is_shift_block = False, enable_cache = True, mlp_ratio = 4):
         
         # Inherit from parent
         super().__init__()
         
         # Setup sub-layers
-        _, _, features_per_token = patch_shape_hwc
-        self.attn = WindowAttentionWithRelPos(num_heads, patch_shape_hwc, window_size_hw, 
+        self.attn = WindowAttentionWithRelPos(num_heads, features_per_token, window_size_hw, 
                                               pretrained_window_size, is_shift_block, enable_cache)
         self.norm1 = nn.LayerNorm(features_per_token)
         self.mlp = MLP2Layers(features_per_token, mlp_ratio)
@@ -198,10 +193,10 @@ class SwinTransformerBlock(nn.Module):
     
     # .................................................................................................................
     
-    def forward(self, tokens):
+    def forward(self, tokens, patch_grid_hw):
         
         # Calculate (post-norm) attention with residual connection
-        attn_tokens = self.attn(tokens)
+        attn_tokens = self.attn(tokens, patch_grid_hw)
         attn_tokens = self.norm1(attn_tokens)
         attn_tokens = tokens + attn_tokens
         

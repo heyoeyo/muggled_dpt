@@ -166,18 +166,11 @@ def _convert_imgenc_keys(key, layers_per_stage):
         # Replace layer/block indexing with stage & sequence indexing
         # ex: 'pretrained.model.layers.0.blocks.0.attn.logit_scale' -> 'stages.0.0.attn.attn.logit_scale'
         stage_idx = get_nth_integer(key, 0)
-        seq_idx = get_nth_integer(key, 1)
-        
-        # Account for indexing offset due to patch merging layer at the start of the sequence
-        # -> The first-most stage does not include a patch merge, so doesn't need the +1 offset
-        has_patch_merge = (stage_idx > 0)
-        if has_patch_merge:
-            seq_idx += 1
-        
+        block_idx = get_nth_integer(key, 1)
         
         # Replace prefix to match new model format
         # ex: 'pretrained.model.layers.0.blocks.0' -> 'stages.0.0'
-        new_prefix = "stages.{}.{}".format(stage_idx, seq_idx)
+        new_prefix = "stages.{}.blocks.{}".format(stage_idx, block_idx)
         new_key = replace_prefix(key, block_prefix, new_prefix)
         
         # Update cpb_mlp layer naming ('attn.cpb_mlp.0.weight' -> 'attn.relpos_enc.bias_mlp.0.weight')
@@ -194,14 +187,13 @@ def _convert_imgenc_keys(key, layers_per_stage):
         return new_key
     
     # Handle patch merging layers
+    # ex: 'pretrained.model.layers.0.downsample.reduction.weight' -> 'stages.1.patch_merge.reduction.weight'
     patch_merge_prefix = "pretrained.model.layers.#.downsample"
     if has_prefix(key, patch_merge_prefix):
         
         stage_idx = get_nth_integer(key, 0) + 1
-        seq_idx = 0
-        
         last_2_suffix = get_suffix_terms(key, 2)
-        new_key = "stages.{}.{}.{}".format(stage_idx, seq_idx, last_2_suffix)
+        new_key = "stages.{}.patch_merge.{}".format(stage_idx, last_2_suffix)
         
         return new_key
     

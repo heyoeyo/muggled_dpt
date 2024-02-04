@@ -19,25 +19,17 @@ class WindowAttentionWithRelPos(nn.Module):
     
     # .................................................................................................................
     
-    def __init__(self, num_heads, patch_shape_hwc, window_size_hw,
+    def __init__(self, num_heads, features_per_token, window_size_hw,
                  pretrained_window_size=None, is_shift_block = False, enable_cache = True):
         
         # Inherit from parent
         super().__init__()
         
-        # Make sure we use corrected window sizing & shifting!
-        needs_shift, shift_hw, window_size_hw = \
-            adjust_window_and_shift_sizes(patch_shape_hwc, window_size_hw, is_shift_block)
-        
         # Store config
-        _, _, features_per_token = patch_shape_hwc
-        self.patch_shape_hwc = patch_shape_hwc
-        self.features_per_token = features_per_token
-        self.window_size_hw = window_size_hw
         self.num_heads = num_heads
         
         # Set up pre-/post-windowing functionality
-        self.windowing = Windowing(patch_shape_hwc, window_size_hw, shift_hw)
+        self.windowing = Windowing(window_size_hw, is_shift_block)
         
         # Set up query/key/value weights & bias parameters
         # Note: bias is set up separate from weights, because there is no k-bias!
@@ -56,19 +48,22 @@ class WindowAttentionWithRelPos(nn.Module):
     
     # .................................................................................................................
     
-    def forward(self, tokens):
+    def forward(self, tokens, patch_grid_hw):
         
         # For convenience
         B, N, C = tokens.shape
-        H, W, _ = self.patch_shape_hwc
+        H, W, = patch_grid_hw
         
         # Convert to image-like representation
         img_tokens = tokens.view(B, H, W, C)
+        orig_img_shape_bhwc = img_tokens.shape
+        
+        window_size_hw = self.windowing.resize(patch_grid_hw)
         
         # Apply windowing on image tokens before processing
-        window_tokens = self.windowing.partition(img_tokens, self.window_size_hw)
-        window_tokens = self.attention_on_windows(window_tokens, B, self.window_size_hw)
-        img_tokens = self.windowing.reverse(window_tokens, B, self.window_size_hw, self.patch_shape_hwc)
+        window_tokens, num_win_xy = self.windowing.partition(img_tokens, window_size_hw)
+        window_tokens = self.attention_on_windows(window_tokens, B, window_size_hw)
+        img_tokens = self.windowing.reverse(window_tokens, window_size_hw, num_win_xy, orig_img_shape_bhwc)
         
         # Convert back to token-like representation (from image-like)
         tokens = img_tokens.view(B, N, C)
@@ -136,26 +131,28 @@ class Windowing(nn.Module):
     
     # .................................................................................................................
     
-    def __init__(self, patch_shape_hwc, window_size_hw, shift_hw):
+    def __init__(self, window_size_hw, is_shift_block = False):
         
         # Inherit from parent
         super().__init__()
         
-        # Store shifting parameters
-        shift_h, shift_w = shift_hw
-        self._need_shift = (shift_h > 0) or (shift_w > 0)
-        self.shift_hw = (-shift_h, -shift_w)
-        self.reverse_shift_hw = (shift_h, shift_w)
+        # Store config
+        self.target_window_size_hw = window_size_hw
+        self.is_shift_block = is_shift_block
         
-        # Store windowing parameters
-        self.patch_shape_hwc = patch_shape_hwc
-        self.window_size_hw = window_size_hw
-        self.window_area = int(window_size_hw[0] * window_size_hw[1])
+        # Set up buffers for holding mask & device/dtype information
+        self.register_buffer("attn_mask", None, persistent=False)
+        self.register_buffer("device_tensor", torch.tensor(0.0), persistent=False)
         
-        # Create & store mask used on attention tensor, if needed
-        mask = make_shift_mask(patch_shape_hwc, window_size_hw, shift_hw)
-        self.register_buffer("mask", mask, persistent=False)
-    
+        # Allocate storage for windowing/shifting settings
+        # -> These depend on patch sizing, which we don't assume in advance!
+        self._need_shift = False
+        self._grid_h, self._grid_w = (0, 0)
+        self._actual_window_size_hw = (0,0)
+        self._window_area = 0
+        self.shift_hw = (0, 0)
+        self.reverse_shift_hw = (0, 0)
+
     # .................................................................................................................
     
     def add_mask(self, attention_tensor, num_batches):
@@ -163,8 +160,8 @@ class Windowing(nn.Module):
         ''' Applies shift mask (if needed) to account for shifted-windowing '''
         
         # Apply masking to account for shifted-windows, if needed
-        if self.mask is not None:
-            attention_tensor += self.mask.repeat(num_batches, 1, 1, 1)
+        if self._need_shift:
+            attention_tensor += self.attn_mask.repeat(num_batches, 1, 1, 1)
         
         return attention_tensor
     
@@ -186,14 +183,14 @@ class Windowing(nn.Module):
             image_tokens_bhwc = torch.roll(image_tokens_bhwc, shifts=self.shift_hw, dims=(1, 2))
         
         # Convert image-like tokens into window token (tiles) of the image
-        window_tokens = window_partition(image_tokens_bhwc, window_size_hw)
+        window_tokens, num_win_xy = image_to_windows(image_tokens_bhwc, window_size_hw)
         window_tokens = window_tokens.view(-1, window_area, C)
         
-        return window_tokens
+        return window_tokens, num_win_xy
     
     # .................................................................................................................
     
-    def reverse(self, window_tokens, num_batches, window_size_hw, patch_shape_hwc):
+    def reverse(self, window_tokens, window_size_hw, num_windows_xy, orig_image_shape_bhwc):
         
         '''
         Function responsible for taking window tokens and re-arranging them
@@ -201,18 +198,50 @@ class Windowing(nn.Module):
         '''
         
         # For convenience
-        C = self.patch_shape_hwc[-1]
+        B, H, W, C = orig_image_shape_bhwc
         win_h, win_w = window_size_hw
         
         # Merge windows back into image-like tokens (i.e. undo partitioning step)
-        image_tokens_bhwc = window_tokens.view(-1, win_h, win_w, C)
-        image_tokens_bhwc = window_reverse(image_tokens_bhwc, window_size_hw, patch_shape_hwc, num_batches)
+        window_tokens = window_tokens.view(-1, win_h, win_w, C)
+        image_tokens_bhwc = windows_to_image(window_tokens, window_size_hw, num_windows_xy, orig_image_shape_bhwc)
         
         # Undo prior shifting, if needed
         if self._need_shift:
             image_tokens_bhwc = torch.roll(image_tokens_bhwc, shifts=self.reverse_shift_hw, dims=(1, 2))
         
         return image_tokens_bhwc
+    
+    # .................................................................................................................
+    
+    def resize(self, patch_grid_hw):
+        
+        grid_h, grid_w = patch_grid_hw
+        need_sizing_update = (grid_h != self._grid_h) or (grid_w != self._grid_w)
+        if need_sizing_update:
+        
+            # Get appropriate window/shift sizing for given patch grid size
+            window_size_hw, shift_hw = adjust_window_and_shift_sizes(patch_grid_hw, self.target_window_size_hw)
+            
+            # Update shifting
+            (shift_h, shift_w) = shift_hw
+            is_shifting = (shift_h > 0) or (shift_w > 0)
+            self.shift_hw = (-shift_h, -shift_w)
+            self.reverse_shift_hw = (shift_h, shift_w)
+            self._need_shift = is_shifting and self.is_shift_block
+            
+            # Re-build mask, if we have new shifting/patch sizing
+            if self._need_shift:
+                device = self.device_tensor.device
+                dtype = self.device_tensor.dtype
+                self.attn_mask = make_shift_mask(patch_grid_hw, window_size_hw, shift_hw, device, dtype)
+            
+            # Record new window & grid sizing for future checks
+            self._actual_window_size_hw = window_size_hw
+            self._window_area = window_size_hw[0] * window_size_hw[1]
+            self._grid_h = grid_h
+            self._grid_w = grid_w
+        
+        return self._actual_window_size_hw
     
     # .................................................................................................................
 
@@ -222,7 +251,7 @@ class Windowing(nn.Module):
 
 # .....................................................................................................................
 
-def window_partition(image_like_bhwc, window_size_hw):
+def image_to_windows(image_like_bhwc, window_size_hw):
     
     """
     Function which reshapes a given image-like tensor, of shape: B x H x W x C
@@ -250,15 +279,16 @@ def window_partition(image_like_bhwc, window_size_hw):
     num_win_y = H // win_h
     num_win_x = W // win_w
     NB = num_win_y * num_win_x * B
+    num_win_xy = (num_win_x, num_win_y)
     
     image_like_bhwc = image_like_bhwc.view(B, num_win_y, win_h, num_win_x, win_w, C)
     windows = image_like_bhwc.permute(0, 1, 3, 2, 4, 5).contiguous().view(NB, win_h, win_w, C)
     
-    return windows
+    return windows, num_win_xy
 
 # .....................................................................................................................
 
-def window_reverse(window_tokens, window_size_hw, patch_shape_hwc, num_batches):
+def windows_to_image(window_tokens, window_size_hw, num_windows_yx, orig_image_shape_bhwc):
     
     """
     Function which reverses the effect of window partitioning. Takes in window tokens,
@@ -274,22 +304,23 @@ def window_reverse(window_tokens, window_size_hw, patch_shape_hwc, num_batches):
            HxWxC is original image shape
     """
     
-    H, W, C = patch_shape_hwc
+    B, H, W, C = orig_image_shape_bhwc
     win_h, win_w = window_size_hw
+    num_win_x, num_win_y = num_windows_yx
     
     # Figure out how many window tiles fit in the image along x/y directions
     # (Note: win_w/_h correspond to how many 'pixels' are in the windows, not the number of windows)
-    num_win_y = H // win_h
-    num_win_x = W // win_w
+    # num_win_y = H // win_h
+    # num_win_x = W // win_w
     
-    image_like_bhwc = window_tokens.view(num_batches, num_win_y, num_win_x, win_h, win_w, C)
-    image_like_bhwc = image_like_bhwc.permute(0, 1, 3, 2, 4, 5).contiguous().view(num_batches, H, W, C)
+    image_like_bhwc = window_tokens.view(B, num_win_y, num_win_x, win_h, win_w, -1)
+    image_like_bhwc = image_like_bhwc.permute(0, 1, 3, 2, 4, 5).contiguous().view(B, H, W, C)
     
     return image_like_bhwc
 
 # .....................................................................................................................
 
-def adjust_window_and_shift_sizes(patch_shape_hwc, target_window_size_hw, needs_shift = True):
+def adjust_window_and_shift_sizes(patch_grid_hw, target_window_size_hw, needs_shift = True):
     
     '''
     Function which determines the correct window and shift sizing (if any) to use
@@ -302,7 +333,7 @@ def adjust_window_and_shift_sizes(patch_shape_hwc, target_window_size_hw, needs_
     '''
     
     # For convenience
-    patch_h, patch_w, _ = patch_shape_hwc
+    patch_h, patch_w = patch_grid_hw
     targ_h, targ_w = target_window_size_hw
     
     # Downsize the window sizing if it's bigger than the patch grid
@@ -321,22 +352,19 @@ def adjust_window_and_shift_sizes(patch_shape_hwc, target_window_size_hw, needs_
         win_w = min(w_divisors, key=lambda div: abs(patch_w - div))
     
     # Shift half the window size if we have a big enough patch grid, otherwise don't shift at all
-    shift_h, shift_w = 0, 0
-    if needs_shift:
-        targ_shift_h, targ_shift_w = win_h // 2, win_w // 2
-        shift_h = 0 if patch_h <= win_h else targ_shift_h
-        shift_w = 0 if patch_w <= win_w else targ_shift_w
+    targ_shift_h, targ_shift_w = win_h // 2, win_w // 2
+    shift_h = 0 if patch_h <= win_h else targ_shift_h
+    shift_w = 0 if patch_w <= win_w else targ_shift_w
     
     # Bundle outputs
-    is_shifting = (shift_h > 0) or (shift_w > 0)
     shift_hw = (shift_h, shift_w)
     win_hw = (win_h, win_w)
     
-    return is_shifting, shift_hw, win_hw
+    return win_hw, shift_hw
 
 # .....................................................................................................................
 
-def make_shift_mask(patch_shape_hwc, window_size_hw, shift_hw):
+def make_shift_mask(patch_grid_hw, window_size_hw, shift_hw, device = None, dtype = None):
     
     '''
     Function used to generate a mask applied to shifted-window attention results.
@@ -351,7 +379,7 @@ def make_shift_mask(patch_shape_hwc, window_size_hw, shift_hw):
     '''
     
     # For convenience
-    img_h, img_w, _ = patch_shape_hwc
+    img_h, img_w = patch_grid_hw
     win_h, win_w = window_size_hw
     shift_h, shift_w = shift_hw
     window_area = win_h * win_w
@@ -362,7 +390,7 @@ def make_shift_mask(patch_shape_hwc, window_size_hw, shift_hw):
         return None
     
     # calculate attention mask for SW-MSA
-    img_mask = torch.zeros((1, img_h, img_w, 1))
+    img_mask = torch.zeros((1, img_h, img_w, 1), device = device, dtype = dtype)
     cnt = 0
     h_slices = [slice(0, -win_h), slice(-win_h, -shift_h), slice(-shift_h, None)]
     w_slices = [slice(0, -win_w), slice(-win_w, -shift_w), slice(-shift_w, None)]
@@ -371,7 +399,7 @@ def make_shift_mask(patch_shape_hwc, window_size_hw, shift_hw):
             img_mask[:, h_slice, w_slice, :] = cnt
             cnt += 1
     
-    mask_windows = window_partition(img_mask, window_size_hw)  # nW, window_size, window_size, 1
+    mask_windows, _ = image_to_windows(img_mask, window_size_hw)  # nW, window_size, window_size, 1
     mask_windows = mask_windows.view(-1, window_area)
     attn_mask = mask_windows.unsqueeze(1) - mask_windows.unsqueeze(2)
     attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(attn_mask == 0, float(0.0))

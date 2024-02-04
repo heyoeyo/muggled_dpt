@@ -5,7 +5,6 @@
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
-import torch
 from math import sqrt
 
 from .key_regex import get_nth_integer, has_prefix
@@ -18,27 +17,18 @@ from collections import defaultdict
 
 def get_model_config_from_midas_state_dict(state_dict):
     
-    fpt = get_features_per_patch(state_dict)
-    print("FEATURES PER PATCH", fpt)
-    hps = get_transformer_heads_per_stage(state_dict)
-    print("HEADS PER STAGE", hps)
-    lps = get_transformer_layers_per_stage(state_dict)
-    print("LAYERS PER STAGE", lps)
-    base = get_base_patch_grid_size(state_dict)
-    print("BASE PATCH GRID", base)
+    # Figure out window sizing separate, since pretrained size depends on it
     window_size_wh = get_transformer_window_size_hw(state_dict)
-    print("WINDOW SIZE HW", window_size_wh)
-    ptw = get_pretrained_window_sizes(window_size_wh)
-    print("PRETRAINED WINDOW SIZE PER STAGE", ptw)
+    pretrained_window_sizes_per_stage = get_pretrained_window_sizes(window_size_wh)
     
     # Get model config from state dict
     config_dict = {
-        "features_per_patch": get_features_per_patch(state_dict),
+        "features_per_stage": get_features_per_stage(state_dict),
         "heads_per_stage": get_transformer_heads_per_stage(state_dict),
         "layers_per_stage": get_transformer_layers_per_stage(state_dict),
         "base_patch_grid_hw": get_base_patch_grid_size(state_dict),
         "window_size_hw": window_size_wh,
-        "pretrained_window_sizes_per_stage": ptw,
+        "pretrained_window_sizes_per_stage": pretrained_window_sizes_per_stage,
         "reassembly_features_list": get_reassembly_channel_sizes(state_dict),
         "fusion_channels": get_num_fusion_channels(state_dict),
         "patch_size_px": get_patch_size_px(state_dict),
@@ -240,12 +230,13 @@ def get_num_fusion_channels(state_dict):
 
 # .....................................................................................................................
 
-def get_features_per_patch(state_dict):
+def get_features_per_stage(state_dict):
     
     '''
     The state dict is expected to contain weights for the patch embedding layer.
     This is a convolutional layer responsible for 'chopping up the image' into image patch tokens.
-    The number of output channels from this convolution layer determines the number of features per token.
+    The number of output channels from this convolution layer determines the number of features per patch,
+    which is then doubled for every stage (in the reference swinv2 model files).
     '''
     
     # Make sure there is a patch embedding key in the given state dict
@@ -257,9 +248,13 @@ def get_features_per_patch(state_dict):
     # -> F is num features per token in transformer
     # -> 3 is expected channel count of input RGB images
     # -> P is patch size in pixels
-    features_per_token, _, _, _ = state_dict[patch_embed_key].shape
+    features_per_patch, _, _, _ = state_dict[patch_embed_key].shape
     
-    return int(features_per_token)
+    # Original models double the number of features per stage after the patch embedding
+    # (we could look for this in state dict, but will just hard-code it for simplicity here)
+    features_per_stage = [int(features_per_patch) * (2**i) for i in range(4)]
+    
+    return features_per_stage
 
 # .....................................................................................................................
 

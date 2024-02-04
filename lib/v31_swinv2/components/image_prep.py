@@ -19,8 +19,10 @@ class DPTImagePrep:
     
     '''
     Image pre-/post-processor for MiDaS v3.1 SwinV2 DPT model.
-    These models do not support input images of varying sizes,
-    they must be square matching the model size (e.g. 256x256 or 384x384)
+    These models (SwinV2-tiny-256, SwinV2-large-384, etc.) support input images
+    of varying sizes, as long as the width & height are both divisible by the model patch size times 4
+    -> Factor of 4 is needed to allow for halving of the image patch grid, as a result
+       of the patch merging operations
     '''
     
     # Hard-coded mean & standard deviation normalization values
@@ -29,9 +31,9 @@ class DPTImagePrep:
     
     # .................................................................................................................
     
-    def __init__(self, base_size_px, patch_size_px = 16):
+    def __init__(self, base_size_px, patch_size_px = 4):
         self.base_size_px = base_size_px
-        self._to_multiples = int(2 * patch_size_px)
+        self._to_multiples = int(4 * patch_size_px)
     
     # .................................................................................................................
     
@@ -57,13 +59,10 @@ class DPTImagePrep:
         
         # Scale image to size acceptable by the dpt model
         image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-        # if force_square:
-        #     scaled_img = self.scale_to_square_side_length(image_rgb, self.base_size_px)
-        # else:
-        #     scaled_img = self.scale_to_min_side_length(image_rgb, self.base_size_px, self._to_multiples)
-        
-        # SwinV2 always requires a square input
-        scaled_img = self.scale_to_square_side_length(image_rgb, self.base_size_px)
+        if force_square:
+            scaled_img = self.scale_to_square_side_length(image_rgb, self.base_size_px)
+        else:
+            scaled_img = self.scale_to_min_side_length(image_rgb, self.base_size_px, self._to_multiples)
         
         # Normalize image values, between -1 and +1 and switch dimension ordering: HxWxC -> CxHxW
         img_norm = (np.float32(scaled_img / 255.0) - self._image_rgb_mean) / self._image_rgb_std
@@ -78,16 +77,11 @@ class DPTImagePrep:
         
         '''
         Function used to alter the preprocessor base sizing. This causes the model
-        to run at a lower/higher resolution (by scaling up position encodings).
+        to run at a lower/higher resolution
         Mostly for experimentation, usually makes things worse
         '''
         
-        print("",
-              "WARNING:",
-              "  SwinV2 models do not support changing the processing size!",
-              "  New size ({}px) will be ignored...".format(override_size_px),
-              sep = "\n")
-        
+        self.base_size_px = round(override_size_px / self._to_multiples) * self._to_multiples
         return self.base_size_px
 
     # .................................................................................................................
@@ -174,7 +168,7 @@ class DPTImagePrep:
         # Handle negative infinities (for pytorch or numpy input)
         pred_min = data.min()
         if check_inf:
-            func_to_use = torch.isneginf if isinstance(data, torch.Tensor) else np.isposinf
+            func_to_use = torch.isneginf if isinstance(data, torch.Tensor) else np.isneginf
             if func_to_use(pred_min):
                 data[data == pred_min] = 0
                 return cls.normalize_01(data, check_inf)
@@ -182,7 +176,7 @@ class DPTImagePrep:
         # Handle positive infinities
         pred_max = data.max()
         if check_inf:
-            func_to_use = torch.isneginf if isinstance(data, torch.Tensor) else np.isposinf
+            func_to_use = torch.isposinf if isinstance(data, torch.Tensor) else np.isposinf
             if func_to_use(pred_max):
                 data[data == pred_max] = 0
                 return cls.normalize_01(data, check_inf)
