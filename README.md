@@ -10,9 +10,11 @@ While the focus of this implementation is on readability, there are also some pe
 
 ## Usage
 
-The purpose of this repo is not really to provide a usable tool/implementation of the DPT depth prediction models, instead the focus is on providing an easy to follow code base to help with understand how the model(s) are structured. The plan is to (eventually) include READMEs in each major folders detailing the different parts of the code base.
+The purpose of this repo is to provide an easy to follow code base to understand how the DPT & image encoder models are structured. The code of the [run_image.py](https://github.com/heyoeyo/muggled_dpt/blob/main/run_image.py) demo script is a good starting point if you'd like to better understand how to make use of the DPT models.
 
-To understand the model structure, consider starting with the implementation of the [DPT module](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/dpt_model.py), I'd recommended comparing this to the information in the [original preprint](https://arxiv.org/abs/2103.13413), particularly figure 1 in the paper. If you'd like to better understand how to make use of the model, check out the code of the [run_image.py](https://github.com/heyoeyo/muggled_dpt/blob/main/run_image.py) demo script.
+To understand the model structure, consider checking out the implementation of the [DPT module](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/dpt_model.py), I'd recommended comparing this to the information in the [original preprint](https://arxiv.org/abs/2103.13413), particularly figure 1 in the paper.
+
+**Note:** These scripts are meant to be run directly on your own computer, not a remote/cloud system!
 
 ## Getting started
 
@@ -46,7 +48,9 @@ pip3 install torch --index-url https://download.pytorch.org/whl/cu121
 
 Before you can run a model, you'll need to download it's weights. This isn't handled automagically by this repo, so you'll have to do it manually (we're trying to avoid the use of magic after all!).
 
-This repo only supports [MiDaS v3.1](https://arxiv.org/abs/2307.14460) at the moment, and only [BEiT](https://arxiv.org/abs/2106.08254) models. You can download the model weights from the original [isl-org/MiDaS releases page](https://github.com/isl-org/MiDaS/releases/tag/v3_1). Specifically, the [BEiT-base-384](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_beit_base_384.pt) is a good lightweight option, while [BEiT-large-512](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_beit_large_512.pt) is a slower, more accurate model.
+This repo only supports [MiDaS v3.1](https://arxiv.org/abs/2307.14460) at the moment, specifically [BEiT](https://arxiv.org/abs/2106.08254) or [SwinV2](https://arxiv.org/abs/2111.09883) models. You can download the model weights from the original [isl-org/MiDaS releases page](https://github.com/isl-org/MiDaS/releases/tag/v3_1). Look for models with either `beit` or `swin2` in their file names.
+
+The [SwinV2-tiny-256](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_swin2_tiny_256.pt) model is a good lightweight option. [BEiT-large-512](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_beit_large_512.pt) is the slowest, and potentially most accurate model. Overall, I find [SwinV2-base-384](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_swin2_base_384.pt) to be the most well balanced.
 
 After downloading the models, you can place them in the [model_weights](https://github.com/heyoeyo/muggled_dpt/tree/main/model_weights) folder of this repo or otherwise just keep note of the file path to the model, since you'll need to provide this when running the demo scripts. If you place the file in the `model_weights` folder, then the smallest model will auto-load when running the scripts!
 
@@ -78,7 +82,7 @@ As with the image script, you can add `--help` to the end of this command to see
 
 You will be asked to provide a path to a video file & model weights, if you don't provide these through flags. Then, a window will pop-up with various sliders, similar to the image script. Additionally, there is a playback indicator which you can control (i.e. jump around the video) by clicking and dragging your mouse on any part of the displayed image.
 
-The depth predictions are made _asynchrounously_, (i.e. only when the GPU is ready to do more processing). This leads to smoother playback/interaction, but the depth results may appear choppy. You can adjust the display timing using the `--display_ms` flag, larger values will give slower playback but less choppy depth predictions. Note that the display time affects the reported inference speed, so if you want to get accurate timing numbers, set the value to `1`. You can also add the `-sync` flag to force synchrounous playback.
+The depth predictions are made _asynchrounously_, (i.e. only when the GPU is ready to do more processing). This leads to faster playback/interaction, but the depth results may appear choppy. You can force synchrounous playback using the `-sync` flag.
 
 **Note:** The original DPT implementation is not designed for consistency across video frames, so the results can be very noisy looking. If you actually need video depth estimation, consider [Consistent Depth of Moving Objects in Video](https://dynamic-video-depth.github.io/) and the listed related works.
 
@@ -90,5 +94,4 @@ The results from the DPT model are technically the _multiplicative inverse depth
 # TODOs
 - Inevitable bugfixes
 - Lots more documentation!
-- Add support for swinv2 models
-- Potentially add support for v3 DPT models
+- Add support for [Depth-Anything](https://github.com/LiheYoung/Depth-Anything) models
