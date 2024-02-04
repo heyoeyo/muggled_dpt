@@ -110,7 +110,7 @@ prediction = dpt_model.inference(img_tensor)
 
 # Perform some post-processing to prepare for display
 scaled_prediction = dpt_imgproc.scale_prediction(prediction, disp_wh)
-depth_norm = dpt_imgproc.normalize_01(scaled_prediction).cpu().numpy().squeeze()
+depth_norm = dpt_imgproc.normalize_01(scaled_prediction).float().cpu().numpy().squeeze()
 
 t2 = perf_counter()
 print("  -> Took", round(1000*(t2-t1), 1), "ms")
