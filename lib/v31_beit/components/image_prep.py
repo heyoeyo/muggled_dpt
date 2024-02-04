@@ -168,7 +168,7 @@ class DPTImagePrep:
         # Handle negative infinities (for pytorch or numpy input)
         pred_min = data.min()
         if check_inf:
-            func_to_use = torch.isinf if isinstance(data, torch.Tensor) else np.isposinf
+            func_to_use = torch.isneginf if isinstance(data, torch.Tensor) else np.isneginf
             if func_to_use(pred_min):
                 data[data == pred_min] = 0
                 return cls.normalize_01(data, check_inf)
@@ -176,7 +176,7 @@ class DPTImagePrep:
         # Handle positive infinities
         pred_max = data.max()
         if check_inf:
-            func_to_use = torch.isinf if isinstance(data, torch.Tensor) else np.isposinf
+            func_to_use = torch.isposinf if isinstance(data, torch.Tensor) else np.isposinf
             if func_to_use(pred_max):
                 data[data == pred_max] = 0
                 return cls.normalize_01(data, check_inf)

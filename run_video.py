@@ -186,3 +186,8 @@ for frame in vreader:
 # Clean up resources
 vreader.release()
 cv2.destroyAllWindows()
+
+# Provide memory usage feedback, if using cuda GPU
+if device_str == "cuda":
+    vram_bytes = torch.cuda.memory_allocated()
+    print("Using", vram_bytes // 1_000_000, "MB of VRAM total")
