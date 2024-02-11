@@ -18,16 +18,26 @@ In the image below, the top-left diagram shows the 'true depth' interpretation o
   <img src=".readme_assets/results_vs_depth.svg" alt="Image showing the relationship between true depth, normalized depth, inverse depth and normalized inverse depth">
 </p>
 
-Notice that the value ordering of these points is reversed in the normalized inverse depth result (bottom-right), and corresponds to the DPT result. For example close parts of the image are shown in bright orange which correspond to values of 1.0 while far parts of the image are dark purple and correspond to values of 0.0. This is the idea behind 'inverse depth' which represents far points with smaller values.
+Notice that the value ordering of these points is reversed in the normalized inverse depth result (bottom-right), which corresponds to the DPT result. For example close parts of the image are shown in bright orange which correspond to values of 1.0 while far parts of the image are dark purple and correspond to values of 0.0. This is the idea behind 'inverse depth' which represents far points with smaller values.
 
 Note: In practice, the DPT models seem to output an un-normalized inverse depth, but it is not scaled correctly to match the inverse of the true depth. Therefore, it seems to always make sense to normalize the DPT result both for display and calculations.
 
+We can write each of the representations in a more general form:
+
+$$ \text{Normalized Depth} = \frac{d - d_{min}}{d_{max} - d_{min}} $$
+
+$$ \text{Inverse Depth} = \frac{1}{d} $$
+
+$$ \text{Normalized Inverse Depth} = \frac{d^{-1} - d_{max}^{-1}}{d_{min}^{-1} - d_{max}^{-1}} $$
+
+Where d is the true depth and d<sub>min</sub>, d<sub>max</sub> are the minimum and maximum depth values, respectively.
+
 ## True depth from DPT Result
-Typically, we would want to go from the DPT result back to true depth. In the diagram above, we have formulas converting from true depth to inverse depth and then to normalized inverse depth. We can reverse the process to derive a formula that maps the normalized inverse result (DPT) back to true depth, assuming we know the minimum and maximum depth values (in this case 3 and 5 meters, respectively):
+Typically, we would want to go from the DPT result back to true depth. In the diagram above, we have formulas converting from true depth to inverse depth (top-left to bottom-left diagrams) and then to normalized inverse depth (bottom-left to bottom-right diagrams). We can reverse the process to derive a formula that maps the normalized inverse result (normalized DPT) back to true depth, assuming we know the minimum and maximum depth values:
 
 $$\text{True Depth} = \left [ V_{norm} \left ( \frac{1}{d_{min}} - \frac{1}{d_{max}} \right ) + \frac{1}{d_{max}} \right ] ^{-1}$$
 
-Here V<sub>norm</sub> corresponds to the normalized inverse depth result (which we get by normalizing the DPT result) and d<sub>min</sub> and d<sub>max</sub> correspond to the (known) minimum and maximum depth values (in this case, 3 and 5). For example, we know the inverse depth of the ball is 0.375 and we expect this formula to give us the true depth of 4 meters:
+Here V<sub>norm</sub> corresponds to the normalized inverse depth result (which we get by normalizing the DPT result) and d<sub>min</sub> and d<sub>max</sub> correspond to the (known) minimum and maximum depth values (in this case, 3 and 5). For example, we know the normalized inverse depth of the ball is 0.375 and we expect this formula to give us the true depth of 4 meters:
 
 $$\text{True Depth (ball)} = \left [ 0.375 \left ( \frac{1}{3} - \frac{1}{5} \right ) + \frac{1}{5} \right ] ^{-1} = \left [ 0.25 \right ] ^{-1} = 4$$
 
