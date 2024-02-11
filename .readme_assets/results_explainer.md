@@ -8,14 +8,14 @@ The DPT models output _inverse depth_ maps with (generally unknown) scaling and 
 Consider the following image of a red ball with a floor/wall behind it, shown below along with the corresponding DPT colormapped result.
 
 <p align="center">
-  <img src=".readme_assets/ball_and_dptresult.webp">
+  <img src="ball_and_dptresult.webp">
 </p>
 
 To help explain the difference between true depth, normalized depth, inverse depth and normalized inverse depth, we'll use an even more simplified 2D representation of the scene above.
 In the image below, the top-left diagram shows the 'true depth' interpretation of the scene, where the eye/camera represents our viewing point and the distance to the closest (floor) and farthest (wall) points as well as the distance to the ball are shown. We assume that the farthest distance we see in the image is 5 meters away (a point on the wall) and the closest is 3 meters (a point on the floor), though these are just convenient made up numbers.
 
 <p align="center">
-  <img src=".readme_assets/results_vs_depth.svg" alt="Image showing the relationship between true depth, normalized depth, inverse depth and normalized inverse depth">
+  <img src="results_vs_depth.svg" alt="Image showing the relationship between true depth, normalized depth, inverse depth and normalized inverse depth">
 </p>
 
 Notice that the value ordering of these points is reversed in the normalized inverse depth result (bottom-right), which corresponds to the DPT result. For example close parts of the image are shown in bright orange which correspond to values of 1.0 while far parts of the image are dark purple and correspond to values of 0.0. This is the idea behind 'inverse depth' which represents far points with smaller values.
@@ -54,7 +54,7 @@ With this form you can manually adjusted the A and B values until the mapping lo
 It's important to note that the mapping between the DPT result and the true depth varies on a scene-by-scene (or image-by-image) basis! It is not fixed for a given camera and (in general) will not be stable over a video sequence. This can be seen by the fact that the mapping depends on the closest and farthest objects in the image, due to the d<sub>min</sub> and d<sub>max</sub> terms. Consider the example below, where we start with the same red ball scene as before, but then replace the small red ball with a larger (and closer) purple ball:
 
 <p align="center">
-  <img src=".readme_assets/results_per_scene.svg" alt="Image showing how the normalized inverse depth results change as a result of a change in the scene">
+  <img src="results_per_scene.svg" alt="Image showing how the normalized inverse depth results change as a result of a change in the scene">
 </p>
 
 In particular, notice that the purple ball is now mapped to the closest normalized inverse value (i.e. 1.0). If we used the same minimum and maximum depth values as before, we would incorrectly estimate the ball to be 3 meters away, since that was the previous value of d<sub>min</sub>. In general, you can only reliably re-use the mapping if you know that the closest and farthest points are not changing between images.
