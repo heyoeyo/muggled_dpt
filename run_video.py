@@ -132,6 +132,7 @@ window.set_callback(playback_ctrl)
 
 # Pre-define values that appear in async block, to make sure they exist before being used
 depth_uint8 = np.zeros(vreader.shape[0:2], dtype = np.uint8)
+depth_color = cv2.cvtColor(depth_uint8, cv2.COLOR_GRAY2BGR)
 t_ready_last, time_ms_model = perf_counter(), 0
 
 print("", "Displaying results",
@@ -166,10 +167,10 @@ for frame in vreader:
         depth_tensor = dpt_imgproc.convert_to_uint8(scaled_prediction, use_async).to("cpu", non_blocking = use_async)
         depth_uint8 = depth_tensor.squeeze().numpy()
     
-    # Produce colored depth image for display
-    if histo_equalize: depth_uint8 = cv2.equalizeHist(depth_uint8)
-    if reverse_colors: depth_uint8 = 255 - depth_uint8
-    depth_color = dpt_imgproc.apply_colormap(depth_uint8, cmaps_list[cmap_idx])
+        # Produce colored depth image for display
+        if reverse_colors: depth_uint8 = 255 - depth_uint8
+        if histo_equalize: depth_uint8 = cv2.equalizeHist(depth_uint8)
+        depth_color = dpt_imgproc.apply_colormap(depth_uint8, cmaps_list[cmap_idx])
         
     # Display results
     draw_corner_text(frame, "inference: {:.1f}ms".format(time_ms_model))
