@@ -97,7 +97,7 @@ $$\text{True Depth} = \left [ V_{norm} \left ( \frac{1}{d_{min}} - \frac{1}{d_{m
 
 Where d<sub>min</sub> and d<sub>max</sub> are the known minimum and maximum (respectively) true depth values and V<sub>norm</sub> is the DPT result normalized to be between 0 and 1 (a.k.a the normalized inverse depth).
 
-For more information, please see the [results explainer](https://github.com/heyoeyo/muggled_dpt/blob/main/results_explainer.md).
+For more information, please see the [results explainer](https://github.com/heyoeyo/muggled_dpt/blob/main/.readme_assets/readresults_explainer.md)
 
 # TODOs
 - Inevitable bugfixes
