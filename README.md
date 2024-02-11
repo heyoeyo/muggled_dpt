@@ -89,7 +89,15 @@ The depth predictions are made _asynchrounously_, (i.e. only when the GPU is rea
 
 ## Note on depth results
 
-The results from the DPT model are technically the _multiplicative inverse depth_ (i.e. `1/depth`) rather than a direct depth map. This has two important consequences. First, the objects 'closest to the camera' will actually have the largest reported (depth) values, objects further in the distance will have values closer to zero. Secondly, the output from the model will appear to have compressed distances, with objects far away seemingly very close to foreground objects. If you intend to use the depth result as if it were a 3D model, it's better to invert the model output first, to avoid distortion due to the inverse scaling.
+The DPT models output results which are related to the _multiplicative inverse_ (i.e. `1/d`) of the true depth! As a result, the closest part of an image will have the _largest_ reported value from the DPT model and the furthest part will have the _smallest_ reported value. Additionally, the reported values will not be distributed linearly, which will make the results look distorted if interpretted geometrically (e.g. as a 3D model).
+
+If you happen to know what the _true_ minimum and maximum depth values are for a given image, you can compute the true depth from the DPT result using:
+
+$$\text{True Depth} = \left [ V_{norm} \left ( \frac{1}{d_{min}} - \frac{1}{d_{max}} \right ) + \frac{1}{d_{max}} \right ] ^{-1}$$
+
+Where d<sub>min</sub> and d<sub>max</sub> are the known minimum and maximum (respectively) true depth values and V<sub>norm</sub> is the DPT result normalized to be between 0 and 1 (a.k.a the normalized inverse depth).
+
+For more information, please see the [results explainer](https://github.com/heyoeyo/muggled_dpt/blob/main/results_explainer.md).
 
 # TODOs
 - Inevitable bugfixes
