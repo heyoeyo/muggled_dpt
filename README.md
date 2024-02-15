@@ -6,7 +6,7 @@ This repo contains a simplified implementation of the very cool depth estimation
   <img src=".readme_assets/turtle_example.webp">
 </p>
 
-While the focus of this implementation is on readability, there are also some performance improvements (40-60% on my GPU at least) due to caching of positional encodings (at the cost of higher VRAM usage!).
+While the focus of this implementation is on readability, there are also some performance improvements with MiDaS v3.1 models (40-60% on my GPU at least) due to caching of positional encodings (at the cost of higher VRAM usage!).
 
 ## Usage
 
@@ -14,7 +14,7 @@ The purpose of this repo is to provide an easy to follow code base to understand
 
 To understand the model structure, consider checking out the implementation of the [DPT module](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/dpt_model.py), I'd recommended comparing this to the information in the [original preprint](https://arxiv.org/abs/2103.13413), particularly figure 1 in the paper.
 
-**Note:** These scripts are meant to be run directly on your own computer, not a remote/cloud system!
+**Note:** These scripts directly open a GUI and are meant to be run directly on your own computer, not a remote/cloud system.
 
 ## Getting started
 
@@ -48,9 +48,12 @@ pip3 install torch --index-url https://download.pytorch.org/whl/cu121
 
 Before you can run a model, you'll need to download it's weights. This isn't handled automagically by this repo, so you'll have to do it manually (we're trying to avoid the use of magic after all!).
 
-This repo only supports [MiDaS v3.1](https://arxiv.org/abs/2307.14460) at the moment, specifically [BEiT](https://arxiv.org/abs/2106.08254) or [SwinV2](https://arxiv.org/abs/2111.09883) models. You can download the model weights from the original [isl-org/MiDaS releases page](https://github.com/isl-org/MiDaS/releases/tag/v3_1). Look for models with either `beit` or `swin2` in their file names.
+This repo supports the [BEiT](https://arxiv.org/abs/2106.08254) and [SwinV2](https://arxiv.org/abs/2111.09883) models from [MiDaS v3.1](https://arxiv.org/abs/2307.14460). It also supports the [DINOv2](https://arxiv.org/abs/2304.07193) models from [Depth-Anything](https://arxiv.org/abs/2401.10891).
 
-The [SwinV2-tiny-256](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_swin2_tiny_256.pt) model is a good lightweight option. [BEiT-large-512](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_beit_large_512.pt) is the slowest, and potentially most accurate model. Overall, I find [SwinV2-base-384](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_swin2_base_384.pt) to be the most well balanced.
+The Depth-Anything models can be downloaded from [LiheYoung/Depth-Anything](https://huggingface.co/spaces/LiheYoung/Depth-Anything/tree/main/checkpoints) repo on Hugging Face.
+The MiDaS models can be downloaded from the [isl-org/MiDaS releases page](https://github.com/isl-org/MiDaS/releases/tag/v3_1). Look for models with either `beit` or `swin2` in their file names, the other model types (e.g. 'levit' or 'next vit' are not currently supported).
+
+It's worth noting that the Depth-Anything models dramatically outperform the older MiDaS v3.1 model in every respect. They are also exceptionally good at scaling to larger input image sizes compared to older models. However, the older models are still interesting for the sake of comparison and may provide better results in particular use cases.
 
 After downloading the models, you can place them in the [model_weights](https://github.com/heyoeyo/muggled_dpt/tree/main/model_weights) folder of this repo or otherwise just keep note of the file path to the model, since you'll need to provide this when running the demo scripts. If you place the file in the `model_weights` folder, then the smallest model will auto-load when running the scripts!
 
@@ -102,4 +105,3 @@ For more information, please see the [results explainer](https://github.com/heyo
 # TODOs
 - Inevitable bugfixes
 - Lots more documentation!
-- Add support for [Depth-Anything](https://github.com/LiheYoung/Depth-Anything) models
