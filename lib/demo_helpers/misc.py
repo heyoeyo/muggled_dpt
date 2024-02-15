@@ -5,7 +5,10 @@
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
+import os
 import os.path as osp
+
+import cv2
 import torch
 
 
@@ -86,5 +89,35 @@ def print_config_feedback(model_path, device_config_dict, using_cache, preproc_t
           "  Cache: {}".format(using_cache),
           "  Resolution: {} x {}".format(model_img_w, model_img_h),
           sep = "\n", flush = True)
+    
+    return
+
+# .....................................................................................................................
+
+def reduce_overthreading(device_str):
+    
+    '''
+    Both opencv & pytorch seem to make questionable use of threading...
+    This function limits the use of threading in opencv & pytorch
+    
+    Opencv in particular makes poor use of threads, so reducing its usage can
+    help reduce CPU load, without noticable slow down.
+    
+    Pytorch makes good use of threading when running models on CPU. It doesn't do
+    well with threading alongside GPU usage, where it seems to only increase
+    CPU load without any performance benefit
+    
+    This function will only give threads, and only to pytorch, if the cpu
+    is being used to run models
+    '''
+    
+    # Only use threading if user if running on cpu
+    is_using_cpu = device_str == "cpu"
+    max_threads_available = os.cpu_count()
+    target_max_threads = max_threads_available // 2
+    
+    # Limit thread usage between libraries
+    cv2.setNumThreads(1)
+    torch.set_num_threads(target_max_threads if is_using_cpu else 2)
     
     return

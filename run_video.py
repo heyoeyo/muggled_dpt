@@ -17,7 +17,9 @@ from lib.make_dpt import make_dpt_from_midas_v31
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from lib.demo_helpers.visualization import DisplayWindow, draw_corner_text
 from lib.demo_helpers.video import LoopingVideoReader, PlaybackIndicatorCB
-from lib.demo_helpers.misc import DeviceChecker, get_default_device_string, make_device_config, print_config_feedback
+from lib.demo_helpers.misc import (
+    DeviceChecker, get_default_device_string, make_device_config, print_config_feedback, reduce_overthreading
+)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -79,9 +81,8 @@ device_stream = DeviceChecker(device_str)
 video_path = ask_for_path_if_missing(arg_video_path, "video") if not use_webcam else 0
 model_path = ask_for_model_path_if_missing(__file__, arg_model_path)
 
-# Libraries make poor use of threading? Reduces cpu usage with no loss of speed
-cv2.setNumThreads(1)
-torch.set_num_threads(1)
+# Improve cpu utilization
+reduce_overthreading(device_str)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -116,7 +117,7 @@ print_config_feedback(model_path, device_config_dict, use_cache, example_tensor)
 #%% Run model & Display results
 
 # Define colormaps for displaying depth map
-cmaps_list = [cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, None]
+cmaps_list = [cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, cv2.COLORMAP_TURBO, None]
 
 # Set up window with trackbar controls
 cv2.destroyAllWindows()

@@ -14,12 +14,13 @@ import torch
 
 from lib.make_dpt import make_dpt_from_midas_v31
 
-from lib.demo_helpers.misc import get_default_device_string, make_device_config, print_config_feedback
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from lib.demo_helpers.visualization import DisplayWindow
 from lib.demo_helpers.plane_fit import estimate_plane_of_best_fit
 from lib.demo_helpers.saving import save_image
-
+from lib.demo_helpers.misc import (
+    DeviceChecker, get_default_device_string, make_device_config, print_config_feedback, reduce_overthreading
+)
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Set up script args
@@ -69,9 +70,8 @@ device_config_dict = make_device_config(device_str, use_float32)
 image_path = ask_for_path_if_missing(arg_image_path, "image")
 model_path = ask_for_model_path_if_missing(__file__, arg_model_path)
 
-# Libraries make poor use of threading? Reduces cpu usage with no loss of speed
-cv2.setNumThreads(1)
-torch.set_num_threads(1)
+# Improve cpu utilization
+reduce_overthreading(device_str)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -125,7 +125,7 @@ if device_str == "cuda":
 #%% Display results
 
 # Define colormaps for displaying depth map
-cmaps_list = [cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, None]
+cmaps_list = [cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, cv2.COLORMAP_TURBO, None]
 
 # Set up window with trackbar controls
 cv2.destroyAllWindows()
