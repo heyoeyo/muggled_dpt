@@ -12,14 +12,14 @@ import cv2
 import numpy as np
 import torch
 
-from lib.make_dpt import make_dpt_from_midas_v31
+from lib.make_dpt import make_dpt_from_state_dict
 
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from lib.demo_helpers.visualization import DisplayWindow
 from lib.demo_helpers.plane_fit import estimate_plane_of_best_fit
 from lib.demo_helpers.saving import save_image
 from lib.demo_helpers.misc import (
-    DeviceChecker, get_default_device_string, make_device_config, print_config_feedback, reduce_overthreading
+    get_default_device_string, make_device_config, print_config_feedback, reduce_overthreading
 )
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -79,7 +79,7 @@ reduce_overthreading(device_str)
 
 # Load model & image pre-processor
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
-model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_midas_v31(model_path, enable_relpos_cache = use_cache)
+model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache)
 if override_base_size:
     dpt_imgproc.override_base_size(model_base_size)
 

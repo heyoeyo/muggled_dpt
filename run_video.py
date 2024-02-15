@@ -12,7 +12,7 @@ import torch
 import cv2
 import numpy as np
 
-from lib.make_dpt import make_dpt_from_midas_v31
+from lib.make_dpt import make_dpt_from_state_dict
 
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from lib.demo_helpers.visualization import DisplayWindow, draw_corner_text
@@ -90,7 +90,7 @@ reduce_overthreading(device_str)
 
 # Load model & image pre-processor
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
-model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_midas_v31(model_path, enable_relpos_cache = use_cache)
+model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache)
 if override_base_size:
     dpt_imgproc.override_base_size(model_base_size)
 
