@@ -27,7 +27,7 @@ class SpatialUpsampleLayer(nn.Module):
         super().__init__()
         
         # Store layer config
-        self._scale_factor = 2
+        self._scale_factor = scale_factor
         self._mode = interpolation_mode
     
     # .................................................................................................................
