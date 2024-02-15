@@ -46,10 +46,6 @@ class FusionModel(nn.Module):
         
         # Add top-most fusion block, which works differently (no prior fusion input)
         self.blocks.append(TopMostFusionBlock(num_fusion_channels))
-        
-        # Record io sizing for future reference
-        self._num_channels_in = num_fusion_channels
-        self._num_channels_out = num_fusion_channels
     
     # .................................................................................................................
     
@@ -62,12 +58,6 @@ class FusionModel(nn.Module):
         fuse_0 = self.blocks[0](noscale_featuremap, fuse_1)
         
         return fuse_0
-    
-    # .................................................................................................................
-    
-    def get_input_output_channels(self):
-        ''' Returns: (num_channels_in, num_channels_out) '''
-        return self._num_channels_in, self._num_channels_out
     
     # .................................................................................................................
 
@@ -97,22 +87,11 @@ class TopMostFusionBlock(nn.Module):
         # -> Compared to 'regular' fusion blocks: there is no conv_assembly or residual addtition step!
         # -> The lack of conv_assembly is somewhat surprising, given this layer still takes in assembly data...
         self.proj_seq = UpsampleProjectionBlock(num_channels)
-        
-        # Record io sizing for future reference
-        _, num_channels_out = self.proj_seq.get_input_output_channels()
-        self._num_channels_in = num_channels
-        self._num_channels_out = num_channels_out
     
     # .................................................................................................................
     
     def forward(self, imagelike_feature_map):
         return self.proj_seq(imagelike_feature_map)
-    
-    # .................................................................................................................
-    
-    def get_input_output_channels(self):
-        ''' Returns: (num_channels_in, num_channels_out) '''
-        return self._num_channels_in, self._num_channels_out
     
     # .................................................................................................................
 
@@ -147,11 +126,6 @@ class FusionBlock(nn.Module):
         # Define models for the layers referenced in paper (see right-most figure 1)
         self.conv_reassembly = ResidualConv2D(num_channels)
         self.proj_seq = UpsampleProjectionBlock(num_channels)
-        
-        # Record io sizing for future reference
-        _, num_channels_out = self.proj_seq.get_input_output_channels()
-        self._num_channels_in = num_channels
-        self._num_channels_out = num_channels_out
     
     # .................................................................................................................
     
@@ -164,12 +138,6 @@ class FusionBlock(nn.Module):
         output = self.proj_seq(output)
         
         return output
-    
-    # .................................................................................................................
-    
-    def get_input_output_channels(self):
-        ''' Returns: (num_channels_in, num_channels_out) '''
-        return self._num_channels_in, self._num_channels_out
     
     # .................................................................................................................
 
@@ -202,16 +170,6 @@ class UpsampleProjectionBlock(nn.Sequential):
             SpatialUpsampleLayer(scale_factor=2),
             Conv1x1Layer(num_channels),
         )
-        
-        # Record io sizing for future reference
-        self._num_channels_in = num_channels
-        self._num_channels_out = num_channels
-    
-    # .................................................................................................................
-    
-    def get_input_output_channels(self):
-        ''' Returns: (num_channels_in, num_channels_out) '''
-        return self._num_channels_in, self._num_channels_out
     
     # .................................................................................................................
 
@@ -256,8 +214,3 @@ class ResidualConv2D(nn.Module):
         return self.conv_seq(feature_map) + feature_map
     
     # .................................................................................................................
-
-
-# ---------------------------------------------------------------------------------------------------------------------
-#%% Functions
-
