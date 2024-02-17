@@ -25,7 +25,7 @@ from .make_depthanything_dpt import (
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Functions
 
-def make_dpt_from_state_dict(path_to_state_dict, enable_cache = False, strict_load = True):
+def make_dpt_from_state_dict(path_to_state_dict, enable_cache = False, strict_load = True, model_type = None):
     
     # Load model weights with fail check in case weights are in cuda format and user doesn't have cuda
     try:
@@ -41,12 +41,16 @@ def make_dpt_from_state_dict(path_to_state_dict, enable_cache = False, strict_lo
     }
     
     # Try to figure out which type of model we're creating from state dict keys (e.g. beit vs swinv2)
-    guessed_model_type = determine_model_type_from_state_dict(state_dict)
-    if guessed_model_type not in model_type_to_funcs_lut.keys():
-        raise NotImplementedError("Bad model type: {}, no support for this yet!".format(guessed_model_type))
+    if model_type is None:
+        model_type = determine_model_type_from_state_dict(state_dict)
+    
+    # Error out if we don't understand the model type
+    if model_type not in model_type_to_funcs_lut.keys():
+        print("Accepted model types:", *list(model_type_to_funcs_lut.keys()), sep = "\n")
+        raise NotImplementedError("Bad model type: {}, no support for this yet!".format(model_type))
     
     # Build the model & supporting data
-    make_func, imgprep_func = model_type_to_funcs_lut[guessed_model_type]
+    make_func, imgprep_func = model_type_to_funcs_lut[model_type]
     config_dict, dpt_model = make_func(state_dict, enable_cache, strict_load)
     imgprep = imgprep_func(config_dict)
     
@@ -62,8 +66,6 @@ def determine_model_type_from_state_dict(state_dict):
     that are expected to be unique among each of the model's state dicts
     '''
     
-    # Initialize output
-    guessed_model_type = None
     sd_keys = state_dict.keys()
     
     swinv2_target_key = "pretrained.model.layers.0.blocks.0.attn.logit_scale"
@@ -78,4 +80,4 @@ def determine_model_type_from_state_dict(state_dict):
     if depth_anything_target_key in sd_keys:
         return "depthanything"
     
-    return guessed_model_type
+    return "unknown"
