@@ -20,9 +20,10 @@ class DPTImagePrep:
     '''
     Image pre-/post-processor for MiDaS v3.1 SwinV2 DPT model.
     These models (SwinV2-tiny-256, SwinV2-large-384, etc.) support input images
-    of varying sizes, as long as the width & height are both divisible by the model patch size times 4
-    -> Factor of 4 is needed to allow for halving of the image patch grid, as a result
-       of the patch merging operations
+    of varying sizes, as long as the width & height are both divisible by the model patch size times 8
+    -> Factor of 8 is needed to allow for 3 patch merging steps, which each halve the patch grid
+       sizing. For example, for an input image, the final-most patch grid in the swinv2 model will
+       have side lengths: (side / (patch_size_px)) * (1/2) * (1/2) * (1/2) due to the 3 merge layers
     '''
     
     # Hard-coded mean & standard deviation normalization values
@@ -33,7 +34,7 @@ class DPTImagePrep:
     
     def __init__(self, base_size_px, patch_size_px = 4):
         self.base_size_px = base_size_px
-        self._to_multiples = int(4 * patch_size_px)
+        self._to_multiples = int(8 * patch_size_px)
     
     # .................................................................................................................
     
