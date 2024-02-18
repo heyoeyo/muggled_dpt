@@ -76,7 +76,7 @@ def ask_for_model_path_if_missing(file_dunder, model_path = None):
 def get_model_weights_paths(file_dunder, model_weights_folder_name = "model_weights"):
     
     # Build path to model weight folder (and create if missing)
-    script_caller_folder_path = osp.dirname(file_dunder)
+    script_caller_folder_path = osp.dirname(file_dunder) if osp.isfile(file_dunder) else file_dunder
     model_weights_path = osp.join(script_caller_folder_path, model_weights_folder_name)
     os.makedirs(model_weights_path, exist_ok=True)
     
