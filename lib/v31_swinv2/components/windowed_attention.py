@@ -108,9 +108,6 @@ class WindowAttentionWithRelPos(nn.Module):
     # .................................................................................................................
 
 
-# =====================================================================================================================
-
-
 class Windowing(nn.Module):
     
     '''
@@ -248,8 +245,6 @@ class Windowing(nn.Module):
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Functions
-
-# .....................................................................................................................
 
 def image_to_windows(image_like_bhwc, window_size_hw):
     
@@ -405,4 +400,3 @@ def make_shift_mask(patch_grid_hw, window_size_hw, shift_hw, device = None, dtyp
     attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(attn_mask == 0, float(0.0))
     
     return attn_mask.unsqueeze(1)
-
