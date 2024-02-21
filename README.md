@@ -20,6 +20,7 @@ To understand the model structure, consider checking out the implementation of t
 
 This repo includes two demo scripts, [run_image.py](https://github.com/heyoeyo/muggled_dpt/blob/main/run_image.py) and [run_video.py](https://github.com/heyoeyo/muggled_dpt/blob/main/run_video.py). To use these scripts, you'll need to first have [Python](https://www.python.org/) (v3.6+) installed, then set up a virtual environment and install some additional requirements.
 
+
 ### Install
 First create and activate a virtual environment (do this inside the repo folder after [cloning/downloading](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) it):
 ```bash
@@ -51,7 +52,7 @@ Before you can run a model, you'll need to download it's weights. This isn't han
 This repo supports the [BEiT](https://arxiv.org/abs/2106.08254) and [SwinV2](https://arxiv.org/abs/2111.09883) models from [MiDaS v3.1](https://arxiv.org/abs/2307.14460). It also supports the [DINOv2](https://arxiv.org/abs/2304.07193) models from [Depth-Anything](https://arxiv.org/abs/2401.10891).
 
 The Depth-Anything models can be downloaded from [LiheYoung/Depth-Anything](https://huggingface.co/spaces/LiheYoung/Depth-Anything/tree/main/checkpoints) repo on Hugging Face.
-The MiDaS models can be downloaded from the [isl-org/MiDaS releases page](https://github.com/isl-org/MiDaS/releases/tag/v3_1). Look for models with either `beit` or `swin2` in their file names, the other model types (e.g. 'levit' or 'next vit' are not currently supported).
+The MiDaS models can be downloaded from the [isl-org/MiDaS releases page](https://github.com/isl-org/MiDaS/releases/tag/v3_1). Look for models with either `beit` or `swin2` in their file names, the other model types (e.g. 'levit' or 'next vit') are not currently supported.
 
 It's worth noting that the Depth-Anything models dramatically outperform the older MiDaS v3.1 model in every respect. They are also exceptionally good at scaling to larger input image sizes compared to older models. However, the older models are still interesting for the sake of comparison and may provide better results in particular use cases.
 
@@ -101,6 +102,70 @@ $$\text{True Depth} = \left [ V_{norm} \left ( \frac{1}{d_{min}} - \frac{1}{d_{m
 Where d<sub>min</sub> and d<sub>max</sub> are the known minimum and maximum (respectively) true depth values and V<sub>norm</sub> is the DPT result normalized to be between 0 and 1 (a.k.a the normalized inverse depth).
 
 For more information, please see the [results explainer](https://github.com/heyoeyo/muggled_dpt/blob/main/.readme_assets/results_explainer.md)
+
+
+# Acknowledgements
+
+The code in this repo is based on code from the following sources.
+
+[isl-org/MiDaS](https://github.com/isl-org/MiDaS):
+```bibtext
+@article {Ranftl2022,
+    author  = "Ren\'{e} Ranftl and Katrin Lasinger and David Hafner and Konrad Schindler and Vladlen Koltun",
+    title   = "Towards Robust Monocular Depth Estimation: Mixing Datasets for Zero-Shot Cross-Dataset Transfer",
+    journal = "IEEE Transactions on Pattern Analysis and Machine Intelligence",
+    year    = "2022",
+    volume  = "44",
+    number  = "3"
+}
+
+@article{Ranftl2021,
+	author    = {Ren\'{e} Ranftl and Alexey Bochkovskiy and Vladlen Koltun},
+	title     = {Vision Transformers for Dense Prediction},
+	journal   = {ICCV},
+	year      = {2021},
+}
+
+@article{birkl2023midas,
+      title={MiDaS v3.1 -- A Model Zoo for Robust Monocular Relative Depth Estimation},
+      author={Reiner Birkl and Diana Wofk and Matthias M{\"u}ller},
+      journal={arXiv preprint arXiv:2307.14460},
+      year={2023}
+}
+```
+
+[rwightman/pytorch-image-models](https://github.com/huggingface/pytorch-image-models/tree/v0.6.12) (aka timm, specifically v0.6.12):
+```bibtex
+@misc{rw2019timm,
+  author = {Ross Wightman},
+  title = {PyTorch Image Models},
+  year = {2019},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  doi = {10.5281/zenodo.4414861},
+  howpublished = {\url{https://github.com/rwightman/pytorch-image-models}}
+}
+```
+
+[LiheYoung/Depth-Anything](https://github.com/LiheYoung/Depth-Anything):
+```bibtex
+@article{depthanything,
+      title={Depth Anything: Unleashing the Power of Large-Scale Unlabeled Data},
+      author={Yang, Lihe and Kang, Bingyi and Huang, Zilong and Xu, Xiaogang and Feng, Jiashi and Zhao, Hengshuang},
+      journal={arXiv:2401.10891},
+      year={2024}
+}
+```
+
+[facebookresearch/dinov2](https://github.com/facebookresearch/dinov2):
+```bibtext
+@misc{oquab2023dinov2,
+  title={DINOv2: Learning Robust Visual Features without Supervision},
+  author={Oquab, Maxime and Darcet, Timothée and Moutakanni, Theo and Vo, Huy V. and Szafraniec, Marc and Khalidov, Vasil and Fernandez, Pierre and Haziza, Daniel and Massa, Francisco and El-Nouby, Alaaeldin and Howes, Russell and Huang, Po-Yao and Xu, Hu and Sharma, Vasu and Li, Shang-Wen and Galuba, Wojciech and Rabbat, Mike and Assran, Mido and Ballas, Nicolas and Synnaeve, Gabriel and Misra, Ishan and Jegou, Herve and Mairal, Julien and Labatut, Patrick and Joulin, Armand and Bojanowski, Piotr},
+  journal={arXiv:2304.07193},
+  year={2023}
+}
+```
 
 # TODOs
 - Inevitable bugfixes
