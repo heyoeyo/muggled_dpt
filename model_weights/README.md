@@ -10,4 +10,4 @@ python run_image.py -m vitl
 
 This will cause the script to load the `depth_anything_vitl14.pt` file, since it contains 'vitl' in the filename.
 
-You can download model files from the original [isl-org/MiDaS](https://github.com/isl-org/MiDaS/releases/tag/v3_1) releases page (only _beit_ and _swinv2_ variants are supported) or from the [LiheYoung/Depth-Anything](https://huggingface.co/spaces/LiheYoung/Depth-Anything/tree/main/checkpoints) repo on Hugging Face.
+You can download model files from the original [isl-org/MiDaS](https://github.com/isl-org/MiDaS/releases/tag/v3_1) releases page (only _beit_ and _swin2_ files are supported) or from the [LiheYoung/Depth-Anything](https://huggingface.co/spaces/LiheYoung/Depth-Anything/tree/main/checkpoints) repo on Hugging Face.
