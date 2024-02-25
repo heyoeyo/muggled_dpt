@@ -7,14 +7,14 @@ For a more compreshensive description of the DPT model components, please see th
 
 ## Patch Embedding Model
 
-The patch embedding for Depth-Anything is notably different from both the SwinV2 and BEiT models as it uses a patch size of 14 pixels, rather than 16 like the other models. It also uses a base sizing of 518 pixels, which results in an odd number of patches: 37x37. While these sound like small details, the differences have important ramifications for later parts of the model.
+The patch embedding for Depth-Anything is notably different from both the original MiDaS implementation in that it uses a patch size of 14 pixels. It also uses a base sizing of 518 pixels, which results in an odd number of patches: 37x37. While these sound like small details, the differences have important ramifications for later parts of the model!
 
 Aside from the different patch sizing, the patch embedding model is otherwise identical to the one found in the [BEiT implementation](https://github.com/heyoeyo/muggled_dpt/tree/main/lib/v31_beit#patch-embedding-model), where you can find a more detailed explanation of it's functionality.
 
 
 ## Image Encoder Model
 
-Compared to other DPT models, the Depth-Anything implementation has, by far, the simplest image encoder. The encoder is based off of the [DINOv2](https://arxiv.org/abs/2304.07193) models.
+Compared to other DPT models, the Depth-Anything implementation has, by far, the simplest image encoder. The encoder is based off of the [DINOv2](https://arxiv.org/abs/2304.07193) models (though [without registers](https://arxiv.org/abs/2309.16588)). This model closely follows the original ViT structure, introduced in "[An Image is Worth 16x16 Words](https://arxiv.org/abs/2010.11929)".
 
 
 ## Reassembly Model

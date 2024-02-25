@@ -160,7 +160,7 @@ class AttentionXFormers(Attention):
 
         # Create query/key/value as usual
         B, N, C = tokens.shape
-        qkv = self.qkv(tokens).reshape(B, N, 3, self.num_heads, C // self.num_heads)
+        qkv = self.qkv(tokens).reshape(B, N, 3, self.num_heads, self.features_per_head)
         
         # XFormers magic!
         q, k, v = unbind(qkv, 2)
