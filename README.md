@@ -6,7 +6,7 @@ This repo contains a simplified implementation of the very cool depth estimation
   <img src=".readme_assets/turtle_example.webp">
 </p>
 
-While the focus of this implementation is on readability, there are also some performance improvements with MiDaS v3.1 models (40-60% on my GPU at least) due to caching of positional encodings (at the cost of higher VRAM usage!).
+While the focus of this implementation is on readability, there are also some performance improvements with MiDaS v3.1 models (40-60% on my GPU at least) due to caching of positional encodings, at the cost of higher VRAM usage (this can be disabled).
 
 ## Usage
 
@@ -14,7 +14,6 @@ The purpose of this repo is to provide an easy to follow code base to understand
 
 To understand the model structure, consider checking out the implementation of the [DPT module](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/dpt_model.py), I'd recommended comparing this to the information in the [original preprint](https://arxiv.org/abs/2103.13413), particularly figure 1 in the paper.
 
-**Note:** These scripts directly open a GUI and are meant to be run directly on your own computer, not a remote/cloud system.
 
 ## Getting started
 
@@ -37,6 +36,10 @@ Then install the requirements (or you could install them manually from the [requ
 ```bash
 pip install -r requirements.txt
 ```
+
+<details>
+<summary>Additional Info</summary>
+
 If you're using Windows and want to use an Nvidia GPU or if you're on Linux and don't have a GPU, you'll need to use a slightly different install command to make use of your hardware setup. You can use the [Pytorch installer guide](https://pytorch.org/get-started/locally/) to figure out the command to use. For example, for GPU use on Windows it may look something like:
 ```bash
 pip3 uninstall torch  # <-- Do this first if you already installed from the requirements.txt file
@@ -45,18 +48,37 @@ pip3 install torch --index-url https://download.pytorch.org/whl/cu121
 
 **Note**: With the Windows install as-is, you may get an error about a `missing c10.dll` dependency. Downloading and installing this [mysterious .exe file](https://aka.ms/vs/16/release/vc_redist.x64.exe) seems to fix the problem.
 
+</details>
+
 ### Model Weights
 
-Before you can run a model, you'll need to download it's weights. This isn't handled automagically by this repo, so you'll have to do it manually (we're trying to avoid the use of magic after all!).
+Before you can run a model, you'll need to download it's weights.
 
-This repo supports the [BEiT](https://arxiv.org/abs/2106.08254) and [SwinV2](https://arxiv.org/abs/2111.09883) models from [MiDaS v3.1](https://arxiv.org/abs/2307.14460). It also supports the [DINOv2](https://arxiv.org/abs/2304.07193) models from [Depth-Anything](https://arxiv.org/abs/2401.10891).
+This repo supports the [BEiT](https://arxiv.org/abs/2106.08254) and [SwinV2](https://arxiv.org/abs/2111.09883) models from [MiDaS v3.1](https://arxiv.org/abs/2307.14460) which can be downloaded from the [isl-org/MiDaS releases page](https://github.com/isl-org/MiDaS/releases/tag/v3_1). Additionally, [DINOv2](https://arxiv.org/abs/2304.07193) models are supported from [Depth-Anything](https://arxiv.org/abs/2401.10891), which can be downloaded from the [LiheYoung/Depth-Anything](https://huggingface.co/spaces/LiheYoung/Depth-Anything/tree/main/checkpoints) repo on Hugging Face.
 
-The Depth-Anything models can be downloaded from [LiheYoung/Depth-Anything](https://huggingface.co/spaces/LiheYoung/Depth-Anything/tree/main/checkpoints) repo on Hugging Face.
-The MiDaS models can be downloaded from the [isl-org/MiDaS releases page](https://github.com/isl-org/MiDaS/releases/tag/v3_1). Look for models with either `beit` or `swin2` in their file names, the other model types (e.g. 'levit' or 'next vit') are not currently supported.
+After downloading a model file, you can place it in the `model_weights` folder of this repo or otherwise just keep note of the file path, since you'll need to provide this when running the demo scripts. If you do place the file in the [model_weights](https://github.com/heyoeyo/muggled_dpt/tree/main/model_weights) folder, then it will auto-load when running the scripts.
 
-It's worth noting that the Depth-Anything models dramatically outperform the older MiDaS v3.1 model in every respect. They are also exceptionally good at scaling to larger input image sizes compared to older models. However, the older models are still interesting for the sake of comparison and may provide better results in particular use cases.
+<details>
 
-After downloading the models, you can place them in the [model_weights](https://github.com/heyoeyo/muggled_dpt/tree/main/model_weights) folder of this repo or otherwise just keep note of the file path to the model, since you'll need to provide this when running the demo scripts. If you place the file in the `model_weights` folder, then the smallest model will auto-load when running the scripts!
+<summary>Direct download links</summary>
+
+The table below includes direct download links to all of the supported models. **Note:** These are all links to _other_ repos, none of these files belong to MuggledDPT!
+
+| Model | Size (MB) |
+| -----| -----|
+| [depth-anything-vit-small](https://huggingface.co/spaces/LiheYoung/Depth-Anything/resolve/main/checkpoints/depth_anything_vits14.pth?download=true) | 99 |
+| [depth-anything-vit-base](https://huggingface.co/spaces/LiheYoung/Depth-Anything/resolve/main/checkpoints/depth_anything_vitb14.pth?download=true) | 390 |
+| [depth-anything-vit-large](https://huggingface.co/spaces/LiheYoung/Depth-Anything/resolve/main/checkpoints/depth_anything_vitl14.pth?download=true) | 1300 |
+| [swin2-tiny-256](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_swin2_tiny_256.pt) | 164 |
+| [swin2-base-384](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_swin2_base_384.pt) | 416 |
+| [swin2-large-384](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_swin2_large_384.pt) | 840 |
+| [beit-base-384](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_beit_base_384.pt) | 456 |
+| [beit-large-384](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_beit_large_384.pt) | 1300 |
+| [beit-large-512](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_beit_large_512.pt) | 1500 |
+
+</details>
+
+
 
 ## Run Image
 
