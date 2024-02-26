@@ -7,6 +7,7 @@
 
 import os
 import os.path as osp
+import argparse
 
 import cv2
 import torch
@@ -24,27 +25,65 @@ except ModuleNotFoundError:
 from lib.make_dpt import make_dpt_from_state_dict
 
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
-from lib.demo_helpers.misc import make_device_config, print_config_feedback
+from lib.demo_helpers.misc import (
+    get_default_device_string, make_device_config, print_config_feedback
+)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Hard-coded config
+#%% Set up script args
 
-# Set these to avoid being prompted for paths everytime
+# Set argparse defaults
+default_device = get_default_device_string()
 default_image_path = None
-default_model_path = "vitl"
+default_model_path = None
+default_display_size = 1000
+default_base_size = None
 
-# Controls model execution
-device_str = "cuda"
-use_aspect_ratio = True
+# Define script arguments
+parser = argparse.ArgumentParser(description="Script used to run MiDaS DPT depth-estimation on a single image")
+parser.add_argument("-i", "--image_path", default=default_image_path,
+                    help="Path to image to run depth estimation on")
+parser.add_argument("-m", "--model_path", default=default_model_path, type=str,
+                    help="Path to DPT model weights")
+parser.add_argument("-s", "--display_size", default=default_display_size, type=int,
+                    help="Controls size of displayed results (default: {})".format(default_display_size))
+parser.add_argument("-d", "--device", default=default_device, type=str,
+                    help="Device to use when running model (ex: 'cpu', 'cuda', 'mps')")
+parser.add_argument("-ar", "--use_aspect_ratio", default=False, action="store_true",
+                    help="Process the image at it's original aspect ratio, if the model supports it")
+parser.add_argument("-b", "--base_size_px", default=default_base_size, type=int,
+                    help="Override base (e.g. 384, 512) model size. Must be multiple of 32")
+parser.add_argument("-nocol", "--no_colormap", default=False, action="store_true",
+                    help="Output black-and-white results (instead of colormap)")
+parser.add_argument("-l", "--headless", default=False, action="store_true",
+                    help="Turns off the display pop-up (helpful on headless systems)")
+parser.add_argument("--save", default=False, action="store_true",
+                    help="Save block norm image result")
+
+# For convenience
+args = parser.parse_args()
+arg_image_path = args.image_path
+arg_model_path = args.model_path
+display_size_px = args.display_size
+device_str = args.device
+force_square_resolution = not args.use_aspect_ratio
+model_base_size = args.base_size_px
+override_base_size = (model_base_size is not None)
+enable_display = not args.headless
+enable_save = args.save
+colormap_select = None if args.no_colormap else cv2.COLORMAP_VIRIDIS
+
+# Hard-code no-cache usage, since there is no benefit if the model only runs once
 use_float32 = True
 use_cache = False
-model_base_size = None
-colormap_select = cv2.COLORMAP_VIRIDIS
 
-# Control script outputs
-enable_display = False
-save_blocknorm_image = True
+# Build pathing to repo-root, so we can search model weights properly
+root_path = osp.dirname(osp.dirname(__file__))
+
+# Get pathing to resources, if not provided already
+image_path = ask_for_path_if_missing(arg_image_path, "image")
+model_path = ask_for_model_path_if_missing(root_path, arg_model_path)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -101,6 +140,14 @@ class OutputCapture:
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Functions
+
+# Hard-code (shared) display styling
+BG_BGR = (40,40,40)
+TEXT_BGR = (255,255,255)
+FONT = cv2.FONT_HERSHEY_PLAIN
+FSCALE_SMALL = 0.8
+FSCALE_LARGE = 1
+
 
 def get_name(name_or_path):
     ''' Given a file/folder path, returns just the file or folder name, with no file extension '''
@@ -163,8 +210,8 @@ def add_minmax_footer(image_bgr, min_norm, max_norm):
     min_n = float(min_n)
     max_n = float(max_n)
     
-    footer = np.full((16, w, 3), (50,50,0), dtype=np.uint8)
-    cv2.putText(footer, f"n: [{round(min_n)}, {round(max_n)}]", (5, 10), 0, 0.35, (0,255,255))
+    footer = np.full((16, w, 3), BG_BGR, dtype=np.uint8)
+    cv2.putText(footer, f"n: [{round(min_n)}, {round(max_n)}]", (5, 10), FONT, FSCALE_SMALL, TEXT_BGR)
     combined = np.vstack((image_bgr, footer))
     
     return combined
@@ -175,8 +222,8 @@ def add_block_idx_footer(image_bgr, index):
     
     h, w = image_bgr.shape[:2]
     
-    footer = np.full((20, w, 3), (50,50,0), dtype=np.uint8)
-    cv2.putText(footer, f"Block: {index}", (5, 14), 0, 0.5, (0,255,255))
+    footer = np.full((20, w, 3), BG_BGR, dtype=np.uint8)
+    cv2.putText(footer, f"Block: {index}", (5, 14), FONT, FSCALE_LARGE, TEXT_BGR)
     combined = np.vstack((image_bgr, footer))
     
     return combined
@@ -186,7 +233,7 @@ def add_bounding_box(image_bgr):
     ''' Draws a rectangular outline around the given image '''
     
     h, w = image_bgr.shape[:2]
-    return cv2.rectangle(image_bgr, (0,0), (w, h), (80,80,80), 1)
+    return cv2.rectangle(image_bgr, (0,0), (w, h), BG_BGR, 1)
 
 def add_model_info_header(image_bgr, model_path_or_name, grid_hw):
     
@@ -197,21 +244,14 @@ def add_model_info_header(image_bgr, model_path_or_name, grid_hw):
     header_txt = f"{model_name} ({grid_txt})"
     
     h, w = image_bgr.shape[:2]
-    header = np.full((40, w, 3), (50,50,0), dtype=np.uint8)
-    cv2.putText(header, header_txt, (10, 26), 0, 0.5, (255,255,255))
+    header = np.full((40, w, 3), BG_BGR, dtype=np.uint8)
+    cv2.putText(header, header_txt, (10, 26), FONT, FSCALE_LARGE, TEXT_BGR)
     
     return np.vstack((header, image_bgr))
 
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Load resources
-
-# Build pathing to repo-root, so we can search model weights properly
-root_path = osp.dirname(osp.dirname(__file__))
-
-# Get pathing to resources, if not provided already
-image_path = ask_for_path_if_missing(default_image_path, "image")
-model_path = ask_for_model_path_if_missing(root_path, default_model_path)
 
 # Load model & image pre-processor
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
@@ -226,7 +266,7 @@ dpt_model.eval()
 
 # Load image and apply preprocessing
 orig_image_bgr = cv2.imread(image_path)
-img_tensor = dpt_imgproc.prepare_image_bgr(orig_image_bgr, force_square = not use_aspect_ratio)
+img_tensor = dpt_imgproc.prepare_image_bgr(orig_image_bgr, force_square = force_square_resolution)
 print_config_feedback(model_path, device_config_dict, use_cache, img_tensor)
 
 
@@ -277,9 +317,9 @@ best_match_idx = ar_match.index(best_match)
 num_rows, num_cols = row_col_options[best_match_idx]
 
 # Figure out (integer) tile scaling to give large/readable image result
-target_max_side_px = 1000
+target_max_side_px = display_size_px
 max_side_px = max(num_rows * tile_h, num_cols * tile_w)
-scale_factor = int(np.floor(target_max_side_px / max_side_px))
+scale_factor = max(1, int(np.floor(target_max_side_px / max_side_px)))
 out_wh = (int(scale_factor * tile_w), int(scale_factor * tile_h))
 
 
@@ -315,7 +355,10 @@ final_img = add_model_info_header(all_rows_image, model_path, grid_hw)
 
 # Display results!
 if enable_display:
-    cv2.imshow("Block Norms", final_img)
+    winname = "Block Norms"
+    cv2.namedWindow(winname, flags=cv2.WINDOW_AUTOSIZE | cv2.WINDOW_GUI_NORMAL)
+    cv2.moveWindow(winname, 500, 50)
+    cv2.imshow(winname, final_img)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
@@ -323,7 +366,7 @@ if enable_display:
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Saving results
 
-if save_blocknorm_image:
+if enable_save:
     model_name = get_name(model_path)
     img_name = get_name(image_path)
     img_size = img_tensor.shape[2]
@@ -331,9 +374,9 @@ if save_blocknorm_image:
     save_name = f"{model_name}-{img_name}-{img_size}.png"
     save_folder = osp.join(root_path, "saved_images", "block_norm_images")
     save_path = osp.join(save_folder, save_name)
-    if input("Save block norms? [y/N] ").strip().lower().startswith("y"):
+    if input("Save block norm image? [y/N] ").strip().lower().startswith("y"):
         os.makedirs(save_folder, exist_ok = True)
         cv2.imwrite(save_path, final_img)
-        print("Saved block norm image:", save_path, sep="\n")
+        print("", "Saved:", save_path, sep="\n")
     
     pass
