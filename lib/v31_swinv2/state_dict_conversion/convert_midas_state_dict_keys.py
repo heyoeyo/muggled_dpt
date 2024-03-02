@@ -187,14 +187,12 @@ def _convert_imgenc_keys(key, layers_per_stage):
         return new_key
     
     # Handle patch merging layers
-    # ex: 'pretrained.model.layers.0.downsample.reduction.weight' -> 'stages.1.patch_merge.reduction.weight'
+    # ex: 'pretrained.model.layers.0.downsample.reduction.weight' -> 'patch_merge_layers.0.reduction.weight'
     patch_merge_prefix = "pretrained.model.layers.#.downsample"
     if has_prefix(key, patch_merge_prefix):
-        
-        stage_idx = get_nth_integer(key, 0) + 1
+        merge_layer_idx = get_nth_integer(key, 0)
         last_2_suffix = get_suffix_terms(key, 2)
-        new_key = "stages.{}.patch_merge.{}".format(stage_idx, last_2_suffix)
-        
+        new_key = "patch_merge_layers.{}.{}".format(merge_layer_idx, last_2_suffix)
         return new_key
     
     return None

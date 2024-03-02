@@ -8,7 +8,7 @@
 import torch.nn as nn
 
 from .components.misc_helpers import MLP2Layers
-from .components.patch_merge import PatchMerge, NoMerge
+from .components.patch_merge import PatchMerge
 from .components.windowed_attention import WindowAttentionWithRelPos
 
 
@@ -46,20 +46,21 @@ class SwinV2Model4Stages(nn.Module):
         # Inherit from parent
         super().__init__()
         
+        # Build patch merge layers, used in front of stages 2, 3, 4
+        features_in_out = zip(features_per_stage[:-1], features_per_stage[1:])
+        self.patch_merge_layers = nn.ModuleList(
+            PatchMerge(feat_in, feat_out) for feat_in, feat_out in features_in_out
+        )
+        
         # Build stages
-        stage_iter = zip(layers_per_stage, heads_per_stage, pretrained_window_size_per_stage)
+        stage_iter = zip(features_per_stage, layers_per_stage, heads_per_stage, pretrained_window_size_per_stage)
         self.stages = nn.ModuleList()
-        for stage_idx, (num_layers, num_heads, pretrained_window_size) in enumerate(stage_iter):
-            
-            # Compute per-stage configuration
-            num_in_features = features_per_stage[max(0, stage_idx - 1)]
-            num_out_features = features_per_stage[stage_idx]
+        for features_per_token, num_layers, num_heads, pretrained_window_size in stage_iter:
             
             swin_stage = SwinStage(
                 num_layers = num_layers,
                 num_heads = num_heads,
-                features_per_token_in = num_in_features,
-                features_per_token_out = num_out_features,
+                features_per_token = features_per_token,
                 window_size_hw = window_size_hw,
                 pretrained_window_size = pretrained_window_size,
                 enable_cache = enable_cache,
@@ -77,13 +78,21 @@ class SwinV2Model4Stages(nn.Module):
         Main function of model.
         Takes in image patch tokens and the image patch sizing,
         returns tokens from 4 intermediate stages
+        
+        Each of the later stages (2,3,4) require a patch merging step before the transformer block!
         '''
         
-        # Perform 4-stage processing, grabbing intermediate results
-        stage_1_tokens, stage_1_grid_hw = self.stages[0](patch_tokens, patch_grid_hw)
-        stage_2_tokens, stage_2_grid_hw = self.stages[1](stage_1_tokens, stage_1_grid_hw)
-        stage_3_tokens, stage_3_grid_hw = self.stages[2](stage_2_tokens, stage_2_grid_hw)
-        stage_4_tokens, _ = self.stages[3](stage_3_tokens, stage_3_grid_hw)
+        # Perform 4-stage processing, with patch merging
+        stage_1_tokens = self.stages[0](patch_tokens, patch_grid_hw)
+        
+        stage_2_tokens, stage_2_grid_hw = self.patch_merge_layers[0](stage_1_tokens, patch_grid_hw)
+        stage_2_tokens = self.stages[1](stage_2_tokens, stage_2_grid_hw)
+        
+        stage_3_tokens, stage_3_grid_hw = self.patch_merge_layers[1](stage_2_tokens, stage_2_grid_hw)
+        stage_3_tokens = self.stages[2](stage_3_tokens, stage_3_grid_hw)
+        
+        stage_4_tokens, stage_4_grid_hw = self.patch_merge_layers[2](stage_3_tokens, stage_3_grid_hw)
+        stage_4_tokens = self.stages[3](stage_4_tokens, stage_4_grid_hw)
         
         return stage_1_tokens, stage_2_tokens, stage_3_tokens, stage_4_tokens
     
@@ -111,26 +120,22 @@ class SwinStage(nn.Module):
     
     # .................................................................................................................
     
-    def __init__(self, num_layers, num_heads, features_per_token_in, features_per_token_out, window_size_hw,
+    def __init__(self, num_layers, num_heads, features_per_token, window_size_hw,
                  pretrained_window_size=None, enable_cache = True):
         
         # Inherit from parent
         super().__init__()
         
-        # Inclue pre-merge step, if needed
-        need_merge = features_per_token_in != features_per_token_out
-        self.patch_merge = PatchMerge(features_per_token_in, features_per_token_out) if need_merge else NoMerge()
-        
         # Bundle shared block arguments for clarity
         shared_attn_kwargs = {
             "num_heads": num_heads,
-            "features_per_token": features_per_token_out,
+            "features_per_token": features_per_token,
             "window_size_hw": window_size_hw,
             "pretrained_window_size": pretrained_window_size,
             "enable_cache": enable_cache,
         }
         
-        # Build window/shifted-window transformer blocks
+        # Build alternating window/shifted-window transformer blocks
         block_list = []
         num_block_pairs = num_layers // 2
         for i in range(num_block_pairs):
@@ -150,11 +155,10 @@ class SwinStage(nn.Module):
     
     def forward(self, tokens, patch_grid_hw):
         
-        tokens, out_grid_hw = self.patch_merge(tokens, patch_grid_hw)
         for block in self.blocks:
-            tokens = block(tokens, out_grid_hw)
+            tokens = block(tokens, patch_grid_hw)
         
-        return tokens, out_grid_hw
+        return tokens
     
     # .................................................................................................................
 

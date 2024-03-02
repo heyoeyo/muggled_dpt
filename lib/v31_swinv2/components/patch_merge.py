@@ -106,16 +106,3 @@ class PatchMerge(nn.Module):
     
     # .................................................................................................................
 
-
-class NoMerge(nn.Module):
-    
-    '''
-    Simpler helper which does no patch merging (does nothing at all!).
-    Used to help communicate that no patch merging is occuring.
-    '''
-    
-    def __init__(self):
-        super().__init__()
-    
-    def forward(self, tokens, patch_grid_hw):
-        return tokens, patch_grid_hw
