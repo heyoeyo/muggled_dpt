@@ -1,6 +1,7 @@
 # Model weights
 *.pt
 *.pth
+*.onnx
 
 # Cache files
 *.pyc

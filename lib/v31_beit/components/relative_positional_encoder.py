@@ -275,7 +275,7 @@ class RelativePositionEncoding(nn.Module):
         
         # Get 'relative width/height' sizes, which determine number of unique entries in bias table
         ref_rel_h, ref_rel_w = self.ref_num_relative_h, self.ref_num_relative_w
-        new_rel_h, new_rel_w = int((2 * grid_h) - 1), int((2 * grid_w) - 1)
+        new_rel_h, new_rel_w = 2*patch_grid_hw[0] - 1, 2*patch_grid_hw[1] - 1 # Written weirdly, for onnx support!
         
         # Get the reference token so we can spatially interpolate the values
         # -> Ref token LUT shape: (refH * refW) x Heads
