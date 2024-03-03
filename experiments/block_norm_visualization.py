@@ -13,7 +13,7 @@ import cv2
 import torch
 import numpy as np
 
-# This is a hack to make this script work from inside the analysis folder!
+# This is a hack to make this script work from inside the experiments folder!
 try:
     import lib # NOQA
 except ModuleNotFoundError:
@@ -41,7 +41,7 @@ default_display_size = 1000
 default_base_size = None
 
 # Define script arguments
-parser = argparse.ArgumentParser(description="Script used to run MiDaS DPT depth-estimation on a single image")
+parser = argparse.ArgumentParser(description="Script used to visualize internal (DPT) transformer block norms")
 parser.add_argument("-i", "--image_path", default=default_image_path,
                     help="Path to image to run depth estimation on")
 parser.add_argument("-m", "--model_path", default=default_model_path, type=str,
@@ -53,7 +53,7 @@ parser.add_argument("-d", "--device", default=default_device, type=str,
 parser.add_argument("-ar", "--use_aspect_ratio", default=False, action="store_true",
                     help="Process the image at it's original aspect ratio, if the model supports it")
 parser.add_argument("-b", "--base_size_px", default=default_base_size, type=int,
-                    help="Override base (e.g. 384, 512) model size. Must be multiple of 32")
+                    help="Override base (e.g. 384, 512) model size")
 parser.add_argument("-nocol", "--no_colormap", default=False, action="store_true",
                     help="Output black-and-white results (instead of colormap)")
 parser.add_argument("-l", "--headless", default=False, action="store_true",

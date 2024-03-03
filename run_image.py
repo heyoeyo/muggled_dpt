@@ -47,7 +47,7 @@ parser.add_argument("-f32", "--use_float32", default=False, action="store_true",
 parser.add_argument("-ar", "--use_aspect_ratio", default=False, action="store_true",
                     help="Process the image at it's original aspect ratio, if the model supports it")
 parser.add_argument("-b", "--base_size_px", default=default_base_size, type=int,
-                    help="Override base (e.g. 384, 512) model size. Must be multiple of 32")
+                    help="Override base (e.g. 384, 512) model size")
 
 # For convenience
 args = parser.parse_args()
