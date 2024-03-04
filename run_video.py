@@ -15,7 +15,7 @@ import numpy as np
 from lib.make_dpt import make_dpt_from_state_dict
 
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
-from lib.demo_helpers.visualization import DisplayWindow, draw_corner_text
+from lib.demo_helpers.visualization import DisplayWindow, draw_corner_text, histogram_equalization
 from lib.demo_helpers.video import LoopingVideoReader, PlaybackIndicatorCB
 from lib.demo_helpers.misc import (
     DeviceChecker, get_default_device_string, make_device_config, print_config_feedback, reduce_overthreading
@@ -170,7 +170,7 @@ for frame in vreader:
     
         # Produce colored depth image for display
         if reverse_colors: depth_uint8 = 255 - depth_uint8
-        if histo_equalize: depth_uint8 = cv2.equalizeHist(depth_uint8)
+        if histo_equalize: depth_uint8 = histogram_equalization(depth_uint8)
         depth_color = dpt_imgproc.apply_colormap(depth_uint8, cmaps_list[cmap_idx])
         
     # Display results

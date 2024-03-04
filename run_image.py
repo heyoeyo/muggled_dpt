@@ -15,7 +15,7 @@ import torch
 from lib.make_dpt import make_dpt_from_state_dict
 
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
-from lib.demo_helpers.visualization import DisplayWindow
+from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
 from lib.demo_helpers.plane_fit import estimate_plane_of_best_fit
 from lib.demo_helpers.saving import save_image
 from lib.demo_helpers.misc import (
@@ -124,6 +124,7 @@ if device_str == "cuda":
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Display results
 
+
 # Define colormaps for displaying depth map
 cmaps_list = [cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, cv2.COLORMAP_TURBO, None]
 
@@ -173,7 +174,7 @@ while True:
     
     # Produce colored depth image for display
     depth_uint8 = np.uint8(np.round(255.0*depth_thresholded))
-    if histo_equalize: depth_uint8 = cv2.equalizeHist(depth_uint8)
+    if histo_equalize: depth_uint8 = histogram_equalization(depth_uint8, thresh_min, thresh_max)
     if reverse_colors: depth_uint8 = 255 - depth_uint8
     depth_color = dpt_imgproc.apply_colormap(depth_uint8, cmaps_list[cmap_idx])
     
