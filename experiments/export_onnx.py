@@ -16,10 +16,20 @@ import cv2
 import numpy as np
 import torch
 
-import onnx
-import onnxruntime
+try:
+    import onnx
+    import onnxruntime
+    from onnxruntime.capi.onnxruntime_pybind11_state import RuntimeException as ONNXRuntimeError
 
-from onnxruntime.capi.onnxruntime_pybind11_state import RuntimeException as ONNXRuntimeError
+except ImportError:
+    print("",
+          "Error, missing onnx dependencies!",
+          "Onnx export requires installing onnx and the onnx runtime (for testing)",
+          "To install, use:",
+          "pip install onnx==1.15.* onnxruntime==1.17.*",
+          "",
+          sep = "\n")
+    raise SystemExit("Please install missing dependencies")
 
 # This is a hack to make this script work from inside the experiments folder!
 try:

@@ -14,7 +14,7 @@ Running this script generates an image showing a plot of the norms of the image 
 
 ## Export Onnx
 
-This script was made to help export DPT models into the ONNX format. These files fully contain the model execution instructions along with the model weights, which makes them simpler to deploy in applications. They can also be used outside of Python/Pytorch.
+This script was made to help export DPT models into the [ONNX](https://onnx.ai/onnx/intro/concepts.html) format. These files fully contain the model execution instructions along with the model weights, which makes them simpler to deploy in applications. They can also be used outside of Python/Pytorch.
 
 So far, the script seems to support Depth-Anything & BEiT DPT models and works across variable input image sizes. However, the SwinV2 models can only be exported for fixed-sized input images, as support for different image sizes relies on python control flow statements that do not seem to be compatible with the onnx exporter (it may be possible to fix this at some point).
 
