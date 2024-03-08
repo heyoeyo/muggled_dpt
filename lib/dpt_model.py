@@ -52,8 +52,8 @@ class DPTModel(nn.Module):
         
         '''
         Depth prediction function. Expects an image tensor of shape BxCxHxW, with RGB ordering.
-        Pixel values should be between 0.0 and 1.0. The height & width of the image need to
-        be compatible with the patch sizing of the model, which varies.
+        Pixel values should have a mean near 0.0 and a standard-deviation near 1.0
+        The height & width of the image need to be compatible with the patch sizing of the model.
         
         Use the 'verify_input(...)' function to test inputs if needed.
         
@@ -73,8 +73,7 @@ class DPTModel(nn.Module):
         fused_feature_map = self.fusion(reasm_1, reasm_2, reasm_3, reasm_4)
         depth_image = self.head(fused_feature_map)
         
-        # Remove unitary channel dimension for output (shape goes from: Bx1xHxW -> BxHxW)
-        return depth_image.squeeze(dim = 1)
+        return depth_image
     
     # .................................................................................................................
     
@@ -91,57 +90,33 @@ class DPTModel(nn.Module):
         formatted for inference. Note this function is meant as a debugging tool, it should
         not be used before every inference, as it does a lot of unnecessary work (assuming input is ok)
         
-        - Returns True if there are no problems
         - Raises an AssertionError if something is wrong with the input
+        - Returns True if there are no problems
         '''
         
-        # Check image is tensor
+        # Check image is in tensor format
         ok_tensor = isinstance(image_rgb_normalized_bchw, torch.Tensor)
-        assert ok_tensor, "Image must be a tensor!"
+        assert ok_tensor, "Image must be provided as a tensor!"
         
-        # Check batch dimension
-        img_shape = image_rgb_normalized_bchw.shape
-        ok_shape = len(img_shape) == 4
-        shape_str = "x".join(str(item) for item in img_shape)
-        assert ok_shape, "Bad image shape! Image ({}) should have a shape of Bx3XHxW".format(shape_str)
-        
-        # Check image channels
-        B, C, H, W = img_shape
-        ok_channels = C == 3
-        assert ok_channels, "Bad image channels! Image should have 3 channels: RGB (got {})".format(C)
-        
-        # Check input image shape
-        # -> Needs to be divisble by 16 for patch embedding
-        # -> Patch grid size itself needs to be divisible by 2 for downscaling
-        ok_height = (H % 32 == 0)
-        ok_width = (W % 32 == 0)
-        assert (ok_height and ok_width), \
-            "Bad width/height! Image must have height ({}) & width ({}) both divisible by 32".format(H, W)
-        
-        # Check matching device
+        # Check matching device & data types
         img_device = image_rgb_normalized_bchw.device
         model_device = next(self.parameters()).device
-        ok_device = img_device == model_device
+        ok_device = (img_device == model_device)
         assert ok_device, "Device mismatch! Image: {}, model: {}".format(img_device, model_device)
-        
-        # Check matching data types
         img_dtype = image_rgb_normalized_bchw.dtype
         model_dtype = next(self.parameters()).dtype
         ok_dtype = (img_dtype == model_dtype)
         assert ok_dtype, "Data type mismatch! Image: {}, model: {}".format(img_dtype, model_dtype)
         
-        # Check image value normalization
-        img_min = image_rgb_normalized_bchw.min()
-        img_max = image_rgb_normalized_bchw.max()
-        ok_min = torch.abs(img_min + 1) < 0.01
-        ok_max = torch.abs(img_max - 1) < 0.01
-        if not (ok_min and ok_max):
-            print("WARNING:",
-                  "Image values are not in expected normalization range!",
-                  "Model expects image values to be between 0.0 and 1.0",
-                  "Instead got: {:.1f} - {:.1f}".format(img_min, img_max),
-                  sep = "\n", flush = True)
+        # Check batch dimension
+        img_shape = image_rgb_normalized_bchw.shape
+        ok_shape = len(img_shape) == 4
+        shape_str = "x".join(str(item) for item in img_shape)
+        assert ok_shape, "Bad image shape! Image ({}) should have a shape of BxCXHxW".format(shape_str)
         
-        return True
+        # Also run verification from first stage of processing, which varies by model implementation
+        ok_patch_verify = self.patch_embed.verify_input(image_rgb_normalized_bchw)
+        
+        return ok_patch_verify
     
     # .................................................................................................................

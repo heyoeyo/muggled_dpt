@@ -11,7 +11,6 @@ import torch.nn as nn
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Classes
 
-
 class PatchEmbed(nn.Module):
     
     '''
@@ -34,12 +33,14 @@ class PatchEmbed(nn.Module):
         # Inherit from parent
         super().__init__()
         
-        # Store config for inspection, if needed
-        self.patch_size_px = patch_size_px
-        self.features_per_token = features_per_token
-        
-        self.proj = nn.Conv2d(num_input_channels, features_per_token,
-                              kernel_size=patch_size_px, stride=patch_size_px, bias=bias)
+        # Both grouping + linear transformation is handled with a single strided convolution step!
+        self.proj = nn.Conv2d(
+            num_input_channels,
+            features_per_token,
+            kernel_size=patch_size_px,
+            stride=patch_size_px,
+            bias=bias
+        )
 
     # .................................................................................................................
     
@@ -64,4 +65,23 @@ class PatchEmbed(nn.Module):
         return output, patch_grid_hw
     
     # .................................................................................................................
-
+    
+    def verify_input(self, image_tensor_bchw):
+        
+        # Assume input is tensor with bchw shape
+        b, c, h, w = image_tensor_bchw.shape
+        
+        # Check that the input channel count matches our convolution
+        targ_c = self.proj.in_channels
+        assert (c == targ_c), f"Bad channel count! Expected {targ_c} got {c}"
+        
+        # Check input image shape
+        # -> Needs to be divisble by 16 for patch embedding
+        # -> Patch grid size itself needs to be divisible by 2 for downscaling
+        h_stride, w_stride = self.proj.stride
+        assert (h % h_stride == 0), f"Bad height! Image must have height ({h}) divisble by {h_stride}"
+        assert (w % w_stride == 0), f"Bad width! Image must have width ({w}) divisble by {w_stride}"
+        
+        return True
+    
+    # .................................................................................................................

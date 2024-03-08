@@ -67,12 +67,7 @@ class MonocularDepthHead(nn.Module):
         # Collapse down to 1 channel for depth output
         output = self.proj_1ch(output)
         
-        return output
+        # Remove unitary channel for output (shape goes from: Bx1xHxW -> BxHxW)
+        return output.squeeze(dim=1)
     
     # .................................................................................................................
-
-
-# ---------------------------------------------------------------------------------------------------------------------
-#%% Functions
-
-
