@@ -2,7 +2,7 @@
 
 The most important file in this folder is [dpt_model.py](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/dpt_model.py) which is shared by all DPT implementations and is a direct code interpretation of the model architecture described in the original DPT paper: ["Vision Transformers for Dense Prediction"](https://arxiv.org/abs/2103.13413). 
 
-The [make_dpt.py](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/make_dpt.py) script is a helper used to build DPT models given model weights, without having to explicitly say which model variant you're trying to load. Each of the variants have their own dedicated 'make_{variant}_dpt' script which can be used to create models more directly: [make_beit_dpt.py](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/make_beit_dpt.py), [make_beit_dpt.py](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/make_beit_dpt.py) and [make_depthanything_dpt](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/make_depthanything_dpt.py).
+The [make_dpt.py](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/make_dpt.py) script is a helper used to build DPT models given model weights, without having to explicitly say which model variant you're trying to load. Each of the variants have their own dedicated 'make_{variant}_dpt' script which can be used to create models more directly: [make_beit_dpt.py](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/make_beit_dpt.py), [make_swinv2_dpt.py](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/make_swinv2_dpt.py) and [make_depthanything_dpt.py](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/make_depthanything_dpt.py).
 
 ### Note on code structure
 
