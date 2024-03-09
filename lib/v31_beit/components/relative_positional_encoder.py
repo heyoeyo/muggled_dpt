@@ -148,8 +148,6 @@ class RelativePositionEncoding(nn.Module):
         grid_h, grid_w = patch_grid_hw
         num_tokens = grid_h * grid_w + 1
         output_hw = (num_tokens, num_tokens)
-        max_abs_h_idx = grid_h - 1
-        max_abs_w_idx = grid_w - 1
         
         # Generate counting patterns used to create indexing table
         all_y_idxs = torch.arange(grid_h, dtype=int_dtype, device=device)
@@ -193,9 +191,9 @@ class RelativePositionEncoding(nn.Module):
         # for example, notice that the x-offset between token 0 and token 3 is 0, since they are in the same column.
         
         # Normalize coords to positive integer values
-        relative_coords[:, :, 0] += max_abs_h_idx
+        relative_coords[:, :, 0] += grid_h - 1
         relative_coords[:, :, 0] *= (2 * grid_w) - 1
-        relative_coords[:, :, 1] += max_abs_w_idx
+        relative_coords[:, :, 1] += grid_w - 1
         # This step shifts the x/y-offsets so that they become positive integers. Additionally,
         # after shifting the y-offsets to start counting at zero (to avoid negative numbers), the values are
         # scaled so that the smallest non-zero value (e.g. 1) is greater than the largest x-offset after
@@ -213,7 +211,7 @@ class RelativePositionEncoding(nn.Module):
         # y-offsets can be added to x-offsets to get unique (single) integer representations.
         
         # Set up special index values for cls (readout) to token/cls entries
-        max_token_index = (2 * max_abs_h_idx) * (2 * max_abs_w_idx) - 1
+        max_token_index = (2 * grid_h - 1) * (2 * grid_w - 1) - 1
         cls_to_token_index = max_token_index + 1
         token_to_cls_index = max_token_index + 2
         cls_to_cls_index = max_token_index + 3
