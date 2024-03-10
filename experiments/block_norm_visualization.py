@@ -25,6 +25,7 @@ except ModuleNotFoundError:
 from lib.make_dpt import make_dpt_from_state_dict
 
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
+from lib.demo_helpers.saving import save_image
 from lib.demo_helpers.misc import (
     get_default_device_string, make_device_config, print_config_feedback
 )
@@ -80,6 +81,7 @@ use_cache = False
 
 # Build pathing to repo-root, so we can search model weights properly
 root_path = osp.dirname(osp.dirname(__file__))
+save_folder = osp.join(root_path, "saved_images", "block_norm_images")
 
 # Get pathing to resources, if not provided already
 image_path = ask_for_path_if_missing(arg_image_path, "image")
@@ -337,14 +339,19 @@ for row_idx, data_chunk in enumerate(data_chunks):
         # Convert tokens back to image representation
         norm_img, min_norm, max_norm = get_norm_image(res, grid_hw)
         norm_img = cv2.resize(norm_img, dsize=out_wh, interpolation=cv2.INTER_NEAREST_EXACT)
-        norm_img = dpt_imgproc.apply_colormap(norm_img, colormap_select)
+        
+        # Convert to color image
+        if colormap_select is None:
+            color_img = cv2.cvtColor(norm_img, cv2.COLOR_GRAY2BGR)
+        else:
+            color_img = cv2.applyColorMap(norm_img, colormap_select)
         
         # Add header/footer info, per block before storing
         block_idx = col_idx + block_idx_offset
-        norm_img = add_block_idx_footer(norm_img, block_idx)
-        norm_img = add_minmax_footer(norm_img, min_norm, max_norm)
-        norm_img = add_bounding_box(norm_img)
-        img_cols.append(norm_img)
+        color_img = add_block_idx_footer(color_img, block_idx)
+        color_img = add_minmax_footer(color_img, min_norm, max_norm)
+        color_img = add_bounding_box(color_img)
+        img_cols.append(color_img)
     
     one_row_image = np.hstack(img_cols)
     img_rows.append(one_row_image)
@@ -371,12 +378,9 @@ if enable_save:
     img_name = get_name(image_path)
     img_size = img_tensor.shape[2]
     
-    save_name = f"{model_name}-{img_name}-{img_size}.png"
-    save_folder = osp.join(root_path, "saved_images", "block_norm_images")
-    save_path = osp.join(save_folder, save_name)
     if input("Save block norm image? [y/N] ").strip().lower().startswith("y"):
-        os.makedirs(save_folder, exist_ok = True)
-        cv2.imwrite(save_path, final_img)
-        print("", "Saved:", save_path, sep="\n")
+        save_name = f"{model_name}-{img_name}-{img_size}"
+        ok_save, save_path = save_image(final_img, save_name, save_folder=save_folder)
+        if ok_save: print("", "SAVED:", save_path, sep = "\n")
     
     pass

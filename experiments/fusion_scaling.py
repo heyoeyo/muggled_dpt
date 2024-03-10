@@ -1,0 +1,224 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Imports
+
+import os
+import os.path as osp
+
+import argparse
+from time import perf_counter
+
+import cv2
+import numpy as np
+import torch
+
+# This is a hack to make this script work from inside the experiments folder!
+try:
+    import lib # NOQA
+except ModuleNotFoundError:
+    import sys
+    parent_folder = osp.dirname(osp.dirname(__file__))
+    if "lib" in os.listdir(parent_folder): sys.path.insert(0, parent_folder)
+    else: raise ImportError("Can't find path to lib folder!")
+
+from lib.make_dpt import make_dpt_from_state_dict
+
+from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
+from lib.demo_helpers.ui import SliderCB, ColormapButtonsCB, make_message_header
+from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
+from lib.demo_helpers.saving import save_image
+from lib.demo_helpers.misc import (
+    get_default_device_string, make_device_config, print_config_feedback, reduce_overthreading
+)
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Set up script args
+
+# Set argparse defaults
+default_device = get_default_device_string()
+default_image_path = None
+default_model_path = None
+default_display_size = 800
+default_base_size = None
+
+# Define script arguments
+parser = argparse.ArgumentParser(description="Script used to run MiDaS DPT depth-estimation on a single image")
+parser.add_argument("-i", "--image_path", default=default_image_path,
+                    help="Path to image to run depth estimation on")
+parser.add_argument("-m", "--model_path", default=default_model_path, type=str,
+                    help="Path to DPT model weights")
+parser.add_argument("-s", "--display_size", default=default_display_size, type=int,
+                    help="Controls size of displayed results (default: {})".format(default_display_size))
+parser.add_argument("-d", "--device", default=default_device, type=str,
+                    help="Device to use when running model (ex: 'cpu', 'cuda', 'mps')")
+parser.add_argument("-f32", "--use_float32", default=False, action="store_true",
+                    help="Use 32-bit floating point model weights. Note: this doubles VRAM usage")
+parser.add_argument("-ar", "--use_aspect_ratio", default=False, action="store_true",
+                    help="Process the image at it's original aspect ratio, if the model supports it")
+parser.add_argument("-b", "--base_size_px", default=default_base_size, type=int,
+                    help="Override base (e.g. 384, 512) model size")
+parser.add_argument("-alt", "--alt_factors", default=False, action="store_true", help="Use altered default scaling factors")
+
+# For convenience
+args = parser.parse_args()
+arg_image_path = args.image_path
+arg_model_path = args.model_path
+display_size_px = args.display_size
+device_str = args.device
+use_float32 = args.use_float32
+force_square_resolution = not args.use_aspect_ratio
+model_base_size = args.base_size_px
+override_base_size = (model_base_size is not None)
+use_alt_factors = args.alt_factors
+
+# Hard-code no-cache usage, since there is no benefit if the model only runs once
+use_cache = False
+
+# Set up device config
+device_config_dict = make_device_config(device_str, use_float32)
+
+# Build pathing to repo-root, so we can search model weights properly
+root_path = osp.dirname(osp.dirname(__file__))
+save_folder = osp.join(root_path, "saved_images", "fusion_scaling")
+
+# Get pathing to resources, if not provided already
+image_path = ask_for_path_if_missing(arg_image_path, "image")
+model_path = ask_for_model_path_if_missing(root_path, arg_model_path)
+
+# Improve cpu utilization
+reduce_overthreading(device_str)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Load resources
+
+# Load model & image pre-processor
+print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
+model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache)
+if override_base_size:
+    dpt_imgproc.override_base_size(model_base_size)
+
+# Move model to selected device
+dpt_model.to(**device_config_dict)
+dpt_model.eval()
+
+# Load image and apply preprocessing
+orig_image_bgr = cv2.imread(image_path)
+assert orig_image_bgr is not None, f"Error loading image: {image_path}"
+img_tensor = dpt_imgproc.prepare_image_bgr(orig_image_bgr, force_square_resolution)
+print_config_feedback(model_path, device_config_dict, use_cache, img_tensor)
+
+# Prepare original image for display (and get sizing info)
+scaled_input_img = dpt_imgproc.scale_to_max_side_length(orig_image_bgr, display_size_px)
+disp_h, disp_w = scaled_input_img.shape[0:2]
+disp_wh = (int(disp_w), int(disp_h))
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Run model
+
+t1 = perf_counter()
+
+# Run model partially to get intermediate tokens for scaling
+print("", "Computing reassembly results...", sep="\n", flush=True)
+img_tensor = img_tensor.to(**device_config_dict)
+with torch.inference_mode():
+    patch_tokens, patch_grid_hw = dpt_model.patch_embed(img_tensor)
+    imgenc_tokens = dpt_model.imgencoder(patch_tokens, patch_grid_hw)
+    reasm_tokens = dpt_model.reassemble(*imgenc_tokens, patch_grid_hw)
+
+t2 = perf_counter()
+print("  -> Took", round(1000*(t2-t1), 1), "ms")
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Display results
+
+# Set up window
+cv2.destroyAllWindows()
+window = DisplayWindow("Fusion Scaling Result")
+
+# Set up UI elements
+cmap_btns = ColormapButtonsCB(cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, cv2.COLORMAP_TURBO)
+sliders = [SliderCB(f"Fusion {1+idx}", 1, -5, 5, 0.01, marker_step_size=1) for idx in range(4)]
+window.set_callbacks(cmap_btns, *sliders)
+
+# For fun, switch to alternate default factqors
+if use_alt_factors:
+    alt_factors = [0.7, 0.1, 0.0]
+    for alt, s in zip(alt_factors, sliders):
+        s.set(alt)
+    print("",
+          "Using alternate scale factors!",
+          "  - These factors are tuned based on vit-large (depth-anything)",
+          "  - They may heavily distort results from other models!",
+          sep = "\n")
+
+# Feedback about controls
+info_msg = "[r to reverse colors]  [h for high contrast]  [s to save image]  [q to quit]"
+info_img = make_message_header(info_msg, 2*disp_w)
+use_reverse_colors = False
+use_high_contrast = False
+print("", "Displaying results",
+      "  - Drag bars to change fusion scaling factors",
+      "  - Right click on bars to reset values",
+      "  - Press r to reverse coloring",
+      "  - Press h to enable high-contrast display",
+      "  - Press s to save depth image",
+      "  - Press esc or q to quit",
+      "",
+      sep="\n", flush=True)
+
+while True:
+    
+    # Read fusion scaling factors
+    scale_factors = [s.read() for s in sliders]
+    
+    # Run remaining layers with scaling factors
+    with torch.inference_mode():
+        
+        # Run fusion steps manually, so we can apply scaling factors
+        fuse_3 = dpt_model.fusion.blocks[3](reasm_tokens[3] * scale_factors[3])
+        fuse_2 = dpt_model.fusion.blocks[2](reasm_tokens[2], fuse_3 * scale_factors[2])
+        fuse_1 = dpt_model.fusion.blocks[1](reasm_tokens[1], fuse_2 * scale_factors[1])
+        fuse_0 = dpt_model.fusion.blocks[0](reasm_tokens[0], fuse_1 * scale_factors[0])
+        depth_prediction = dpt_model.head(fuse_0).squeeze(dim=1)
+    
+    # Post-processing for display
+    scaled_prediction = dpt_imgproc.scale_prediction(depth_prediction, disp_wh)
+    depth_norm = dpt_imgproc.normalize_01(scaled_prediction).float().cpu().numpy().squeeze()
+    
+    # Produce colored depth image for display
+    depth_uint8 = np.uint8(np.round(255.0*depth_norm))
+    if use_high_contrast: depth_uint8 = histogram_equalization(depth_uint8)
+    if use_reverse_colors: depth_uint8 = 255 - depth_uint8
+    depth_color = cmap_btns.apply_colormap(depth_uint8)
+    
+    # Generate display image: info / colormaps / side-by-side images / sliders
+    sidebyside_display = np.hstack((scaled_input_img, depth_color))
+    display_frame = cmap_btns.append_to_frame(info_img)
+    display_frame = np.vstack((display_frame, sidebyside_display))
+    display_frame = SliderCB.append_many_to_frame(display_frame, *sliders)
+    
+    # Display final image
+    window.imshow(display_frame)
+    req_break, keypress = window.waitKey(20)
+    if req_break:
+        break
+    
+    # Response to keypresses
+    if keypress == ord("s"):
+        ok_save, save_path = save_image(depth_color, image_path, save_folder=save_folder)
+        if ok_save: print("", "SAVED:", save_path, sep = "\n")
+    if keypress == ord("r"):
+        use_reverse_colors = not use_reverse_colors
+        print("", f"Reversed colors: {use_reverse_colors}", sep="\n")
+    if keypress == ord("h"):
+        use_high_contrast = not use_high_contrast
+        print("", f"High contrast: {use_high_contrast}", sep="\n")
+
+# Clean up windows
+cv2.destroyAllWindows()
