@@ -22,6 +22,10 @@ class DisplayWindow:
         self.title = window_title
         cv2.namedWindow(self.title, flags = cv2.WINDOW_GUI_NORMAL | cv2.WINDOW_AUTOSIZE)
         
+        # Allocate variables for use of callbacks
+        self._cbs = CallbackSequencer()
+        self._using_cb = False
+        
     def move(self, x, y):
         cv2.moveWindow(self.title, x, y)
         return self
@@ -29,8 +33,16 @@ class DisplayWindow:
     def add_trackbar(self, trackbar_name, max_value, initial_value = 0):
         return WindowTrackbar(self.title, trackbar_name, max_value, initial_value)
     
-    def set_callback(self, callback):
-        cv2.setMouseCallback(self.title, callback)
+    def set_callbacks(self, *callbacks):
+        
+        # Record all the given callbacks
+        self._cbs.add(*callbacks)
+        
+        # Attach callbacks to window for the first time, if needed
+        if not self._using_cb:
+            cv2.setMouseCallback(self.title, self._cbs)
+            self._using_cb = True
+        
         return self
     
     def imshow(self, image):
@@ -65,6 +77,42 @@ class WindowTrackbar:
     
     def read(self):
         return cv2.getTrackbarPos(self.name, self._window_name)
+
+
+class CallbackSequencer:
+    
+    '''
+    Simple wrapper used to execute more than one callback on a single opencv window
+    
+    Example usage:
+        
+        # Set up window that will hold callbacks
+        winname = "Display"
+        cv2.namedWindow(winname)
+        
+        # Create multiple callbacks and combine into sequence so they can both be added to the window
+        cb_1 = MakeCB(...)
+        cb_2 = MakeCB(...)
+        cb_seq = CallbackSequence(cb_1, cb_2)
+        cv2.setMouseCallback(winname, cb_seq)
+    '''
+    
+    def __init__(self, *callbacks):
+        self._callbacks = [cb for cb in callbacks]
+    
+    def add(self, *callbacks):
+        self._callbacks.extend(callbacks)
+    
+    def __call__(self, event, x, y, flags, param) -> None:
+        for cb in self._callbacks:
+            cb(event, x, y, flags, param)
+        return
+    
+    def __getitem__(self, index):
+        return self._callbacks[index]
+    
+    def __iter__(self):
+        yield from self._callbacks
 
 
 # ---------------------------------------------------------------------------------------------------------------------

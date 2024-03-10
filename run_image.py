@@ -15,12 +15,14 @@ import torch
 from lib.make_dpt import make_dpt_from_state_dict
 
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
+from lib.demo_helpers.ui import SliderCB, ColormapButtonsCB, make_message_header
 from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
 from lib.demo_helpers.plane_fit import estimate_plane_of_best_fit
 from lib.demo_helpers.saving import save_image
 from lib.demo_helpers.misc import (
     get_default_device_string, make_device_config, print_config_feedback, reduce_overthreading
 )
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Set up script args
@@ -89,6 +91,7 @@ dpt_model.eval()
 
 # Load image and apply preprocessing
 orig_image_bgr = cv2.imread(image_path)
+assert orig_image_bgr is not None, f"Error loading image: {image_path}"
 img_tensor = dpt_imgproc.prepare_image_bgr(orig_image_bgr, force_square_resolution)
 print_config_feedback(model_path, device_config_dict, use_cache, img_tensor)
 
@@ -124,48 +127,55 @@ if device_str == "cuda":
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Display results
 
-
 # Define colormaps for displaying depth map
 cmaps_list = [cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, cv2.COLORMAP_TURBO, None]
 
 # Set up window with trackbar controls
 cv2.destroyAllWindows()
 window = DisplayWindow("Inverse Depth Result")
-contrast_tbar = window.add_trackbar("High contrast", 1)
-reverse_tbar = window.add_trackbar("Reverse colors", 1)
-cmap_tbar = window.add_trackbar("Color map", len(cmaps_list) - 1)
-ramp_tbar = window.add_trackbar("Remove ramp", 100)
-mint_tbar = window.add_trackbar("Min Depth Threshold", 1000)
-maxt_tbar = window.add_trackbar("Max Depth Threshold", 1000, 1000)
+
+# Set up UI elements
+cmap_btns = ColormapButtonsCB(cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, cv2.COLORMAP_TURBO)
+plane_slider = SliderCB("Remove plane", 0, -1, 2, 0.01, marker_step_size=0.5)
+min_slider = SliderCB("Min Threshold", 0, 0, 1, 0.01, marker_step_size=0.1)
+max_slider = SliderCB("Max Threshold", 1, 0, 1, 0.01, marker_step_size=0.1)
+window.set_callbacks(cmap_btns, plane_slider, min_slider, max_slider)
 
 # Calculate a plane-of-best-fit, so we can (potentially) remove it during display
 plane_depth = estimate_plane_of_best_fit(depth_norm)
 
 # Pre-define parameters used inside conditionals
-prev_plane_removal_pct = None
+prev_plane_removal_factor = None
 depth_1ch = depth_norm
 
+# Feedback about controls
+info_msg = "[r to reverse colors]  [h for high contrast]  [s to save image]  [q to quit]"
+info_img = make_message_header(info_msg, 2*disp_w)
+use_reverse_colors = False
+use_high_contrast = False
 print("", "Displaying results",
+      "  - Click and drag bars to adjust display",
+      "  - Right click on bars to reset values",
+      "  - Press r to reverse coloring",
+      "  - Press h to enable high-contrast display",
       "  - Press s to save depth image",
       "  - Press esc or q to quit",
       "",
       sep="\n", flush=True)
+
 while True:
     
-    # Read window trackbars
-    histo_equalize = contrast_tbar.read() > 0
-    reverse_colors = reverse_tbar.read() > 0
-    cmap_idx = cmap_tbar.read()
-    plane_removal_pct = ramp_tbar.read()
-    thresh_min = mint_tbar.read() / 1000.0
-    thresh_max = maxt_tbar.read() / 1000.0
+    # Read controls
+    plane_removal_factor = plane_slider.read()
+    thresh_min = min_slider.read()
+    thresh_max = max_slider.read()
     
     # Re-calculate depth image if plane removal changes
-    removal_factor_changed = (plane_removal_pct != prev_plane_removal_pct)
+    removal_factor_changed = (plane_removal_factor != prev_plane_removal_factor)
     if removal_factor_changed:
-        depth_1ch = depth_norm - (plane_depth * (plane_removal_pct/100.0))
+        depth_1ch = depth_norm - (plane_depth * plane_removal_factor)
         depth_1ch = dpt_imgproc.normalize_01(depth_1ch)
-        prev_plane_removal_pct = plane_removal_pct
+        prev_plane_removal_factor = plane_removal_factor
     
     # Make sure we actually get min < max thresholds & non-zero delta to avoid divide-by-zero
     thresh_min, thresh_max = sorted([thresh_min, thresh_max])
@@ -174,21 +184,37 @@ while True:
     
     # Produce colored depth image for display
     depth_uint8 = np.uint8(np.round(255.0*depth_thresholded))
-    if histo_equalize: depth_uint8 = histogram_equalization(depth_uint8, thresh_min, thresh_max)
-    if reverse_colors: depth_uint8 = 255 - depth_uint8
-    depth_color = dpt_imgproc.apply_colormap(depth_uint8, cmaps_list[cmap_idx])
+    if use_high_contrast: depth_uint8 = histogram_equalization(depth_uint8, thresh_min, thresh_max)
+    if use_reverse_colors: depth_uint8 = 255 - depth_uint8
+    depth_color = cmap_btns.apply_colormap(depth_uint8)
     
-    # Display original image along with colored depth result
+    # Generate display image: info / colormaps / side-by-side images / sliders
     sidebyside_display = np.hstack((scaled_input_img, depth_color))
-    window.imshow(sidebyside_display)
+    display_frame = cmap_btns.append_to_frame(info_img)
+    display_frame = np.vstack((display_frame, sidebyside_display))
+    display_frame = SliderCB.append_many_to_frame(
+        display_frame,
+        plane_slider,
+        min_slider,
+        max_slider,
+    )
+    
+    # Update displayed image
+    window.imshow(display_frame)
     req_break, keypress = window.waitKey(20)
     if req_break:
         break
     
-    # Save depth image on 's' keypress
+    # Respond to keypresses
     if keypress == ord("s"):
         ok_save, save_path = save_image(depth_color, image_path)
-        if ok_save: print("SAVED:", save_path)
+        if ok_save: print("", "SAVED:", save_path, "", sep="\n")
+    if keypress == ord("r"):
+        use_reverse_colors = not use_reverse_colors
+        print(f"Reversed colors: {use_reverse_colors}")
+    if keypress == ord("h"):
+        use_high_contrast = not use_high_contrast
+        print(f"High contrast: {use_high_contrast}")
 
 # Clean up windows
 cv2.destroyAllWindows()

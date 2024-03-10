@@ -15,6 +15,7 @@ import numpy as np
 from lib.make_dpt import make_dpt_from_state_dict
 
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
+from lib.demo_helpers.ui import ColormapButtonsCB, make_message_header
 from lib.demo_helpers.visualization import DisplayWindow, draw_corner_text, histogram_equalization
 from lib.demo_helpers.video import LoopingVideoReader, PlaybackIndicatorCB
 from lib.demo_helpers.misc import (
@@ -106,6 +107,7 @@ dpt_model.eval()
 vreader = LoopingVideoReader(video_path, display_size_px)
 video_frame_delay_ms = vreader.get_frame_delay_ms() if (display_ms_override == 0) else max(1, int(display_ms_override))
 disp_wh = vreader.disp_wh
+disp_w, disp_h = disp_wh
 
 # Get example frame so we can provide sizing info feedback
 example_frame = np.zeros(vreader.shape, dtype = np.uint8)
@@ -122,31 +124,28 @@ cmaps_list = [cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, c
 # Set up window with trackbar controls
 cv2.destroyAllWindows()
 window = DisplayWindow("Inverse Depth Result")
-contrast_tbar = window.add_trackbar("High contrast", 1)
-reverse_tbar = window.add_trackbar("Reverse colors", 1)
-cmap_tbar = window.add_trackbar("Color map", len(cmaps_list) - 1)
-sync_tbar = window.add_trackbar("Force Sync", 1, int(force_sync))
 
-# Set up playback indicator, used to control video position
+# Set up UI elements
+cmap_btns = ColormapButtonsCB(cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, cv2.COLORMAP_TURBO)
 playback_ctrl = PlaybackIndicatorCB(vreader)
-window.set_callback(playback_ctrl)
+window.set_callbacks(cmap_btns, playback_ctrl)
 
 # Pre-define values that appear in async block, to make sure they exist before being used
 depth_uint8 = np.zeros(vreader.shape[0:2], dtype = np.uint8)
 depth_color = cv2.cvtColor(depth_uint8, cv2.COLOR_GRAY2BGR)
 t_ready_last, time_ms_model = perf_counter(), 0
 
+# Feedback about controls
+info_msg = "[r to reverse colors]  [h for high contrast]  [n for sync]  [q to quit]"
+info_img = make_message_header(info_msg, 2*disp_w)
+use_async = not force_sync
+use_reverse_colors = False
+use_high_contrast = False
 print("", "Displaying results",
       "  - Click & drag to move playback",
       "  - Press esc or q to quit",
       "", sep="\n", flush=True)
 for frame in vreader:
-    
-    # Read window trackbars
-    histo_equalize = contrast_tbar.read() > 0
-    reverse_colors = reverse_tbar.read() > 0
-    cmap_idx = cmap_tbar.read()
-    use_async = sync_tbar.read() == 0
     
     # Only process frame data when the device is ready
     if device_stream.is_ready():
@@ -169,21 +168,42 @@ for frame in vreader:
         depth_uint8 = depth_tensor.squeeze().numpy()
     
         # Produce colored depth image for display
-        if reverse_colors: depth_uint8 = 255 - depth_uint8
-        if histo_equalize: depth_uint8 = histogram_equalization(depth_uint8)
-        depth_color = dpt_imgproc.apply_colormap(depth_uint8, cmaps_list[cmap_idx])
+        if use_reverse_colors: depth_uint8 = 255 - depth_uint8
+        if use_high_contrast: depth_uint8 = histogram_equalization(depth_uint8)
+        depth_color = cmap_btns.apply_colormap(depth_uint8)#, cmaps_list[cmap_idx])
         
-    # Display results
-    draw_corner_text(frame, "inference: {:.1f}ms".format(time_ms_model))
-    sidebyside = np.hstack((frame, depth_color))
-    sidebyside = playback_ctrl.add_playback_indicator(sidebyside)
-    window.imshow(sidebyside)
-    req_break, _ = window.waitKey(video_frame_delay_ms)
+        # Provide more accurate timing when sync'd
+        if not use_async: time_ms_model = 1000 * (perf_counter() - t_ready_last)
+    
+    # Set up inference time text for display
+    infer_txt = "inference: {:.1f}ms".format(time_ms_model)
+    if not use_async: infer_txt = "{} (sync)".format(infer_txt)
+    
+    # Generate display image: info / colormaps / side-by-side images / playback control
+    display_frame = cmap_btns.append_to_frame(info_img)
+    sidebyside = draw_corner_text(np.hstack((frame, depth_color)), infer_txt)
+    display_frame = np.vstack((display_frame, sidebyside))
+    display_frame = playback_ctrl.append_to_frame(display_frame)
+    
+    # Display result
+    window.imshow(display_frame)
+    req_break, keypress = window.waitKey(video_frame_delay_ms)
     if req_break:
         break
     
     # Allow user to jump playback on mouse press
     playback_ctrl.change_playback_position_on_mouse_press()
+    
+    # Respond to keypresses
+    if keypress == ord("n"):
+        use_async = not use_async
+        print(f"Synchronized: {not use_async}")
+    if keypress == ord("r"):
+        use_reverse_colors = not use_reverse_colors
+        print(f"Reversed colors: {use_reverse_colors}")
+    if keypress == ord("h"):
+        use_high_contrast = not use_high_contrast
+        print(f"High contrast: {use_high_contrast}")
 
 # Clean up resources
 vreader.release()
@@ -192,4 +212,4 @@ cv2.destroyAllWindows()
 # Provide memory usage feedback, if using cuda GPU
 if device_str == "cuda":
     vram_bytes = torch.cuda.memory_allocated()
-    print("Using", vram_bytes // 1_000_000, "MB of VRAM total")
+    print("", f"Used {vram_bytes // 1_000_000} MB of VRAM total", "", sep = "\n")

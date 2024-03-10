@@ -221,21 +221,3 @@ class DPTImagePrep:
         return (255.0 * cls.normalize_01(depth_prediction_tensor, check_inf = not non_blocking)).byte()
     
     # .................................................................................................................
-    
-    @staticmethod
-    def apply_colormap(image_uint8_1ch, opencv_colormap_code = None):
-        
-        '''
-        Converts a uint8 image (numpy array) into a bgr color image using opencv colormaps
-        Expects an image of shape: HxWxC (with 1 or no channels, i.e. HxW only)
-        Colormap code should be from opencv, which are accessed with: cv2.COLORMAP_{name}
-        If the colormap code is None, then a grayscale (3ch) image is returned
-        '''
-        
-        # Special case, if no colormap code is given, return 3ch grayscale image
-        if opencv_colormap_code is None:
-            return cv2.cvtColor(image_uint8_1ch, cv2.COLOR_GRAY2BGR)
-        
-        return cv2.applyColorMap(image_uint8_1ch, opencv_colormap_code)
-    
-    # .................................................................................................................

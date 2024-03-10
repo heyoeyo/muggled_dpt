@@ -115,57 +115,71 @@ class PlaybackIndicatorCB:
     
     # .................................................................................................................
     
-    def __init__(self, vreader, bar_height = 40):
+    def __init__(self, vreader, bar_height = 60):
         
         # Store vreader so we can access it later to change playback positioning
         self._vreader = vreader
         
         # Storage for mouse state
-        self.x_px = (0,0)
+        self.mouse_x_px = 0
         self._is_pressed = False
+        self._frame_h = 1
+        self._interact_y1y2 = (-20, -10)
         
         # Storage for indicator bar image
+        self._bar_h = bar_height
         self._img = None
-        self._disp_w = None
-        self._disp_h = bar_height
+        self._frame_w = 1
     
     # .................................................................................................................
     
     def __call__(self, event, x, y, flags, param) -> None:
         
         # Keep track of mouse positioning and click state
-        self.x_px = x
-        if event == cv2.EVENT_LBUTTONUP: self._is_pressed = False
-        if event == cv2.EVENT_LBUTTONDOWN: self._is_pressed = True
+        self.mouse_x_px = x
+        
+        # Always release mouse press, regardless of where the mouse is located
+        if event == cv2.EVENT_LBUTTONUP:
+            self._is_pressed = False
+        
+        # Only respond when mouse is over top of slider
+        if event == cv2.EVENT_LBUTTONDOWN:
+            y1, y2 = self._interact_y1y2
+            is_interacting = y1 < y < y2
+            self._is_pressed = is_interacting
         
         return
     
     # .................................................................................................................
     
-    def change_playback_position_on_mouse_press(self):
+    def change_playback_position_on_mouse_press(self) -> None:
         
         # Bail if mouse isn't pressed
         if not self._is_pressed: return
         
-        # Only try to update positioning if we have a bar width (otherwise can't normalize mouse x coord)
-        if self._disp_w is None: return
-        playback_pos = self.x_px / (self._disp_w - 1)
+        playback_pos = self.mouse_x_px / (self._frame_w - 1)
         self._vreader.set_playback_position(playback_pos)
         
         return
     
     # .................................................................................................................
     
-    def add_playback_indicator(self, frame):
+    def append_to_frame(self, frame) -> np.ndarray:
         
         # Create base bar image, if we don't already have one matching the given frame size
-        frame_w = frame.shape[1]
-        got_new_width = (frame_w != self._disp_w)
+        frame_h, frame_w = frame.shape[0:2]
+        got_new_width = (frame_w != self._frame_w)
         if got_new_width:
-            bar_img = np.full((self._disp_h, frame_w, 3), 40, dtype=np.uint8)
-            cv2.rectangle(bar_img, (-5,0), (frame_w + 5, self._disp_h - 1), (0,0,0), 1)
+            bar_img = np.full((self._bar_h, frame_w, 3), 40, dtype=np.uint8)
+            cv2.rectangle(bar_img, (-5,0), (frame_w + 5, self._bar_h - 1), (0,0,0), 1)
             self._img = bar_img
-            self._disp_w = frame_w
+            self._frame_w = frame_w
+        
+        # Update height related info
+        got_new_height = (frame_h != self._frame_h)
+        if got_new_height:
+            self._frame_h = frame_h
+            self._interact_y1y2 = (frame_h, frame_h + self._bar_h)
         
         # Figure out the playback position as a pixel position to draw
         x_norm = self._vreader.get_playback_position()
@@ -173,12 +187,7 @@ class PlaybackIndicatorCB:
         
         # Draw indicator line onto a indicator bar
         bar_img = self._img.copy()
-        cv2.line(bar_img, (x_px, 2), (x_px, self._disp_h-2), (255,255,255), 1)
+        cv2.line(bar_img, (x_px, 2), (x_px, self._bar_h-2), (255,255,255), 1)
         return np.vstack((frame, bar_img))
     
     # .................................................................................................................
-
-# ---------------------------------------------------------------------------------------------------------------------
-#%% Functions
-
-
