@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" width="378" height="213" viewBox="0 0 100.013 56.356">
+  <g transform="translate(-317.5)">
+    <g paint-order="markers stroke fill">
+      <path fill="#eadfb4" d="M404.813 43.656h6.35v6.35h-6.35z"/>
+      <path fill="#9bb0c1" d="M411.163 43.656h6.35v6.35h-6.35z"/>
+      <path fill="#51829b" d="M404.813 50.006h6.35v6.35h-6.35z"/>
+      <path fill="#f6995c" d="M411.163 50.006h6.35v6.35h-6.35z"/>
+      <text xml:space="preserve" x="412.261" y="28.85" stroke-width=".794" font-family="Monospace" font-size="5.644" font-weight="400" style="text-align:center" text-anchor="middle" transform="translate(-4.252 20.038)"><tspan x="412.261" y="28.85" >4</tspan></text>
+      <text xml:space="preserve" x="418.619" y="28.81" stroke-width=".794" font-family="Monospace" font-size="5.644" font-weight="400" style="text-align:center" text-anchor="middle" transform="translate(-4.252 20.038)"><tspan x="418.619" y="28.81" >5</tspan></text>
+      <text xml:space="preserve" x="412.25" y="35.2" stroke-width=".794" font-family="Monospace" font-size="5.644" font-weight="400" style="text-align:center" text-anchor="middle" transform="translate(-4.252 20.038)"><tspan x="412.25" y="35.2" >7</tspan></text>
+      <text xml:space="preserve" x="418.591" y="35.198" stroke-width=".794" font-family="Monospace" font-size="5.644" font-weight="400" style="text-align:center" text-anchor="middle" transform="translate(-4.252 20.038)"><tspan x="418.591" y="35.198" >8</tspan></text>
+    </g>
+    <g id="a" stroke-width=".794" paint-order="markers stroke fill">
+      <path fill="#80004b" d="M317.5 0h12.7v12.7h-12.7z"/>
+      <text xml:space="preserve" x="323.85" y="-12.497" font-family="Monospace" font-size="5.644" font-weight="400" style="text-align:center" text-anchor="middle" transform="translate(0 20.902)"><tspan x="323.85" y="-12.497" >0</tspan></text>
+    </g>
+    <use xlink:href="#a" id="b" x="0" y="0" transform="translate(14.552)"/>
+    <use xlink:href="#b" id="c" x="0" y="0" transform="translate(14.552)"/>
+    <use xlink:href="#c" id="d" x="0" y="0" transform="translate(14.552)"/>
+    <use xlink:href="#d" id="e" x="0" y="0" transform="translate(14.552)"/>
+    <use xlink:href="#e" id="g" x="0" y="0" transform="translate(14.552)"/>
+    <use xlink:href="#a" id="f" x="0" y="0" transform="translate(0 14.552)"/>
+    <use xlink:href="#f" transform="translate(0 14.552)"/>
+    <use xlink:href="#b" id="h" x="0" y="0" transform="translate(0 14.552)"/>
+    <use xlink:href="#c" id="i" x="0" y="0" transform="translate(0 14.552)"/>
+    <use xlink:href="#d" id="j" x="0" y="0" transform="translate(0 14.552)"/>
+    <use xlink:href="#e" id="k" x="0" y="0" transform="translate(0 14.552)"/>
+    <use xlink:href="#g" id="l" x="0" y="0" transform="translate(0 14.552)"/>
+    <use xlink:href="#h" transform="translate(0 14.552)"/>
+    <use xlink:href="#i" transform="translate(0 14.552)"/>
+    <use xlink:href="#j" transform="translate(0 14.552)"/>
+    <use xlink:href="#k" transform="translate(0 14.552)"/>
+    <use xlink:href="#l" transform="translate(0 14.552)"/>
+    <g id="m" stroke-width=".794" paint-order="markers stroke fill">
+      <path fill="#ffd23f" d="M317.5 43.657h12.7v6.35h-12.7z"/>
+      <path fill="#337357" d="M317.5 50.007h12.7v6.35h-12.7z"/>
+      <text xml:space="preserve" x="323.873" y="29.042" font-family="Monospace" font-size="5.644" font-weight="400" style="text-align:center" text-anchor="middle" transform="translate(0 19.844)"><tspan x="323.873" y="29.042" >3</tspan></text>
+      <text xml:space="preserve" x="323.85" y="35.392" font-family="Monospace" font-size="5.644" font-weight="400" style="text-align:center" text-anchor="middle" transform="translate(0 19.844)"><tspan x="323.85" y="35.392" >6</tspan></text>
+    </g>
+    <use xlink:href="#m" id="n" x="0" y="0" transform="translate(14.552)"/>
+    <use xlink:href="#n" id="o" x="0" y="0" transform="translate(14.552)"/>
+    <use xlink:href="#o" id="p" x="0" y="0" transform="translate(14.552)"/>
+    <use xlink:href="#p" id="q" x="0" y="0" transform="translate(14.552)"/>
+    <use xlink:href="#q" transform="translate(14.552)"/>
+    <g id="r" stroke-width=".794" paint-order="markers stroke fill">
+      <path fill="#ee4266" d="M411.163 0h6.35v12.7h-6.35z"/>
+      <path fill="#5e1675" d="M404.813 0h6.35v12.7h-6.35z"/>
+      <text xml:space="preserve" x="417.762" y="-14.969" font-family="Monospace" font-size="5.644" font-weight="400" style="text-align:center" text-anchor="middle" transform="translate(-9.921 23.377)"><tspan x="417.762" y="-14.969" >1</tspan></text>
+      <text xml:space="preserve" x="424.289" y="-14.932" font-family="Monospace" font-size="5.644" font-weight="400" style="text-align:center" text-anchor="middle" transform="translate(-9.921 23.377)"><tspan x="424.289" y="-14.932" >2</tspan></text>
+    </g>
+    <use xlink:href="#r" id="s" x="0" y="0" transform="translate(0 14.552)"/>
+    <use xlink:href="#s" transform="translate(0 14.552)"/>
+  </g>
+</svg>

@@ -27,10 +27,6 @@ class PatchMerge(nn.Module):
     image-like representation of shape: BxHxWxC and halve the spatial sizings, while doubling
     the channel length, so that the output is of shape: Bx(H/2)x(W/2)x(2C), though this
     image-like shape is converted to a 'rows of tokens' format: BxNx(2C) for output.
-    
-    Note that patch merging seems equivalent to the patch embedding step, which is normally
-    handled with a strided convolution layer. Here it is implemented using even/odd indexing
-    and stacking, as described in the original paper.
     '''
     
     # .................................................................................................................

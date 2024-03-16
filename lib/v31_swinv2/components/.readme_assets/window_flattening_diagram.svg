@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" width="677.304" height="152" viewBox="0 0 179.203 40.217">
+  <g paint-order="markers stroke fill">
+    <path fill="#80004b" d="M0 0h8.468v8.467H0z"/>
+    <g stroke-width=".938">
+      <path fill="#ffd23f" d="M0 21.166h8.467V25.4H-.001z"/>
+      <path fill="#337357" d="M0 25.4h8.467v4.234H-.001z"/>
+    </g>
+    <g stroke-width=".938">
+      <path fill="#ee4266" d="M4.234 10.584h4.233v8.467H4.234z"/>
+      <path fill="#5e1675" d="M0 10.584h4.234v8.467H0z"/>
+    </g>
+    <path fill="#eadfb4" d="M0 31.75h4.233v4.233H0z"/>
+    <path fill="#9bb0c1" d="M4.233 31.75h4.233v4.233H4.233z"/>
+    <path fill="#51829b" d="M0 35.983h4.233v4.233H0z"/>
+    <path fill="#f6995c" d="M4.233 35.983h4.233v4.233H4.233z"/>
+  </g>
+  <path fill="#80004b" d="M43.737 11.112h135.467v2.117H43.737z" paint-order="markers stroke fill"/>
+  <g paint-order="markers stroke fill">
+    <path fill="#ffd23f" d="M43.737 21.695h67.733v2.117H43.737z"/>
+    <path fill="#337357" d="M111.47 21.695h67.733v2.117H111.47z"/>
+  </g>
+  <g transform="translate(-225.855 -87.08)">
+    <g id="a" stroke-width=".794" paint-order="markers stroke fill">
+      <path fill="#ee4266" d="M286.525 103.485h16.933v2.117h-16.933z"/>
+      <path fill="#5e1675" d="M269.592 103.485h16.933v2.117h-16.933z"/>
+    </g>
+    <use xlink:href="#a" id="b" x="0" y="0" transform="translate(33.867)"/>
+    <use xlink:href="#b" id="c" x="0" y="0" transform="translate(33.867)"/>
+    <use xlink:href="#c" transform="translate(33.867)"/>
+  </g>
+  <g transform="translate(-225.856 -88.83)">
+    <g id="d" stroke-width=".794" paint-order="markers stroke fill">
+      <path fill="#eadfb4" d="M269.592 115.817h16.933v2.117h-16.933z"/>
+      <path fill="#9bb0c1" d="M286.525 115.817h16.933v2.117h-16.933z"/>
+    </g>
+    <g id="e" stroke-width=".794" paint-order="markers stroke fill">
+      <path fill="#51829b" d="M337.325 115.818h16.933v2.117h-16.933z"/>
+      <path fill="#f6995c" d="M354.259 115.818h16.933v2.117h-16.933z"/>
+    </g>
+    <use xlink:href="#d" transform="translate(33.867)"/>
+    <use xlink:href="#e" transform="translate(33.867)"/>
+  </g>
+  <path fill="#f6995c" fill-opacity=".65" stroke="#000" stroke-width=".794" d="M19.126 20.108h13.531" paint-order="markers stroke fill"/>
+  <path d="M31.021 21.827V18.39l3.5 1.72z" paint-order="markers stroke fill"/>
+  <text xml:space="preserve" x="257.9" y="84.32" stroke-width=".794" font-family="Monospace" font-size="5.644" font-weight="400" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center" text-anchor="middle" transform="translate(-231.147 -68.263)"><tspan x="257.9" y="84.32">Flatten</tspan></text>
+</svg>

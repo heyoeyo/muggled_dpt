@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" width="288.108" height="288" viewBox="0 0 76.229 76.2">
+  <g transform="translate(-285.75004,-127)">
+    <g id="c" stroke-width="1.414" transform="matrix(0.50000011,0,0,1,159.42052,11.182542)">
+      <g id="a" stroke-width="1.123" paint-order="markers stroke fill">
+        <path fill="#eadfb4" d="M269.592 115.817h16.933v2.117h-16.933z"/>
+        <path fill="#9bb0c1" d="M286.525 115.817h16.933v2.117h-16.933z"/>
+      </g>
+      <g id="b" stroke-width="1.123" paint-order="markers stroke fill">
+        <path fill="#51829b" d="M337.325 115.818h16.933v2.117h-16.933z"/>
+        <path fill="#f6995c" d="M354.259 115.818h16.933v2.117h-16.933z"/>
+      </g>
+      <use xlink:href="#a" transform="translate(33.866667)"/>
+      <use xlink:href="#b" transform="translate(33.866652)"/>
+    </g>
+    <use xlink:href="#c" transform="rotate(90,286.80833,128.05836)"/>
+    <g id="F" transform="translate(0,0.06230667)">
+      <path id="d" fill="#eadfb4" fill-opacity="1" stroke="none" stroke-linejoin="round" stroke-width=".132" d="m294.217 135.404 8.466 8.467h-8.466z" paint-order="markers stroke fill"/>
+      <use xlink:href="#d" id="e" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#e" id="f" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#f" id="g" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#g" id="h" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#h" id="i" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#i" id="j" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#j" transform="translate(8.4666659)"/>
+    </g>
+    <g id="H" transform="translate(0,33.928961)">
+      <path id="k" fill="#51829b" fill-opacity="1" stroke="none" stroke-linejoin="round" stroke-width=".132" d="m294.217 135.404 8.466 8.467h-8.466z" paint-order="markers stroke fill"/>
+      <use xlink:href="#k" id="l" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#l" id="m" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#m" id="n" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#n" id="o" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#o" id="p" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#p" id="q" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#q" transform="translate(8.4666659)"/>
+    </g>
+    <g id="I" transform="translate(0,42.395621)">
+      <path id="r" fill="#f6995c" fill-opacity="1" stroke="none" stroke-linejoin="round" stroke-width=".132" d="m294.217 135.404 8.466 8.467h-8.466z" paint-order="markers stroke fill"/>
+      <use xlink:href="#r" id="s" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#s" id="t" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#t" id="u" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#u" id="v" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#v" id="w" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#w" id="x" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#x" transform="translate(8.4666659)"/>
+    </g>
+    <g id="G" transform="translate(0,8.5289667)">
+      <path id="y" fill="#9bb0c1" fill-opacity="1" stroke="none" stroke-linejoin="round" stroke-width=".132" d="m294.217 135.404 8.466 8.467h-8.466z" paint-order="markers stroke fill"/>
+      <use xlink:href="#y" id="z" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#z" id="A" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#A" id="B" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#B" id="C" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#C" id="D" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#D" id="E" x="0" y="0" transform="translate(8.4666659)"/>
+      <use xlink:href="#E" transform="translate(8.4666659)"/>
+    </g>
+    <use xlink:href="#F" id="J" x="0" y="0" transform="matrix(0,1,1,0,158.75,-158.75)"/>
+    <use xlink:href="#F" transform="translate(0,16.957478)"/>
+    <use xlink:href="#G" transform="translate(0,16.933334)"/>
+    <use xlink:href="#H" transform="translate(0,16.933334)"/>
+    <use xlink:href="#I" transform="translate(0,16.933334)"/>
+    <use xlink:href="#I" id="L" x="0" y="0" transform="matrix(0,1,1,0,158.7786,-158.75)"/>
+    <use xlink:href="#G" id="K" x="0" y="0" transform="matrix(0,1,1,0,158.75,-158.75)"/>
+    <use xlink:href="#J" transform="translate(16.933334)"/>
+    <use xlink:href="#K" transform="translate(16.933334)"/>
+    <use xlink:href="#L" transform="translate(16.933334)"/>
+    <use xlink:href="#H" id="M" x="0" y="0" transform="matrix(0,1,1,0,158.75,-158.75)"/>
+    <use xlink:href="#M" transform="translate(16.933334)"/>
+    <path id="N" fill="none" fill-opacity="1" stroke="#000" stroke-dasharray="none" stroke-dashoffset="0" stroke-linejoin="miter" stroke-width=".529" d="M297.127 138.377h2.646v2.646h-2.646z" paint-order="markers stroke fill"/>
+    <use xlink:href="#N" id="O" x="0" y="0" transform="translate(16.933341)"/>
+    <use xlink:href="#O" id="P" x="0" y="0" transform="translate(8.4666671,8.4666745)"/>
+    <use xlink:href="#P" id="Q" x="0" y="0" transform="translate(-16.933334)"/>
+    <use xlink:href="#Q" id="R" x="0" y="0" transform="translate(-8.4666662,8.4666666)"/>
+    <use xlink:href="#R" id="S" x="0" y="0" transform="translate(16.933333)"/>
+    <use xlink:href="#S" id="T" x="0" y="0" transform="translate(8.466667,8.4666651)"/>
+    <use xlink:href="#T" id="U" x="0" y="0" transform="translate(-16.933334)"/>
+    <use xlink:href="#U" id="V" x="0" y="0" transform="translate(25.400001,8.4666683)"/>
+    <use xlink:href="#V" id="W" x="0" y="0" transform="translate(0,16.933334)"/>
+    <use xlink:href="#W" id="X" x="0" y="0" transform="translate(16.933333)"/>
+    <use xlink:href="#X" id="Y" x="0" y="0" transform="translate(0,-16.933334)"/>
+    <use xlink:href="#Y" id="Z" x="0" y="0" transform="translate(-8.4666668,8.4666666)"/>
+    <use xlink:href="#Z" id="aa" x="0" y="0" transform="translate(16.933333)"/>
+    <use xlink:href="#aa" id="ab" x="0" y="0" transform="translate(0,16.933334)"/>
+    <use xlink:href="#ab" transform="translate(-16.933333)"/>
+  </g>
+</svg>
