@@ -12,7 +12,7 @@ While the focus of this implementation is on readability, there are also some pe
 
 The purpose of this repo is to provide an easy to follow code base to understand how the DPT & image encoder models are structured. The code of the [run_image.py](https://github.com/heyoeyo/muggled_dpt/blob/main/run_image.py) demo script is a good starting point if you'd like to better understand how to make use of the DPT models.
 
-To understand the model structure, consider checking out the implementation of the [DPT module](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/dpt_model.py), I'd recommended comparing this to the information in the [original preprint](https://arxiv.org/abs/2103.13413), particularly figure 1 in the paper.
+To understand the model structure, there's a [written walkthrough](https://github.com/heyoeyo/muggled_dpt/tree/main/lib#dpt-structure) explaining each of the DPT components. It's also worth checking out the code implementation of the [DPT module](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/dpt_model.py), I'd recommended comparing this to the information in the [original preprint](https://arxiv.org/abs/2103.13413), particularly figure 1 in the paper.
 
 To get a better sense of what these models are actually doing internally, check out the [experiments](https://github.com/heyoeyo/muggled_dpt/tree/main/experiments).
 
