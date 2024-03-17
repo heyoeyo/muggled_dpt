@@ -12,7 +12,7 @@ This script was made to visualize the [L2 norms](https://builtin.com/data-scienc
 
 Running this script generates an image showing a plot of the norms of the image patches (tokens) from each transformer block. The high-norm tokens are easily visible in multiple models, usually on the later internal blocks. The minimum and maximum norm values are also printed out for each block, showing norms often in the 100's (rule of thumb suggests they should be around 1).
 
-# Fusion Scaling
+## Fusion Scaling
 
 This script originally started as a test to see what would happen if some of the [4 fusion layers](https://github.com/heyoeyo/muggled_dpt/tree/main/lib#fusion-model) of the DPT model were disabled. Based on the DPT structure and the fact that the upper fusion layers are downscaled, it stands to reason that the upper layers should encode large scale patterns, while lower layers encode finer details. In practice something more complicated seems to be happening, and it varies (significantly) by model.
 

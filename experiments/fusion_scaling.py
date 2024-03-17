@@ -60,7 +60,6 @@ parser.add_argument("-ar", "--use_aspect_ratio", default=False, action="store_tr
                     help="Process the image at it's original aspect ratio, if the model supports it")
 parser.add_argument("-b", "--base_size_px", default=default_base_size, type=int,
                     help="Override base (e.g. 384, 512) model size")
-parser.add_argument("-alt", "--alt_factors", default=False, action="store_true", help="Use altered default scaling factors")
 
 # For convenience
 args = parser.parse_args()
@@ -71,7 +70,6 @@ device_str = args.device
 use_float32 = args.use_float32
 force_square_resolution = not args.use_aspect_ratio
 model_base_size = args.base_size_px
-use_alt_factors = args.alt_factors
 
 # Hard-code no-cache usage, since there is no benefit if the model only runs once
 use_cache = False
@@ -144,17 +142,6 @@ window = DisplayWindow("Fusion Scaling Result")
 cmap_btns = ColormapButtonsCB(cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, cv2.COLORMAP_TURBO)
 sliders = [SliderCB(f"Fusion {1+idx}", 1, -5, 5, 0.01, marker_step_size=1) for idx in range(4)]
 window.set_callbacks(cmap_btns, *sliders)
-
-# For fun, switch to alternate default factqors
-if use_alt_factors:
-    alt_factors = [0.7, 0.1, 0.0]
-    for alt, s in zip(alt_factors, sliders):
-        s.set(alt)
-    print("",
-          "Using alternate scale factors!",
-          "  - These factors are tuned based on vit-large (depth-anything)",
-          "  - They may heavily distort results from other models!",
-          sep = "\n")
 
 # Feedback about controls
 info_msg = "[r to reverse colors]  [h for high contrast]  [s to save image]  [q to quit]"
