@@ -27,7 +27,7 @@ except ModuleNotFoundError:
 from lib.make_dpt import make_dpt_from_state_dict
 
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
-from lib.demo_helpers.ui import SliderCB, ColormapButtonsCB, make_message_header
+from lib.demo_helpers.ui import SliderCB, ColormapButtonsCB, make_message_header_image
 from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
 from lib.demo_helpers.saving import save_image
 from lib.demo_helpers.misc import (
@@ -145,7 +145,7 @@ window.set_callbacks(cmap_btns, *sliders)
 
 # Feedback about controls
 info_msg = "[r to reverse colors]  [h for high contrast]  [s to save image]  [q to quit]"
-info_img = make_message_header(info_msg, 2*disp_w)
+info_img = make_message_header_image(info_msg, 2*disp_w)
 use_reverse_colors = False
 use_high_contrast = False
 print("", "Displaying results",

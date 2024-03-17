@@ -351,9 +351,10 @@ class ColormapButtonsCB:
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Functions
 
-def make_message_header(message: str, frame_width: int, header_height_px = 30, bg_color = (53,29,31)) -> np.ndarray:
+def make_message_header_image(message: str, frame_width: int,
+                              header_height_px = 30, bg_color = (53,29,31)) -> np.ndarray:
     
-    ''' Helper which makes a header frame containing the given message '''
+    ''' Helper which makes a header image containing the given message '''
     
     # Figure out text scaling so that it fits in width of frame
     for scale in [0.5, 0.4, 0.3, 0.2, 0.1]:    

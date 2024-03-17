@@ -15,7 +15,7 @@ import numpy as np
 from lib.make_dpt import make_dpt_from_state_dict
 
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
-from lib.demo_helpers.ui import ColormapButtonsCB, make_message_header
+from lib.demo_helpers.ui import ColormapButtonsCB, make_message_header_image
 from lib.demo_helpers.visualization import DisplayWindow, draw_corner_text, histogram_equalization
 from lib.demo_helpers.video import LoopingVideoReader, PlaybackIndicatorCB
 from lib.demo_helpers.misc import (
@@ -117,9 +117,6 @@ print_config_feedback(model_path, device_config_dict, use_cache, example_tensor)
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Run model & Display results
 
-# Define colormaps for displaying depth map
-cmaps_list = [cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, cv2.COLORMAP_TURBO, None]
-
 # Set up window with trackbar controls
 cv2.destroyAllWindows()
 window = DisplayWindow("Inverse Depth Result")
@@ -136,7 +133,7 @@ t_ready_last, time_ms_model = perf_counter(), 0
 
 # Feedback about controls
 info_msg = "[r to reverse colors]  [h for high contrast]  [n for sync]  [q to quit]"
-info_img = make_message_header(info_msg, 2*disp_w)
+info_img = make_message_header_image(info_msg, 2*disp_w)
 use_async = not force_sync
 use_reverse_colors = False
 use_high_contrast = False
