@@ -71,7 +71,6 @@ device_str = args.device
 use_float32 = args.use_float32
 force_square_resolution = not args.use_aspect_ratio
 model_base_size = args.base_size_px
-override_base_size = (model_base_size is not None)
 use_alt_factors = args.alt_factors
 
 # Hard-code no-cache usage, since there is no benefit if the model only runs once
@@ -98,8 +97,8 @@ reduce_overthreading(device_str)
 # Load model & image pre-processor
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
 model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache)
-if override_base_size:
-    dpt_imgproc.override_base_size(model_base_size)
+if (model_base_size is not None):
+    dpt_imgproc.set_base_size(model_base_size)
 
 # Move model to selected device
 dpt_model.to(**device_config_dict)

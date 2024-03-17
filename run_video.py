@@ -71,7 +71,6 @@ use_cache = not args.no_cache
 use_float32 = args.use_float32
 force_square_resolution = not args.use_aspect_ratio
 model_base_size = args.base_size_px
-override_base_size = (model_base_size is not None)
 use_webcam = args.use_webcam
 
 # Set up device config
@@ -92,8 +91,8 @@ reduce_overthreading(device_str)
 # Load model & image pre-processor
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
 model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache)
-if override_base_size:
-    dpt_imgproc.override_base_size(model_base_size)
+if (model_base_size is not None):
+    dpt_imgproc.set_base_size(model_base_size)
 
 # Move model to selected device
 dpt_model.to(**device_config_dict)
@@ -164,16 +163,16 @@ for frame in vreader:
         
         # Prepare depth data for display
         scaled_prediction = dpt_imgproc.scale_prediction(prediction, disp_wh)
-        depth_tensor = dpt_imgproc.convert_to_uint8(scaled_prediction, use_async).to("cpu", non_blocking = use_async)
+        depth_tensor = dpt_imgproc.convert_to_uint8(scaled_prediction).to("cpu", non_blocking = use_async)
         depth_uint8 = depth_tensor.squeeze().numpy()
     
+        # Provide more accurate timing when sync'd
+        if not use_async: time_ms_model = 1000 * (perf_counter() - t_ready_last)
+        
         # Produce colored depth image for display
         if use_reverse_colors: depth_uint8 = 255 - depth_uint8
         if use_high_contrast: depth_uint8 = histogram_equalization(depth_uint8)
-        depth_color = cmap_btns.apply_colormap(depth_uint8)#, cmaps_list[cmap_idx])
-        
-        # Provide more accurate timing when sync'd
-        if not use_async: time_ms_model = 1000 * (perf_counter() - t_ready_last)
+        depth_color = cmap_btns.apply_colormap(depth_uint8)
     
     # Set up inference time text for display
     infer_txt = "inference: {:.1f}ms".format(time_ms_model)

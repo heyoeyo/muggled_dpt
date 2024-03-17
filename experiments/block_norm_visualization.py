@@ -70,7 +70,6 @@ display_size_px = args.display_size
 device_str = args.device
 force_square_resolution = not args.use_aspect_ratio
 model_base_size = args.base_size_px
-override_base_size = (model_base_size is not None)
 enable_display = not args.headless
 enable_save = args.save
 colormap_select = None if args.no_colormap else cv2.COLORMAP_VIRIDIS
@@ -259,7 +258,7 @@ def add_model_info_header(image_bgr, model_path_or_name, grid_hw):
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
 model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache, strict_load=True)
 if model_base_size is not None:
-    dpt_imgproc.override_base_size(model_base_size)
+    dpt_imgproc.set_base_size(model_base_size)
 
 # Move model to selected device
 device_config_dict = make_device_config(device_str, use_float32)

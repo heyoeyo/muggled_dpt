@@ -29,7 +29,6 @@ def get_model_config_from_midas_state_dict(state_dict):
         "base_patch_grid_hw": get_base_patch_grid_size(state_dict),
         "window_size_hw": window_size_wh,
         "pretrained_window_sizes_per_stage": pretrained_window_sizes_per_stage,
-        "reassembly_features_list": get_reassembly_channel_sizes(state_dict),
         "fusion_channels": get_num_fusion_channels(state_dict),
         "patch_size_px": get_patch_size_px(state_dict),
     }
@@ -255,48 +254,6 @@ def get_features_per_stage(state_dict):
     features_per_stage = [int(features_per_patch) * (2**i) for i in range(4)]
     
     return features_per_stage
-
-# .....................................................................................................................
-
-def get_reassembly_channel_sizes(state_dict):
-    
-    '''
-    The state dict is expected to contain 'layer#_rn' entries, which are used to project
-    reassembly feature maps into the same output channel dimension (the number of fusion channels).
-    The input to each of these layers represents the reassembly feature sizes, which
-    are generally different for each of the 4 reassembly stages, and the actual number we
-    want to get out from this function.
-    '''
-    
-    # For clarity, these are the layers we'll check to get the 4 reassembly feature sizes
-    target_keys = {
-        "scratch.layer1_rn.weight",
-        "scratch.layer2_rn.weight",
-        "scratch.layer3_rn.weight",
-        "scratch.layer4_rn.weight",
-    }
-    
-    # Loop over each target layer and read the weight shape to get reassembly feature sizes
-    size_per_target_key = {}
-    for each_target_key in target_keys:
-        
-        # Bail if we can't find the key we're after
-        assert each_target_key in state_dict.keys(), \
-            "Error determining reassembly features! Couldn't find {} key".format(each_target_key)
-        
-        # Expecting weights with shape: CxRx3x3
-        # -> C is fusion channel count
-        # -> R is reassembly layer channel count
-        # -> 3x3 is for 3x3 convolution
-        _, num_reassembly_channels, _, _ = state_dict[each_target_key].shape
-        size_per_target_key[each_target_key] = int(num_reassembly_channels)
-    
-    # Make sure we get correct ordering, in case dict was indexed out-of-order
-    reassembly_features_list = []
-    for key in sorted(size_per_target_key.keys()):
-        reassembly_features_list.append(size_per_target_key[key])
-    
-    return reassembly_features_list
 
 # .....................................................................................................................
 
