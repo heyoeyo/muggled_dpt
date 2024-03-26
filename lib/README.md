@@ -6,7 +6,7 @@ The [make_dpt.py](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/make_dpt.
 
 ### Note on code structure
 
-The code for each model variant is written in a standalone manner, so that the different implementation are almost entirely contained within their respective folders. Import statements are also written in a relative format, which means that the model folders can be copy-pasted into other projects if you'd like to experiment with them.
+The code for each model variant is written in a standalone manner, so that the different implementations are almost entirely contained within their respective folders. Import statements are also written in a relative format, which means that the model folders can be copy-pasted into other projects if you'd like to experiment with them.
 
 This goes against the convention of having [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) code so you'll find a lot of duplication across models. However, this results in code that has fewer _switches_ to toggle functionality on or off depending of the requirements of different models, and is overall easier to understand (imo).
 
@@ -21,8 +21,8 @@ All model variants share the same basic DPT structure, though there are some mod
 
 The DPT model consists of 5 separate sub-models: a patch embedding model, image encoder, reassembly model, fusion model and monocular depth head model. Input images are passed sequentially through the components to generate [inverse-depth](https://github.com/heyoeyo/muggled_dpt/blob/main/.readme_assets/results_explainer.md) maps. Each of these components is described in detail below. 
 
-
-## Patch Embedding Model
+---
+### Patch Embedding Model
 
 The patch embedding model is responsible for 'dicing up' the input image into tokens for the image encoder (transformer) model. More specifically, RGB images are split into 3-channel `16x16` patches, with no overlap. Each patch is linearly projected so that it becomes an `Fx1` vector (where `F` is the number of features per token of the transformer model), and each of the patches (now vectors, aka tokens) is grouped into a single `Np x F` tensor (where `Np` is the number of patches).
 
@@ -48,8 +48,8 @@ There are two important data representations used throughout the DPT model (and 
   <img src=".readme_assets/data_formats.svg" alt="Image of 'image-like' data representation vs. 'rows of tokens'">
 </p>
 
-
-## Image Encoder Model
+---
+### Image Encoder Model
 
 The image encoder model is responsible for 'making sense' of the input image. Alternatively, this model can be thought of as generating a more meaningful representation of the image data compared to the original RGB representation (RGB is optimized for driving displays, it isn't an efficient way to convey meaning about the contents of an image), at least for the purposes of depth estimation.
 
@@ -79,7 +79,8 @@ $$\text{Attention}(Q, K, V) = \text{SoftMax} \left (\frac{QK^T}{\sqrt{d_{k}}} \r
 
 Where Q, K, V are linear transformations of the input tokens and are referred to as the 'queries', 'keys', and 'values'. The square root d<sub>k</sub> term in the denominator is meant to be the dimensionality of the queries and keys (typically this is equal to the number of features per token divided by the number of transformer 'heads'). For more information on the self-attention calculation and transformers in general, check out [The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/), by Jay Alamar (note that this is for text-based transformers, but the intuition holds if you think of image patches as tokens).
 
-## Reassembly Model
+---
+### Reassembly Model
 
 The reassembly model is responsible for converting the 'rows of tokens' output from the transformer back into an image-like representation. The reassembly model creates 4 differently sized image-like representations from each of the 4 transformer outputs. The smallest output is half the width and height of the original input patch grid size, then there is an output matched to the original patch size, one which is 2 times larger and one which is 4 times larger. Each of the reassembly outputs is generated completely independently of one another. The smallest sized output comes from the 'top-most' set of tokens from the image encoder (i.e. the final output, also called stage 4 in these diagrams).
 
@@ -101,7 +102,8 @@ The diagram below depicts a single reassembly block. There are 4 of these in tot
 
 Prior to re-constructing 2D image-like results, the reassembly model includes a [readout projection](https://github.com/heyoeyo/muggled_dpt/tree/main/lib/v31_beit/components) module. This step incorporates the readout (or 'cls') token information into the image patches, as the original authors found this improved the accuracy of the model results. Once the readout token is combined with the other image tokens, the resulting data has the same sizing as the output from the patch embedding. Therefore, the process of converting from the 1D tokens back into 2D image-like tensors is simply an [unflatten](https://pytorch.org/docs/stable/generated/torch.unflatten.html) operation, as this is the reverse of the [flatten](https://pytorch.org/docs/stable/generated/torch.flatten.html#torch.flatten) operation used by the patch embedding model to form the 1D tokens in the first place.
 
-## Fusion Model
+---
+### Fusion Model
 
 The fusion model is responsible for combining the 4 image-like outputs from the reassembly model back into a single image-like representation. It is constructured entirely out of convolution blocks, along with spatial upscaling (via [bilinear interpolation](https://en.wikipedia.org/wiki/Bilinear_interpolation)), which is needed to match together all of the differently sized outputs from the reassembly model. The fusion model makes heavy use of a component called a 'Residual Convolution Unit' which seems to be derived from the paper: ["RefineNet: Multi-Path Refinement Networks for High-Resolution Semantic Segmentation"](https://arxiv.org/abs/1611.06612), and is just two 3x3 convolutions with _pre_-[ReLu](https://en.wikipedia.org/wiki/Rectifier_(neural_networks)) activations (i.e. applied prior to each convolution) and a residual connection.
 
@@ -111,7 +113,8 @@ The final result of the fusion model is a single image-like tensor with the same
   <img src=".readme_assets/fusion_model.svg" alt="Diagram showing the fusion model. The different sized inputs to the model are shown on the left (coming from the reassembly model), while the output of the model is shown at the bottom. Arrows depict how data moves through the model, indicating how the image-like inputs are combined (or fused) together to form a single output 'image'">
 </p>
 
-### Fusion blocks
+#### Fusion blocks
+
 The lower three fusion blocks take in two inputs: one from the output of the reassembly model and one input from the prior fusion blocks. The top-most fusion block doesn't have a prior fusion input.
 
 <p align="center">
@@ -120,8 +123,8 @@ The lower three fusion blocks take in two inputs: one from the output of the rea
 
 Somewhat surprisingly, the top-most block only performs the computations which follow the original addition step, which means that the reassembly result is not pre-processed by a residual convolution block as with other fusion blocks.
 
-
-## Monocular Depth Head Model
+---
+### Monocular Depth Head Model
 
 The head model is the final step in processing and has two responsibilities. First, it restores the height and width of the output to match the original input image. Second, the model converts the multi-channel result output from the fusion model into a single channel representing inverse-depth. The authors of the paper mention that the DPT model can be converted to perform semantic segmentation simply by swapping this head component!
 
@@ -134,3 +137,28 @@ The head model is fairly simple, it is entirely made out of convolution layers a
 Note that the sequence of convolutions within the head model have the effect of reducing the channel size by first halving it (from the original size output by the reassembly model), then reducing the channel count to 32 and then finally to a single channel at the output. The final output is the inverse-depth prediction!
 
 It's also important to notice that the final output is 16x larger (than the original patch grid sizing) due to the spatial doubling of the head model and the 8x upscaling done by the fusion model. Since the initial patch embedding collapsed 16x16 patches of pixels, this 16x upscale effectively restores the original input image resolution!
+
+
+## Image Pre-processing
+
+In order for the DPT model to function properly, it must have correctly formatted input images. There are several important properties that input images must have in order to be processed by a DPT model:
+
+1. The input must be a tensor
+2. The pixel values of the image must be normalized to a certain mean and standard deviation, which varies by model (though typically around 0.0 and 1.0 respectively).
+3. The image must have 3 channels in RGB order (note that opencv defaults to BGR order!)
+4. The dimension ordering must be: batch, channels, height, width
+5. The size of the image must be compatible with the model processing steps. More specifically, the image must have a width and height which are both some integer multiple of the patch size used by the patch embedding model. The exact multiple depends on the model variant.
+
+Additionally, while not required, all DPT models have some 'base image size' that they target by default. Processing images at other sizes and aspect ratios is sometimes supported (all models in this repo have support for this), but they are expected to work best when the input image is scaled to match this base sizing.
+
+In order to make sure all of these conditions are met, an 'image prep' class is used, which is also found in the [dpt_model.py](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/dpt_model.py) script. Currently this class includes a single function for preparing images assuming the image is provided through opencv. The class also include many helper functions for post-processing the results, mostly to help with interpretability and display.
+
+### Image padding
+
+One important thing to note is that the image pre-processor in this repo **does not** pad images prior to processing by the DPT models. Instead, the image is stretched to fit to whatever size is specified. The other common approach is to scale the image so that the largest side fits inside a target processing resolution and then pad the shorter side to fill in any remaining space. The diagram below shows an example of the two approaches:
+
+<p align="center">
+  <img src=".readme_assets/stretch_vs_pad.webp" alt="Image showing the difference between stretching an image to fit a target resolution (left) and padding the image (right). When stretching an image to fit a different aspect ratio, the image becomes distorted. Padding avoids distortion but includes additional unused pixel data that must be processed.">
+</p>
+
+While stretching introduces distortion, padding introduces additional processing due to the empty space that gets added. Padding also (slightly) complicates the model processing as the extra space must be removed from the final output. This repo only supports stretching the input but also provides the option to process images at their original aspect ratio (or as near as possible) which arguably provides the best balance of efficient processing while introducing minimal distortion.
