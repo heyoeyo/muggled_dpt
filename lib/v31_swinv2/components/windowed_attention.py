@@ -45,6 +45,9 @@ class WindowAttentionWithRelPos(nn.Module):
         
         # Set up output project layer
         self.proj = nn.Linear(features_per_token, features_per_token)
+        
+        # Set up softmax as dedicated 'module' so that we can hook into it for debugging/analysis!
+        self.softmax = nn.Softmax(dim=-1)
     
     # .................................................................................................................
     
@@ -99,7 +102,7 @@ class WindowAttentionWithRelPos(nn.Module):
         
         # Generate new tokens from weighted value tokens & reshape to match original input token shape
         # Shape: PxHxNxN @ PxHxNxf = PxHxNxf. Final output is shaped: PxNxC (same as original input)
-        value_weighting = attn.softmax(dim=-1)
+        value_weighting = self.softmax(attn)
         output = (value_weighting @ v).transpose(1, 2).reshape(P, N, C)
         output = self.proj(output)
         

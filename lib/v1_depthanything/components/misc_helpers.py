@@ -130,5 +130,14 @@ class LayerNormEPS6(nn.LayerNorm):
     
     ''' Simple wrapper around the default layer norm module, with eps set to 1e-6 '''
     
-    def __init__(self, normalized_shape, elementwise_affine=True, bias=True, device=None, dtype = None):
-        super().__init__(normalized_shape, 1e-6, elementwise_affine, bias, device, dtype)
+    def __init__(self, normalized_shape, elementwise_affine=True, bias=True, device=None, dtype=None):
+        
+        try:
+            # For torch versions >= 2.1
+            super().__init__(normalized_shape, 1e-6, bias, elementwise_affine, device, dtype)
+        except TypeError:
+            # For torch versions < 2.1
+            super().__init__(normalized_shape, 1e-6, elementwise_affine, device, dtype)
+        
+        pass
+

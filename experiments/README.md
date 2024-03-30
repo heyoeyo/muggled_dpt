@@ -1,6 +1,6 @@
 # Muggled DPT - Experiments
 
-This folder contains random experiments using the DPT models, mostly out of curiosity.
+This folder contains random experiments using the DPT models, mostly out of curiosity. These scripts have configurable options which can be viewed by running the scripts with the `--help` flag.
 
 ## Block Norm Visualization
 
@@ -20,7 +20,7 @@ This script originally started as a test to see what would happen if some of the
   <img src=".readme_assets/fusion_scaling_example.webp" alt="">
 </p>
 
-Rather than simply disabling fusion layers, this script allows for each layer to be individually scaled (potentially to 0, which disables the layer) while observing the depth result. Interestingly, some of the fusion layers seem to have a kind of 'blurring' effect on the output. Reducing the impact of these blurring layers can lead to results that have far greater details than the normal model output, though this does seem to come at the expense of the correctness of the depth mapping for larger-scale details.
+Rather than simply disabling fusion layers, this script allows for each layer to be individually scaled (potentially to 0, which disables the layer) while observing the depth result. Interestingly, some of the fusion layers seem to have a kind of 'blurring' effect on the output. Reducing the impact of these blurring layers can lead to results that have far greater details than the normal model output, though this does seem to come at the expense of the correctness of the depth mapping for larger-scale details. Be sure to try this with different image base sizing as well, for example  by running the script with the `-b` flag (e.g. `-b 1000`).
 
 This script can also generate some wild looking [glitch art](https://en.wikipedia.org/wiki/Glitch_art) when using larger and/or negative scaling factors!
 
@@ -33,4 +33,4 @@ So far, the script seems to support Depth-Anything & BEiT DPT models and works a
 
 `pip install onnx==1.15.* onnxruntime==1.17.*`
 
-If you export an onnx model, you can view the onnx structure using tools, like [netron](https://netron.app/)
+If you export an onnx model, you can view the onnx structure using tools like [netron](https://netron.app/)

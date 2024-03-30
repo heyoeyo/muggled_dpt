@@ -20,10 +20,22 @@ except ImportError:
     XFORMERS_AVAILABLE = False
 
 # Allow disabling of XFormers by setting a 'NO_XFORMERS' env variable
-# ex: $ echo NO_XFORMERS=1
+# ex: $ export NO_XFORMERS=1
 if XFORMERS_AVAILABLE:
     import os
-    XFORMERS_AVAILABLE = os.environ.get("NO_XFORMERS", None) is None
+    _xformers_disable_key = "NO_XFORMERS"
+    XFORMERS_AVAILABLE = _xformers_disable_key not in os.environ
+    if XFORMERS_AVAILABLE:
+        print("",
+              "XFormers Detected! (enabled)",
+              f"  To disable, set environment variable: '{_xformers_disable_key}'",
+              sep = "\n")
+    else:
+        print("",
+              "XFormers Detected! (disabled)",
+              f"  To enable, un-set environment variable: '{_xformers_disable_key}'",
+              sep = "\n")
+
     
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -100,6 +112,9 @@ class Attention(nn.Module):
         # Set up query/key/value weights & output feedforward network
         self.qkv = nn.Linear(features_per_token, features_per_token * 3, bias=True)
         self.proj = nn.Linear(features_per_token, features_per_token, bias=True)
+        
+        # Set up softmax as dedicated 'module' so that we can hook into it for debugging/analysis!
+        self.softmax = nn.Softmax(dim=-1)
 
     # .................................................................................................................
     
@@ -131,7 +146,7 @@ class Attention(nn.Module):
 
         # Generate new tokens from weighted value tokens & reshape to match original input token shape
         # Shape: BxHxNxN @ BxHxNxc -> BxHxNxc -> BxNxHxc -> BxNxC
-        value_weighting = attn.softmax(dim=-1)
+        value_weighting = self.softmax(attn)
         tokens = (value_weighting @ v).transpose(1, 2).reshape(B, N, C)
         tokens = self.proj(tokens)
         

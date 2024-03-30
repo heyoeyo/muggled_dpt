@@ -282,6 +282,9 @@ class SelfAttentionRelPos(nn.Module):
         
         # Set up output projection layer to get back our input feature count (if it was changed inside attention)
         self.proj = nn.Linear(internal_feature_count, features_per_token)
+        
+        # Set up softmax as dedicated 'module' so that we can hook into it for debugging/analysis!
+        self.softmax = nn.Softmax(dim=-1)
     
     # .................................................................................................................
     
@@ -327,7 +330,7 @@ class SelfAttentionRelPos(nn.Module):
         
         # Generate new tokens from weighted value tokens & reshape to match original input token shape
         # Shape: BxHxNxN @ BxHxNxf -> BxHxNxf -> BxNxHxf -> BxNxF
-        value_weighting = attn.softmax(dim=-1)
+        value_weighting = self.softmax(attn)
         output = (value_weighting @ v).transpose(1, 2).reshape(B, N, -1)
         output = self.proj(output)
         
