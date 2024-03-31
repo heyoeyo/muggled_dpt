@@ -56,8 +56,9 @@ def convert_midas_state_dict_keys(config_dict, midas_state_dict):
         
         new_key = _convert_imgenc_keys(orig_key, layers_per_stage)
         if found_key(new_key):
-            imgenc_sd[new_key] = _convert_qv_bias_tensors(new_key, orig_data, heads_per_stage)
-            
+            new_data = _convert_logit_scaling_tensors(new_key, orig_data)
+            new_data = _convert_qv_bias_tensors(new_key, new_data, heads_per_stage)
+            imgenc_sd[new_key] = new_data
             continue
         
         new_key = _convert_reassembly_keys(orig_key, weight_or_bias)
@@ -109,6 +110,27 @@ def _convert_patch_embed_keys(key, weight_or_bias):
 
 # .....................................................................................................................
 
+def _convert_logit_scaling_tensors(key, key_tensor):
+    
+    '''
+    Performs clamping & exponentiation of logit scaling factors on load.
+    (these weights are the 'scaling' part of 'scaled cosine attention')
+    
+    The original model computes these values within every attention block
+    during inference! Doing this here means we can compute once, store the
+    result, and re-use it to avoid the runtime computation!
+    '''
+    
+    is_logit_scale_key = "logit_scale" in key
+    if is_logit_scale_key:
+        max_logit_value = torch.log(torch.tensor(1.0 / 0.01)).to(key_tensor.device)
+        new_tensor = torch.clamp(key_tensor, max=max_logit_value).exp()
+        return new_tensor
+    
+    return key_tensor
+
+# .....................................................................................................................
+
 def _convert_qv_bias_tensors(key, key_tensor, heads_per_stage):
     
     '''
@@ -127,14 +149,6 @@ def _convert_qv_bias_tensors(key, key_tensor, heads_per_stage):
     being all zeros! (and is presumably meant to be untrainable)
     '''
     
-    # Apply pre-scalling/-clamping to logit scale, so we don't re-compute it constantly
-    is_logit_scale_key = "logit_scale" in key
-    if is_logit_scale_key:
-        max_logit_value = torch.log(torch.tensor(1.0 / 0.01)).to(key_tensor.device)
-        new_tensor = torch.clamp(key_tensor, max=max_logit_value).exp()
-        return new_tensor
-    
-    # return key_tensor
     is_bias_key = any((target in key) for target in ["q_bias", "v_bias"])
     if is_bias_key:
         stage_idx = get_nth_integer(key, 0)
@@ -329,4 +343,3 @@ def _convert_head_keys(key, weight_or_bias):
     return None
 
 # .....................................................................................................................
-
