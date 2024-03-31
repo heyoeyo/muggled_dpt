@@ -10,7 +10,7 @@ This functionality is very low-level and almost hacky, it works by searching for
 
 ## Convert State Dict Keys
 
-This repo does not contain it's own copies of the Depth-Anything models and instead loads the original Depth-Anything weights. However, the coded implementation of the model is different from the original, mostly for the sake of readability, and for making the model more directly compatible with other DPT models. For example, much of the model structure in this repo is named directly after the DPT components (e.g. reassembly and fusion models), whereas the original Depth-Anything (and MiDaS models) use names like 'scratch' and 'refinenet' to describe some of these components, which therefore need to be renamed for compatibility.
+This repo does not contain it's own copies of the Depth-Anything models and instead loads the original Depth-Anything weights. However, the coded implementation of the model is different from the original, mostly for the sake of readability, and for making the model more directly compatible with other DPT models. For example, much of the model structure in this repo is named directly after the DPT components (e.g. reassembly and fusion models), whereas the original Depth-Anything (and MiDaS models) use names like [scratch](https://github.com/LiheYoung/Depth-Anything/blob/6e780749e7772e911754a4eb00965727987f92f7/depth_anything/blocks.py#L4) and [refinenet](https://github.com/LiheYoung/Depth-Anything/blob/6e780749e7772e911754a4eb00965727987f92f7/depth_anything/dpt.py#L78C9-L81C71) to describe some of these components, which therefore need to be renamed for compatibility.
 
 Here are examples of some of the original model weight names and the new implementation (converted) names:
 
