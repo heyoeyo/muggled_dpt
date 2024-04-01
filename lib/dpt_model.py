@@ -72,10 +72,8 @@ class DPTModel(nn.Module):
         # Convert image (shape: BxCxHxW) to patch tokens (shape: BxNpxF)
         patch_tokens, patch_grid_hw = self.patch_embed(image_rgb_normalized_bchw)
         
-        # Process tokens with transformer and retrieve results from multiple stages (shape: BxNxF)
+        # Process patch tokens back into (multi-scale) image-like tensors
         stage_1, stage_2, stage_3, stage_4 = self.imgencoder(patch_tokens, patch_grid_hw)
-        
-        # Convert transformer tokens into image-like tensors (shape: BxFxH'xW')
         reasm_1, reasm_2, reasm_3, reasm_4 = self.reassemble(stage_1, stage_2, stage_3, stage_4, patch_grid_hw)
         
         # Generate a single (fused) feature map from multi-stage input & project into (1ch) depth image output
@@ -122,7 +120,7 @@ class DPTModel(nn.Module):
         ok_dtype = (img_dtype == model_dtype)
         assert ok_dtype, "Data type mismatch! Image: {}, model: {}".format(img_dtype, model_dtype)
         
-        # Check batch dimension
+        # Check that the shape has 4 terms (meant to be BxCxHxW)
         img_shape = image_rgb_normalized_bchw.shape
         ok_shape = len(img_shape) == 4
         shape_str = "x".join(str(item) for item in img_shape)

@@ -52,15 +52,15 @@ class FusionModel(nn.Module):
     def forward(self, upx4_featuremap, upx2_featuremap, noscale_featuremap, downx2_featuremap):
         
         '''
-        Expects 4 image-like tensors output from a reassembly model and combined
+        Expects 4 image-like tensors output from a reassembly model and combines
         them into a single image-like output.
         
         The input tensors are expected to be spatially scaled by a factor of 2 relative
         to each other, but with matching channel counts.
         This model will not work properly otherwise!
         
-        The output will be twice are large in height & width, compared to the
-        first-most input, with the same number of channels.
+        The output will be 8x larger than the original input patch sizing.
+        (i.e. 2x larger than the upx4 input feature map)
         '''
         
         # Fuse all results together
