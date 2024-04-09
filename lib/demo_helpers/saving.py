@@ -22,7 +22,7 @@ def save_image(image_bgr, save_name, save_folder="saved_images"):
     name_only, _ = osp.splitext(file_name)
     
     # Generate timestamp, so user can save the same image name multiple times without overwriting
-    save_time = dt.datetime.now().isoformat(timespec = "seconds")
+    save_time = dt.datetime.now().isoformat(timespec = "seconds").replace(":", "").replace("T", "_")
     save_name = "{}_{}.png".format(name_only, save_time)
     
     # Try saving the image if possible

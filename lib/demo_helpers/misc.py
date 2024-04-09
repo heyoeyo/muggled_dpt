@@ -58,6 +58,11 @@ def get_default_device_string():
 
 def make_device_config(device_str, use_float32, use_channels_last = True, prefer_bfloat16 = True):
     ''' Helper used to construct a dict for device usage. Meant to be used with 'model.to(**config)' '''
+    
+    # Torch v2.0 doesn't support bfloat16 interpolation
+    if torch.__version__[0:3] == "2.0":
+        prefer_bfloat16 = False
+    
     f16_type = torch.bfloat16 if prefer_bfloat16 else torch.float16
     fallback_dtype = torch.float32 if (device_str == "cpu") else f16_type
     dtype = torch.float32 if use_float32 else fallback_dtype
