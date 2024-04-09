@@ -132,12 +132,13 @@ class LayerNormEPS6(nn.LayerNorm):
     
     def __init__(self, normalized_shape, elementwise_affine=True, bias=True, device=None, dtype=None):
         
+        epsilon = 1e-6
         try:
             # For torch versions >= 2.1
-            super().__init__(normalized_shape, 1e-6, bias, elementwise_affine, device, dtype)
+            super().__init__(normalized_shape, epsilon, bias, elementwise_affine, device, dtype)
         except TypeError:
             # For torch versions < 2.1
-            super().__init__(normalized_shape, 1e-6, elementwise_affine, device, dtype)
+            super().__init__(normalized_shape, epsilon, elementwise_affine, device, dtype)
         
         pass
 

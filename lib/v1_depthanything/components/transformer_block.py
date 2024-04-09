@@ -13,6 +13,7 @@ from .misc_helpers import MLP2Layers, LayerNormEPS6
 # Check if XFormers library is installed
 # -> This gives improved float16 performance compared to normal 'pytorch' code
 # -> The improvement is significant when running larger image sizes (2x speed up)
+# -> It also dramatically reduces memory usage, so input image sizes can be used!
 try:
     from xformers.ops import memory_efficient_attention, unbind
     XFORMERS_AVAILABLE = True
@@ -36,7 +37,6 @@ if XFORMERS_AVAILABLE:
               f"  To enable, un-set environment variable: '{_xformers_disable_key}'",
               sep = "\n")
 
-    
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Main model
@@ -163,8 +163,7 @@ class AttentionXFormers(Attention):
     
     Due to my own uncertainty about the compatibility/stability of XFormers,
     this is implemented as a 'special upgrade', rather than being the
-    default implementation, as it is in the Depth-Anything version:
-        @ https://github.com/LiheYoung/Depth-Anything/blob/main/torchhub/facebookresearch_dinov2_main/dinov2/layers/attention.py
+    default implementation. Note this also breaks when using cpu-only!
     '''
     
     # .................................................................................................................

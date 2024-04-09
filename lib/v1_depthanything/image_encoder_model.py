@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 
 from .components.position_encoder import PositionEncoder
-from .components.block import TransformerBlock
+from .components.transformer_block import TransformerBlock
 from .components.misc_helpers import LayerNormEPS6
 
 

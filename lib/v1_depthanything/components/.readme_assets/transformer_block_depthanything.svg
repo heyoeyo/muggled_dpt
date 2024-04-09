@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="300.542" height="378.709" viewBox="0 0 79.519 100.2">
+  <g transform="translate(676.69428,-64.62435)">
+    <path fill="#f9f9f9" stroke="#1a1a1a" stroke-linecap="square" stroke-width=".794" d="m-636.675 66.378-2.803 4.357h2.483v82.906l-2.483 3.86h2.483v6.927h.64V157.5h2.483l-2.484-3.86v-5.948h31.362v-26.999h-23.192v-2.511l-4.356 2.803 4.356 2.803v-2.504h22.6v25.816h-30.77v-36.21h31.362V83.892h-23.193v-2.59l-4.356 2.803 4.356 2.803v-2.424h22.601v25.815h-30.77V70.735h2.484z" paint-order="markers stroke fill"/>
+    <text xml:space="preserve" x="-676.235" y="67.547" fill="#f9f9f9" stroke="#1a1a1a" stroke-linecap="round" stroke-linejoin="bevel" stroke-width="1.058" font-family="Fira Mono" font-size="3.154" font-weight="700" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Fira Mono, Bold&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:start"><tspan x="-676.235" y="67.547" style="-inkscape-font-specification:&quot;Fira Mono, Bold&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:start">Transformer Block</tspan><tspan x="-676.235" y="71.489" style="-inkscape-font-specification:&quot;Fira Mono, Bold&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:start">(Depth-Anything)</tspan></text>
+    <g transform="matrix(0.37249258,0,0,0.37249258,-769.16859,63.354201) translate(0,7.4083337)">
+      <rect width="121.125" height="21.276" x="295.132" y="190.53" fill="#00efe5" ry="0"/>
+      <text xml:space="preserve" x="355.639" y="204.292" stroke-width="1.587" font-family="Fira Mono" font-size="8.467" font-weight="400" style="-inkscape-font-specification:&quot;Fira Mono, Normal&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center" text-anchor="middle"><tspan x="355.639" y="204.292">LayerNorm (eps 10<tspan baseline-shift="super" font-size="65%">-6</tspan>)</tspan></text>
+    </g>
+    <g transform="matrix(0.37249258,0,0,0.37249258,-769.16859,63.354201) translate(-0.10861206,14.63102)">
+      <rect width="121.125" height="21.276" x="295.241" y="160.259" fill="#00efe5" ry="0"/>
+      <text xml:space="preserve" x="355.748" y="174.022" stroke-width="1.587" font-family="Fira Mono" font-size="8.467" font-weight="400" style="-inkscape-font-specification:&quot;Fira Mono, Normal&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center" text-anchor="middle"><tspan x="355.748" y="174.022">SelfAttention</tspan></text>
+    </g>
+    <g transform="matrix(0.37249258,0,0,0.37249258,-769.16859,57.440881) translate(3.354126,4.7156093)">
+      <rect width="121.125" height="21.276" x="291.778" y="110.085" fill="#00efe5" ry="0"/>
+      <text xml:space="preserve" x="352.285" y="123.847" stroke-width="1.587" font-family="Fira Mono" font-size="8.467" font-weight="400" style="-inkscape-font-specification:&quot;Fira Mono, Normal&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center" text-anchor="middle"><tspan x="352.285" y="123.847">LayerNorm (eps 10<tspan baseline-shift="super" font-size="65%">-6</tspan>)</tspan></text>
+    </g>
+    <g transform="matrix(0.37249258,0,0,0.37249258,-769.16859,57.440881) translate(7.0881348,5.2916663)">
+      <rect width="121.125" height="21.276" x="288.044" y="86.461" fill="#00efe5" ry="0"/>
+      <text xml:space="preserve" x="348.551" y="100.224" stroke-width="1.587" font-family="Fira Mono" font-size="8.467" font-weight="400" style="-inkscape-font-specification:&quot;Fira Mono, Normal&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center" text-anchor="middle"><tspan x="348.551" y="100.224">MLP</tspan></text>
+    </g>
+    <rect width="78.353" height="77.057" x="-675.852" y="73.957" fill="none" stroke="#ffd500" stroke-width=".645" ry="0"/>
+    <g stroke-width="2.488" transform="matrix(0.21272292,0,0,0.21272292,-712.65508,89.336191)">
+      <circle cx="357.178" cy="148.784" r="16.151" fill="#fff" stroke="#000"/>
+      <g stroke-width="4.632" transform="matrix(0.53703666,0,0,0.53703666,222.31772,160.90216)">
+        <rect width="7.537" height="29.072" x="247.351" y="-37.101" ry="0"/>
+        <rect width="7.537" height="29.072" x="-26.334" y="-265.656" ry="0" transform="rotate(90)"/>
+      </g>
+    </g>
+    <g stroke-width="2.488" transform="matrix(0.21272292,0,0,0.21272292,-712.65508,52.454811)">
+      <circle cx="357.178" cy="148.784" r="16.151" fill="#fff" stroke="#000"/>
+      <g stroke-width="4.632" transform="matrix(0.53703666,0,0,0.53703666,222.31772,160.90216)">
+        <rect width="7.537" height="29.072" x="247.351" y="-37.101" ry="0"/>
+        <rect width="7.537" height="29.072" x="-26.334" y="-265.656" ry="0" transform="rotate(90)"/>
+      </g>
+    </g>
+  </g>
+</svg>
