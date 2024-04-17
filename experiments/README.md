@@ -2,6 +2,21 @@
 
 This folder contains random experiments using the DPT models, mostly out of curiosity. These scripts have configurable options which can be viewed by running the scripts with the `--help` flag.
 
+## Attention Map Visualization
+
+Vision transformers (like those used in DPT models) rely heavily on computing 'attention' (see "[Attention is all you need](https://arxiv.org/abs/1706.03762)" and "[An Image is Worth 16x16 Words](https://arxiv.org/abs/2010.11929)" for more info). The name _attention_ suggests that these maps somehow represent a model's internal sense of which parts of an input image are 'worth looking at'. This seems like a very abstract idea, so this script was made as an attempt to help see what this data actually looks like.
+
+<p align="center">
+  <img src=".readme_assets/attentionviz_example.gif" alt="Animation showing attention maps for a given input patch token based on mouse position over the input image.">
+</p>
+
+In general, vision transformers calculate attention in the form of multiple NxN matries, where N is the number of input tokens. The number of matrices is referred to as the number of 'heads' of the transformer. The rows of each matrix are normalized using a [softmax](https://pytorch.org/docs/stable/generated/torch.nn.Softmax.html) function, and this leads to an interesting implication that each row can be thought of as a probability distribution or weighting. At the same time, each of the _columns_ correspond to a patch token, and these have a spatial correspondence with the input image. Altogether, this means that the rows of a single attention matrix represent a kind of 2D probability map over the input image!
+
+When hovering over the input image, the UI selects the row of the attention matrix corresponding to the patch token nearest to the mouse pointer. This selected row is then re-arranged as a 2D probability distribution (one for each head of the model) and then displayed beside the input image. Out of interest, it's also possible to flip from row-wise attention to column-wise attention, which can give surprising results, especially in the case of [high norm tokens](https://github.com/heyoeyo/muggled_dpt/tree/main/experiments#block-norm-visualization).
+
+There are a bewildering number of patterns that come out of these visualizations! One of the main takeaways however, is that the models do appear to 'look at' things that would be considered semantically meaningful to a human (e.g. entire objects, parts of objects, edges or even color groups). They also tend to pick up these patterns at very early layers!
+
+
 ## Block Norm Visualization
 
 This script was made to visualize the [L2 norms](https://builtin.com/data-science/vector-norms) (i.e. lengths) of the tokens from internal transformer blocks of the DPT models. This is specifically due to the paper: "[Vision Transformers Need Registers](https://arxiv.org/abs/2309.16588)", which suggests that there are unusually high-norm 'patches' within vision transformers when they do not include additional global tokens (similar to a class token), called registers. None of the DPT models (so far) include these registers, and so we'd expect to see the high-norm tokens (which we do!).

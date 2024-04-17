@@ -8,9 +8,12 @@
 import cv2
 import numpy as np
 
+from .text import TextDrawer
+from .visualization import add_bounding_box
+
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Classes
+#%% Slider UI
 
 class SliderCB:
     
@@ -38,7 +41,8 @@ class SliderCB:
     # .................................................................................................................
     
     def __init__(self, label: str, start_value = 0.5, min_value = 0.0, max_value = 1.0, step_size = 0.01,
-                 marker_step_size = None, bar_height = 40, enable_value_display = True):
+                 marker_step_size = None, bar_height = 40, enable_value_display = True,
+                 bar_bg_color = (40,40,40), indicator_line_width = 1):
         
         # Storage for slider value
         min_value, max_value = sorted((min_value, max_value))
@@ -47,13 +51,15 @@ class SliderCB:
         self._slider_value = min(max_value, max(min_value, start_value))
         self._slider_step = step_size
         self._slider_label = label
-        self._slider_delta = self._slider_max - self._slider_min
+        self._slider_delta = max(self._slider_max - self._slider_min, 1e-9)
         
         # Display config
         self._enable_value_display = enable_value_display
         self._max_digits = max(1 + len(str(val)) for val in (min_value, max_value, step_size))
         self._initial_value = self._slider_value
         self._marker_step_size = marker_step_size
+        self._bar_bg_color = bar_bg_color
+        self._indicator_thickness = indicator_line_width
         
         # Storage for mouse state
         self._mouse_x_px = 0
@@ -66,10 +72,8 @@ class SliderCB:
         self._frame_w = 0
         self._frame_h = 0
         
-        # Hard-coded text config
-        self._txt_size_config = {"fontFace": cv2.FONT_HERSHEY_SIMPLEX, "fontScale": 0.5, "thickness": 1}
-        self._txt_label_config = {"color": (150,150,150), "lineType": cv2.LINE_AA, **self._txt_size_config}
-        self._txt_value_config = {"color": (255,255,255), "lineType": cv2.LINE_AA, **self._txt_size_config}
+        # Handler for drawing label + value indicators
+        self._txt = TextDrawer(scale=0.5)
     
     # .................................................................................................................
     
@@ -109,11 +113,23 @@ class SliderCB:
     
     # .................................................................................................................
     
-    def set(self, slider_value, update_initial_value = True) -> None:
-        if update_initial_value:
-            self._initial_value = slider_value
-        self._slider_value = slider_value
-        return
+    def set(self, slider_value, use_as_default_value = True) -> None:
+        new_value = max(self._slider_min, min(self._slider_max, slider_value))
+        if use_as_default_value:
+            self._initial_value = new_value
+        self._slider_value = new_value
+        return self
+    
+    # .................................................................................................................
+    
+    def on_keypress(self, keypress_code, decrement_keycode, increment_keycode):
+        
+        if keypress_code == decrement_keycode:
+            self.set(self._slider_value - self._slider_step, use_as_default_value=False)
+        if keypress_code == increment_keycode:
+            self.set(self._slider_value + self._slider_step, use_as_default_value=False)
+        
+        return self
     
     # .................................................................................................................
     
@@ -130,13 +146,14 @@ class SliderCB:
         bar_img = self._update_base_image(frame_h, frame_w)
         if self._enable_value_display:
             value_str = str(self._slider_value)[:self._max_digits]
-            (txt_w, _), _ = cv2.getTextSize(value_str, **self._txt_size_config)
+            txt_w, txt_h, txt_baseline = self._txt.get_text_size(value_str)
             x1, x2 = x_px + 5, x_px - txt_w - 5
-            txt_pos = (x1, 24) if (x1 + txt_w) < frame_w else (x2, 24)
-            cv2.putText(bar_img, value_str, txt_pos, **self._txt_value_config)
+            y_mid = (self._bar_h + txt_h - txt_baseline) // 2
+            txt_pos = (x1, y_mid) if (x1 + txt_w) < frame_w else (x2, y_mid)
+            self._txt.xy_px(bar_img, value_str, txt_pos)
         
         # Draw indicator line onto the bar
-        cv2.line(bar_img, (x_px, 2), (x_px, self._bar_h-2), (255,255,255), 1)
+        cv2.line(bar_img, (x_px, 2), (x_px, self._bar_h-2), (255,255,255), self._indicator_thickness)
         return np.vstack((frame, bar_img))
     
     # .................................................................................................................
@@ -150,7 +167,7 @@ class SliderCB:
         if got_new_width:
 
             # Re-draw new 'blank' bar image
-            bar_img = np.full((self._bar_h, frame_w, 3), 40, dtype=np.uint8)
+            bar_img = np.full((self._bar_h, frame_w, 3), self._bar_bg_color, dtype=np.uint8)
             
             # Add markers to bar
             if self._marker_step_size is not None:
@@ -163,7 +180,7 @@ class SliderCB:
                     cv2.line(bar_img, (x_px, 3), (x_px, self._bar_h - 3), [60]*3, 1)
             
             # Draw label + separator line
-            cv2.putText(bar_img, self._slider_label, (5, 24), **self._txt_label_config)
+            self._txt.xy_norm(bar_img, self._slider_label, (0, 0.5), (150,150,150), pad_xy_px=(5, 0))
             cv2.line(bar_img, (-5,0), (frame_w + 5, 0), (0,0,0), 1)
             
             # Store new base image + width info
@@ -208,6 +225,9 @@ class SliderCB:
     # .................................................................................................................
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Colormap UI
+
 class ColormapButtonsCB:
     
     '''
@@ -233,19 +253,18 @@ class ColormapButtonsCB:
     
     # .................................................................................................................
     
-    def __init__(self, *cv2_colormap_codes, bar_height = 40):
+    def __init__(self, *cv2_colormap_codes, bar_height = 40, include_grayscale = True):
         
         # Set up left/right boundaries for selecting cmaps
-        cmaps = [*cv2_colormap_codes, None]
+        cmaps = [*cv2_colormap_codes, None] if include_grayscale else [*cv2_colormap_codes]
         num_cmaps = len(cmaps)
         xnorm_bounds = [idx/(num_cmaps) for idx in range(num_cmaps + 1)]
         self._cmap_x1x2_norm_list = list(zip(cmaps, xnorm_bounds[:-1], xnorm_bounds[1:]))
         
         # Storage for indicator bar image
-        self._bar_h = bar_height
+        self.height_px = bar_height
         self._img = None
         self._frame_w = 1
-        self._frame_h = 1
         self._interact_y1y2 = (-20, -10)
         
         # Set default colormap selection
@@ -273,27 +292,40 @@ class ColormapButtonsCB:
     # .................................................................................................................
     
     def read(self) -> int | None:
-        return self._cmaps[self.idx]
+        return self._cmap_select
     
     # .................................................................................................................
     
     def append_to_frame(self, frame) -> np.ndarray:
+        
         frame_h, frame_w = frame.shape[0:2]
-        bar_img = self.draw_bar_image(frame_w, frame_h)
+        bar_img = self.draw_bar_image(frame_w)
+        self._interact_y1y2 = (frame_h, frame_h + bar_img.shape[0])
+        
         return np.vstack((frame, bar_img))
     
     # .................................................................................................................
     
-    def draw_bar_image(self, frame_w, frame_h):
+    def prepend_to_frame(self, frame) -> np.ndarray:
+        
+        frame_h, frame_w = frame.shape[0:2]
+        bar_img = self.draw_bar_image(frame_w)
+        self._interact_y1y2 = (0, bar_img.shape[0])
+        
+        return np.vstack((bar_img, frame))
+    
+    # .................................................................................................................
+    
+    def draw_bar_image(self, frame_w):
         
         ''' Helper used to set up base image sizing & interaction region '''
         
         # Re-draw base image if width changes
-        got_new_width = (frame_w != self._frame_w)
-        if got_new_width:
+        need_redraw = (frame_w != self._frame_w)
+        if need_redraw:
 
             # Re-draw new 'blank' bar image
-            bar_img = np.zeros((self._bar_h, frame_w, 3), dtype=np.uint8)
+            bar_img = np.zeros((self.height_px, frame_w, 3), dtype=np.uint8)
             
             # Draw each colormap as a 1-row image
             color_1px_list = []
@@ -307,18 +339,12 @@ class ColormapButtonsCB:
             
             # Combine 1-row colormaps and resize to target bar sizing
             bar_img = np.hstack(color_1px_list)
-            bar_img = cv2.resize(bar_img, dsize = (frame_w, self._bar_h))
+            bar_img = cv2.resize(bar_img, dsize = (frame_w, self.height_px))
             
             # Draw divider/separator line before storing for re-use
-            cv2.rectangle(bar_img, (-5,0), (frame_w + 5, self._bar_h - 1), (0,0,0), 1)
+            cv2.rectangle(bar_img, (-5,0), (frame_w + 5, self.height_px - 1), (0,0,0), 1)
             self._img = bar_img
             self._frame_w = frame_w
-        
-        # Update height related info
-        got_new_height = (frame_h != self._frame_h)
-        if got_new_height:
-            self._frame_h = frame_h
-            self._interact_y1y2 = (frame_h, frame_h + self._bar_h)
         
         return self._img.copy()
     
@@ -347,6 +373,213 @@ class ColormapButtonsCB:
     
     # .................................................................................................................
 
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Toggle bar UI
+
+class ToggleBar:
+    
+    '''
+    Class used to provide a simple set of toggle controls drawn
+    as a single-row bar on in an  opencv window
+    
+    Works as a window callback (within opencv callback interface)
+    while also providing functions to draw onto display frames
+    
+    Example usage:
+        # Attach slider callback to cv2 window
+        toggle_bar = ToggleBar()
+        cv2.setMouseCallback(winname, toggle_bar)
+        
+        # Add toggle controls to bar
+        enable_toggle = toggle_bar.add(label_true = "Enabled", label_false = "Disabled", default=True)
+        onoff_toggle = toggle_bar.add(label_true = "On", label_false = "Off", default=False)
+        
+        # Read toggle values
+        is_enabled = enable_toggle.read()
+        is_on = onoff_toggle.read()
+        
+        # Draw toggle bar onto displayed frame
+        disp_frame = toggle_bar.append_to_frame(disp_frame)
+        cv2.imshow(winname, disp_frame)
+        cv2.waitKey(1)
+    '''
+    
+    # .................................................................................................................
+    
+    def __init__(self, bar_height = 60,
+                 on_bg_color = (60,60,60), off_bg_color = (40,40,40), line_color = (255,255,255)):
+        
+        self.height_px = bar_height
+        self._on_bg_color = on_bg_color
+        self._off_bg_color = off_bg_color
+        self._line_color = line_color
+        self._base_img = np.full((1,1,3), 0, dtype = np.uint8)
+        self._requires_redraw = True
+        
+        self._ctrls_list = []
+        self._txt_writer = TextDrawer(0.5)
+        
+        self._interact_y_offset = 0
+        self._interact_y1y2 = (-10, -10)
+        self._enable = True
+    
+    # .................................................................................................................
+    
+    def __call__(self, event, x, y, flags, param) -> None:
+        
+        # Don't run callback when disabled
+        if not self._enable:
+            return
+        
+        # Bail if mouse is at wrong height
+        y1, y2 = self._interact_y1y2
+        is_interacting_y = y1 < (y - self._interact_y_offset) < y2
+        if not is_interacting_y:
+            return
+        
+        # Change button state on mouse click
+        if event == cv2.EVENT_LBUTTONDOWN:
+            
+            # Bail if we have no controls!
+            num_toggles = len(self._ctrls_list)
+            if num_toggles == 0:
+                return
+            
+            # Figure out which control was clicked
+            bar_w = self._base_img.shape[1]
+            x_norm = x / (bar_w - 1)
+            idx_select = int(x_norm * num_toggles)
+            idx_select = min(num_toggles - 1, idx_select)
+            idx_select = max(0, idx_select)
+            
+            # Toggle the clicked control
+            self._ctrls_list[idx_select].toggle()
+            self._requires_redraw = True
+        
+        return
+    
+    # .................................................................................................................
+    
+    def add(self, label_true="On", label_false="Off", default=True, keypress=None):
+        
+        new_ctrl = _ToggleControl(label_true, label_false, default, keypress)
+        self._ctrls_list.append(new_ctrl)
+        
+        return new_ctrl
+    
+    # .................................................................................................................
+    
+    def enable(self, enable = True):
+        self._enable = enable
+        return self
+    
+    # .................................................................................................................
+    
+    def set_y_offset(self, y_offset_px):
+        self._interact_y_offset = y_offset_px
+        return self
+    
+    # .................................................................................................................
+    
+    def _make_base_image(self, bar_width):
+        
+        # For convenience
+        num_ctrls = len(self._ctrls_list)
+        btn_width = round(bar_width / num_ctrls)
+        
+        btn_imgs_list = []
+        for idx, toggle_ctrl in enumerate(self._ctrls_list):
+            
+            # Make (small) image just for our button
+            is_on = toggle_ctrl.read()
+            btn_bg_color = self._on_bg_color if is_on else self._off_bg_color
+            btn_img = np.full((self.height_px, btn_width, 3), btn_bg_color, dtype=np.uint8)
+            
+            # Draw text onto button image & store for combining
+            label = toggle_ctrl.get_label()
+            btn_img = self._txt_writer.xy_centered(btn_img, label)
+            btn_img = add_bounding_box(btn_img, thickness=2, inset_box=False)
+            btn_imgs_list.append(btn_img)
+        
+        # Stack all button images together & scale to reach final target size, if needed
+        new_base_img = np.hstack(btn_imgs_list)
+        wrong_final_wdith = (new_base_img.shape[1] != bar_width)
+        if wrong_final_wdith:
+            new_base_img = cv2.resize(new_base_img, dsize=(bar_width, self.height_px))
+        
+        # Signal that we've handled the re-draw
+        self._requires_redraw = False
+        
+        return new_base_img
+    
+    # .................................................................................................................
+    
+    def append_to_frame(self, display_frame):
+        
+        disp_h, disp_w = display_frame.shape[0:2]
+        base_w = self._base_img.shape[1]
+        size_mismatch = disp_w != base_w
+        if size_mismatch or self._requires_redraw:
+            self._base_img = self._make_base_image(disp_w)
+        
+        base_h = self._base_img.shape[0]
+        self._interact_y1y2 = (disp_h, disp_h + base_h)
+        
+        return np.vstack((display_frame, self._base_img))
+    
+    # .................................................................................................................
+    
+    def toggle_on_keypress(self, keypress_code):
+        
+        keypress_match = [ctrl.toggle_on_keypress(keypress_code) for ctrl in self._ctrls_list]
+        if any(keypress_match):
+            self._requires_redraw = True
+        
+        return
+        
+    # .................................................................................................................
+
+
+class _ToggleControl:
+    
+    ''' Class representing a single toggle-able entry on a ToggleBar '''
+    
+    def __init__(self, label_true="On", label_false="Off", default=True, keypress=None):
+        self._state = default
+        self._label_true = label_true
+        self._label_false = label_false
+        self._keypress = ord(keypress) if isinstance(keypress, str) else keypress
+    
+    def get_label(self) -> str:
+        return self._label_true if self._state else self._label_false
+    
+    def read(self) -> bool:
+        return self._state
+    
+    def toggle(self):
+        self._state = not self._state
+        return self
+    
+    def set(self, new_state: bool):
+        self._state = new_state
+        return self
+    
+    def toggle_on_keypress(self, keypress_code):
+        
+        # Bail if we don't have a target key to listen for!
+        is_match = False
+        if self._keypress is None: return is_match
+        
+        # Toggle if we get our target key
+        is_match = (keypress_code == self._keypress)
+        if is_match: self.toggle()
+        
+        return is_match
+    
+    def __repr__(self):
+        label_state = self._label_true if self._state else self._label_false
+        return f"ToggleControl: {label_state}"
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Functions
