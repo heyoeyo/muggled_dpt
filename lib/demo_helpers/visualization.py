@@ -74,10 +74,14 @@ class WindowTrackbar:
         self._window_name = window_name
         self._prev_value = int(initial_value)
         cv2.createTrackbar(trackbar_name, window_name, int(initial_value), int(max_value), lambda x: None)
+        self._max_value = max_value
     
     def read(self):
         return cv2.getTrackbarPos(self.name, self._window_name)
 
+    def write(self, new_value):
+        safe_value = max(0, min(new_value, self._max_value))
+        return cv2.setTrackbarPos(self.name, self._window_name, safe_value)
 
 class CallbackSequencer:
     
@@ -118,26 +122,15 @@ class CallbackSequencer:
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Functions
 
-def draw_corner_text(display_frame, text, row_idx = 0):
+def add_bounding_box(image_bgr, color=(0, 0, 0), thickness=1, inset_box = True):
     
-    ''' Draw text into the top-left corner of an image '''
-    
-    # For clarity, hard-coded config to avoid complex text sizing/spacing checks
-    xy_px = (5, 22 + (row_idx * 32))
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    scale = 0.75
-    bg_color = (0,0,0)
-    fg_color = (255,255,255)
-    fg_thickness = 2
-    bg_thickness = fg_thickness + 3
-    linetype = cv2.LINE_AA
-    
-    # Draw text with background for better contrast
-    cv2.putText(display_frame, text, xy_px, font, scale, bg_color, bg_thickness, linetype)
-    cv2.putText(display_frame, text, xy_px, font, scale, fg_color, fg_thickness, linetype)
-    
-    return display_frame
+    ''' Draws a rectangular outline around the given image '''
 
+    h, w = image_bgr.shape[:2]
+    bot_right = (w-1, h-1) if inset_box else (w, h)
+    return cv2.rectangle(image_bgr, (0, 0), bot_right, color, thickness)
+
+# .....................................................................................................................
 
 def histogram_equalization(depth_uint8, min_pct = 0.0, max_pct = 1.0):
     
@@ -179,3 +172,28 @@ def histogram_equalization(depth_uint8, min_pct = 0.0, max_pct = 1.0):
     # Apply LUT mapping to input
     return equalization_lut[depth_uint8]
 
+# .....................................................................................................................
+
+def grid_stack_by_columns_first(image_list, num_columns):
+    
+    '''
+    Helper used to combine a list of images into a single (grid) image
+    Works by combining images horizontally first to create row-images,
+    then stacks these vertically to build final grid image.
+    If the last row is not as long as the previous, then it will be padded with black!
+    '''
+    
+    # Stack together each row
+    num_imgs = len(image_list)
+    img_stacks = [np.hstack(image_list[k:k+num_columns]) for k in range(0, num_imgs, num_columns)]
+    
+    # Pad final entry, if it doesn't match first entry size
+    # (this is only needed if the image list length isn't even divisble by the number of columns!)
+    first_h, first_w = img_stacks[0].shape[0:2]
+    last_h, last_w = img_stacks[-1].shape[0:2]
+    diff_h, diff_w = (first_h - last_h, first_w - last_w)
+    mismatched_shape = (diff_h > 0) or (diff_w > 0)
+    if mismatched_shape:
+        img_stacks[-1] = cv2.copyMakeBorder(img_stacks[-1], 0, diff_h, 0, diff_w, borderType = cv2.BORDER_CONSTANT)
+    
+    return np.vstack(img_stacks)

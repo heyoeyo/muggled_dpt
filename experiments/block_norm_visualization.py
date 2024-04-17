@@ -26,6 +26,9 @@ from lib.make_dpt import make_dpt_from_state_dict
 
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from lib.demo_helpers.saving import save_image
+from lib.demo_helpers.visualization import add_bounding_box, grid_stack_by_columns_first
+from lib.demo_helpers.text import TextDrawer
+from lib.demo_helpers.model_capture import ModelOutputCapture
 from lib.demo_helpers.misc import (
     get_default_device_string, make_device_config, print_config_feedback
 )
@@ -88,66 +91,12 @@ model_path = ask_for_model_path_if_missing(root_path, arg_model_path)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Classes
-
-class OutputCapture:
-    
-    '''
-    Helper used to store intermediate model results
-    Example usage:
-        
-        from model_definition import TransformerBlock
-        
-        # Capture target module output
-        cap = OutputCapture(TransformerBlock)
-        cap.hook_outputs(model)
-        
-        # Run model (results are captured by 'cap')
-        model(input_data)
-        
-        # Check out the results
-        # (can also access using: cap.results)
-        for result in cap:
-            # do something with results...
-    '''
-    
-    def __init__(self, target_module_type):
-        self._target = target_module_type
-        self.results = []
-    
-    def __call__(self, module, module_in, module_out):
-        self.results.append(module_out)
-    
-    def __len__(self):
-        return len(self.results)
-    
-    def __iter__(self):
-        yield from self.results
-    
-    def __getitem__(self, index):
-        return self.results[index]
-    
-    def hook_outputs(self, model):
-        
-        for module in model.modules():
-            if isinstance(module, self._target):
-                module.register_forward_hook(self)
-            pass
-        
-        return len(self)
-    
-    pass
-
-
-# ---------------------------------------------------------------------------------------------------------------------
 #%% Functions
 
 # Hard-code (shared) display styling
+TXT_LARGE = TextDrawer(font=cv2.FONT_HERSHEY_PLAIN)
+TXT_SMALL = TextDrawer.create_from_existing(TXT_LARGE).adjust_scale(0.8)
 BG_BGR = (40,40,40)
-TEXT_BGR = (255,255,255)
-FONT = cv2.FONT_HERSHEY_PLAIN
-FSCALE_SMALL = 0.8
-FSCALE_LARGE = 1
 
 
 def get_name(name_or_path):
@@ -197,46 +146,36 @@ def get_norm_image(tokens, grid_hw):
     max_norm = raw_norm.max()
     norm = (raw_norm - min_norm) / (max_norm - min_norm)
     norm = norm.cpu().numpy()
-    
     norm_uint8 = np.uint8(np.round(255 * norm))
+    
     return norm_uint8, min_norm, max_norm
 
-def add_minmax_footer(image_bgr, min_norm, max_norm):
+def add_minmax_footer(image_bgr, min_norm, max_norm, footer_height=16):
     
     ''' Takes an image and adds an extra space with text: "n: [min norm, max norm]" to the bottom '''
-    
-    h, w = image_bgr.shape[:2]
     
     min_n, max_n = sorted([min_norm.cpu().numpy(), max_norm.cpu().numpy()])
     min_n = float(min_n)
     max_n = float(max_n)
+    txt = f"n: [{round(min_n)}, {round(max_n)}]"
     
-    footer = np.full((16, w, 3), BG_BGR, dtype=np.uint8)
-    cv2.putText(footer, f"n: [{round(min_n)}, {round(max_n)}]", (5, 10), FONT, FSCALE_SMALL, TEXT_BGR)
-    combined = np.vstack((image_bgr, footer))
+    img_w = image_bgr.shape[1]
+    footer = np.full((footer_height, img_w, 3), BG_BGR, dtype=np.uint8)
+    footer = TXT_SMALL.xy_norm(footer, txt, (0,0.5), pad_xy_px=(5,0))
     
-    return combined
+    return np.vstack((image_bgr, footer))
 
-def add_block_idx_footer(image_bgr, index):
+def add_block_idx_footer(image_bgr, index, footer_height=20):
     
     ''' Takes an image and adds an extra space with text: "Block: #" to the bottom '''
     
-    h, w = image_bgr.shape[:2]
+    img_w = image_bgr.shape[1]
+    footer = np.full((footer_height, img_w, 3), BG_BGR, dtype=np.uint8)
+    footer = TXT_LARGE.xy_norm(footer, f"Block: {index}", (0,0.5), pad_xy_px=(5,0))
     
-    footer = np.full((20, w, 3), BG_BGR, dtype=np.uint8)
-    cv2.putText(footer, f"Block: {index}", (5, 14), FONT, FSCALE_LARGE, TEXT_BGR)
-    combined = np.vstack((image_bgr, footer))
-    
-    return combined
+    return np.vstack((image_bgr, footer))
 
-def add_bounding_box(image_bgr):
-    
-    ''' Draws a rectangular outline around the given image '''
-    
-    h, w = image_bgr.shape[:2]
-    return cv2.rectangle(image_bgr, (0,0), (w, h), BG_BGR, 1)
-
-def add_model_info_header(image_bgr, model_path_or_name, grid_hw):
+def add_model_info_header(image_bgr, model_path_or_name, grid_hw, header_height=40):
     
     ''' Takes in an image and adds an info header bar to the image '''
     
@@ -244,9 +183,9 @@ def add_model_info_header(image_bgr, model_path_or_name, grid_hw):
     grid_txt = f"{grid_hw[0]} x {grid_hw[1]}"
     header_txt = f"{model_name} ({grid_txt})"
     
-    h, w = image_bgr.shape[:2]
-    header = np.full((40, w, 3), BG_BGR, dtype=np.uint8)
-    cv2.putText(header, header_txt, (10, 26), FONT, FSCALE_LARGE, TEXT_BGR)
+    img_w = image_bgr.shape[1]
+    header = np.full((header_height, img_w, 3), BG_BGR, dtype=np.uint8)
+    header = TXT_LARGE.xy_norm(header, header_txt, (0,0.5), pad_xy_px=(10,0))
     
     return np.vstack((header, image_bgr))
 
@@ -283,11 +222,10 @@ elif "swin2" in model_name:
 elif "vit" in model_name:
     from lib.v1_depthanything.image_encoder_model import TransformerBlock as TargetBlock
 else:
-    raise NameError("Unknown model type!")
+    raise NameError("Unknown model type! Expecting one of: {beit, swin2, vit} in model file path")
 
 # Set up intermediate layer data capture
-capture = OutputCapture(TargetBlock)
-capture.hook_outputs(dpt_model)
+captures = ModelOutputCapture(dpt_model, TargetBlock)
 
 # Run model (only up to image encoder)
 with torch.inference_mode():
@@ -296,7 +234,7 @@ with torch.inference_mode():
     dpt_model.imgencoder(tokens, grid_hw)
 
 # Bail if we didn't capture anything
-num_blocks = len(capture)
+num_blocks = len(captures)
 if num_blocks == 0:
     module_name = TargetBlock.__name__
     raise AttributeError(f"No data captured! Model doesn't contain '{module_name}' module?")
@@ -306,7 +244,7 @@ if num_blocks == 0:
 #%% Figure out display sizing
 
 # Get one of the captured outputs, so we can use it as reference for sizing
-example_image, _, _ = get_norm_image(capture[0], grid_hw)
+example_image, _, _ = get_norm_image(captures[0], grid_hw)
 tile_h, tile_w = example_image.shape[:2]
 
 # Figure out the best row/col layout for display
@@ -327,41 +265,33 @@ out_wh = (int(scale_factor * tile_w), int(scale_factor * tile_h))
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Generate block-norm images
 
-img_rows = []
-data_chunks = [capture[k:(num_cols+k)] for k in range(0, num_blocks, num_cols)]
-for row_idx, data_chunk in enumerate(data_chunks):
+# Render out a 'tile' image for each captured block
+tile_imgs_list = []
+for block_idx, result in enumerate(captures):
     
-    block_idx_offset = row_idx * num_cols
-    img_cols = []
-    for col_idx, res in enumerate(data_chunk):
-        
-        # Convert tokens back to image representation
-        norm_img, min_norm, max_norm = get_norm_image(res, grid_hw)
-        norm_img = cv2.resize(norm_img, dsize=out_wh, interpolation=cv2.INTER_NEAREST_EXACT)
-        
-        # Convert to color image
-        if colormap_select is None:
-            color_img = cv2.cvtColor(norm_img, cv2.COLOR_GRAY2BGR)
-        else:
-            color_img = cv2.applyColorMap(norm_img, colormap_select)
-        
-        # Add header/footer info, per block before storing
-        block_idx = col_idx + block_idx_offset
-        color_img = add_block_idx_footer(color_img, block_idx)
-        color_img = add_minmax_footer(color_img, min_norm, max_norm)
-        color_img = add_bounding_box(color_img)
-        img_cols.append(color_img)
+    # Convert tokens back to image representation
+    norm_img, min_norm, max_norm = get_norm_image(result, grid_hw)
+    norm_img = cv2.resize(norm_img, dsize=out_wh, interpolation=cv2.INTER_NEAREST_EXACT)
     
-    one_row_image = np.hstack(img_cols)
-    img_rows.append(one_row_image)
+    # Convert to color image
+    if colormap_select is None:
+        color_img = cv2.cvtColor(norm_img, cv2.COLOR_GRAY2BGR)
+    else:
+        color_img = cv2.applyColorMap(norm_img, colormap_select)
+    
+    # Add header/footer info, per block before storing
+    color_img = add_block_idx_footer(color_img, block_idx)
+    color_img = add_minmax_footer(color_img, min_norm, max_norm)
+    color_img = add_bounding_box(color_img)
+    tile_imgs_list.append(color_img)
 
 # Combine each row along with title bar to form final image
-all_rows_image = np.vstack(img_rows)
-final_img = add_model_info_header(all_rows_image, model_path, grid_hw)
+all_tiles_img = grid_stack_by_columns_first(tile_imgs_list, num_cols)
+final_img = add_model_info_header(all_tiles_img, model_path, grid_hw)
 
 # Display results!
 if enable_display:
-    winname = "Block Norms"
+    winname = "Block Norms - q to quit"
     cv2.namedWindow(winname, flags=cv2.WINDOW_AUTOSIZE | cv2.WINDOW_GUI_NORMAL)
     cv2.moveWindow(winname, 500, 50)
     cv2.imshow(winname, final_img)

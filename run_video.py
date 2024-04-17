@@ -16,7 +16,8 @@ from lib.make_dpt import make_dpt_from_state_dict
 
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from lib.demo_helpers.ui import ColormapButtonsCB, make_message_header_image
-from lib.demo_helpers.visualization import DisplayWindow, draw_corner_text, histogram_equalization
+from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
+from lib.demo_helpers.text import TextDrawer
 from lib.demo_helpers.video import LoopingVideoReader, PlaybackIndicatorCB
 from lib.demo_helpers.misc import (
     DeviceChecker, get_default_device_string, make_device_config, print_config_feedback, reduce_overthreading
@@ -131,6 +132,9 @@ depth_uint8 = np.zeros(vreader.shape[0:2], dtype = np.uint8)
 depth_color = cv2.cvtColor(depth_uint8, cv2.COLOR_GRAY2BGR)
 t_ready_last, time_ms_model = perf_counter(), 0
 
+# Helper for drawing text
+text_draw = TextDrawer(scale=0.75, thickness=2, bg_color=(0,0,0))
+
 # Feedback about controls
 info_msg = "[r to reverse colors]  [h for high contrast]  [n for sync]  [q to quit]"
 info_img = make_message_header_image(info_msg, 2*disp_w)
@@ -177,7 +181,8 @@ for frame in vreader:
     
     # Generate display image: info / colormaps / side-by-side images / playback control
     display_frame = cmap_btns.append_to_frame(info_img)
-    sidebyside = draw_corner_text(np.hstack((frame, depth_color)), infer_txt)
+    sidebyside = np.hstack((frame, depth_color))
+    sidebyside = text_draw.xy_norm(sidebyside, infer_txt, xy_norm=(0,0), pad_xy_px=(5,5))
     display_frame = np.vstack((display_frame, sidebyside))
     display_frame = playback_ctrl.append_to_frame(display_frame)
     
