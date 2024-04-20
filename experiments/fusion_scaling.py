@@ -27,7 +27,7 @@ except ModuleNotFoundError:
 from lib.make_dpt import make_dpt_from_state_dict
 
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
-from lib.demo_helpers.ui import SliderCB, ColormapButtonsCB, make_message_header_image
+from lib.demo_helpers.ui import SliderCB, ColormapButtonsCB, ButtonBar
 from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
 from lib.demo_helpers.saving import save_image
 from lib.demo_helpers.misc import (
@@ -134,34 +134,35 @@ print("  -> Took", round(1000*(t2-t1), 1), "ms")
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Display results
 
-# Set up window
-cv2.destroyAllWindows()
-window = DisplayWindow("Fusion Scaling Result")
+# Set up button controls
+btnbar = ButtonBar()
+toggle_reverse_color = btnbar.add_toggle("[r] Reversed", "[r] Normal Order", keypress="r", default=False)
+toggle_high_contrast = btnbar.add_toggle("[h] High Contrast", "[h] Normal Contrast", keypress="h", default=False)
+btn_save = btnbar.add_button("[s] Save", keypress="s")
 
-# Set up UI elements
+# Set up other UI elements
 cmap_btns = ColormapButtonsCB(cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, cv2.COLORMAP_TURBO)
 sliders = [SliderCB(f"Fusion {1+idx}", 1, -5, 5, 0.01, marker_step_size=1) for idx in range(4)]
-window.set_callbacks(cmap_btns, *sliders)
+
+# Set up window with controls
+cv2.destroyAllWindows()
+window = DisplayWindow("Fusion Scaling Result - q to quit")
+window.set_callbacks(btnbar, cmap_btns, *sliders)
 
 # Feedback about controls
-info_msg = "[r to reverse colors]  [h for high contrast]  [s to save image]  [q to quit]"
-info_img = make_message_header_image(info_msg, 2*disp_w)
-use_reverse_colors = False
-use_high_contrast = False
 print("", "Displaying results",
       "  - Drag bars to change fusion scaling factors",
       "  - Right click on bars to reset values",
-      "  - Press r to reverse coloring",
-      "  - Press h to enable high-contrast display",
-      "  - Press s to save depth image",
       "  - Press esc or q to quit",
       "",
       sep="\n", flush=True)
 
 while True:
     
-    # Read fusion scaling factors
+    # Read controls
     scale_factors = [s.read() for s in sliders]
+    use_high_contrast = toggle_high_contrast.read()
+    use_reverse_colors = toggle_reverse_color.read()
     
     # Run remaining layers with scaling factors
     with torch.inference_mode():
@@ -183,10 +184,11 @@ while True:
     if use_reverse_colors: depth_uint8 = 255 - depth_uint8
     depth_color = cmap_btns.apply_colormap(depth_uint8)
     
-    # Generate display image: info / colormaps / side-by-side images / sliders
-    sidebyside_display = np.hstack((scaled_input_img, depth_color))
-    display_frame = cmap_btns.append_to_frame(info_img)
-    display_frame = np.vstack((display_frame, sidebyside_display))
+    # Generate display image: buttons / colormaps / side-by-side images / sliders
+    sidebyside_img = np.hstack((scaled_input_img, depth_color))
+    display_frame = btnbar.draw_standalone(sidebyside_img.shape[1])
+    display_frame = cmap_btns.append_to_frame(display_frame)
+    display_frame = np.vstack((display_frame, sidebyside_img))
     display_frame = SliderCB.append_many_to_frame(display_frame, *sliders)
     
     # Display final image
@@ -195,16 +197,13 @@ while True:
     if req_break:
         break
     
-    # Response to keypresses
-    if keypress == ord("s"):
+    # Handle button keypresses
+    btnbar.on_keypress(keypress)
+    if btn_save.read():
         ok_save, save_path = save_image(depth_color, image_path, save_folder=save_folder)
         if ok_save: print("", "SAVED:", save_path, sep = "\n")
-    if keypress == ord("r"):
-        use_reverse_colors = not use_reverse_colors
-        print("", f"Reversed colors: {use_reverse_colors}", sep="\n")
-    if keypress == ord("h"):
-        use_high_contrast = not use_high_contrast
-        print("", f"High contrast: {use_high_contrast}", sep="\n")
+    
+    pass
 
 # Clean up windows
 cv2.destroyAllWindows()

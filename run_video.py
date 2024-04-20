@@ -15,7 +15,7 @@ import numpy as np
 from lib.make_dpt import make_dpt_from_state_dict
 
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
-from lib.demo_helpers.ui import ColormapButtonsCB, make_message_header_image
+from lib.demo_helpers.ui import ColormapButtonsCB, ButtonBar
 from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
 from lib.demo_helpers.text import TextDrawer
 from lib.demo_helpers.video import LoopingVideoReader, PlaybackIndicatorCB
@@ -118,14 +118,20 @@ print_config_feedback(model_path, device_config_dict, use_cache, example_tensor)
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Run model & Display results
 
-# Set up window with trackbar controls
-cv2.destroyAllWindows()
-window = DisplayWindow("Inverse Depth Result")
+# Set up button controls
+btnbar = ButtonBar()
+toggle_reverse_color = btnbar.add_toggle("[r] Reversed", "[r] Normal Order", keypress="r", default=False)
+toggle_high_contrast = btnbar.add_toggle("[h] High Contrast", "[h] Normal Contrast", keypress="h", default=False)
+toggle_async = btnbar.add_toggle("[n] Async", "[n] Sync", keypress="n", default= not force_sync)
 
-# Set up UI elements
+# Set up other UI elements
 cmap_btns = ColormapButtonsCB(cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, cv2.COLORMAP_TURBO)
 playback_ctrl = PlaybackIndicatorCB(vreader)
-window.set_callbacks(cmap_btns, playback_ctrl)
+
+# Set up window with controls
+cv2.destroyAllWindows()
+window = DisplayWindow("Inverse Depth Result - q to quit")
+window.set_callbacks(btnbar, cmap_btns, playback_ctrl)
 
 # Pre-define values that appear in async block, to make sure they exist before being used
 depth_uint8 = np.zeros(vreader.shape[0:2], dtype = np.uint8)
@@ -136,16 +142,16 @@ t_ready_last, time_ms_model = perf_counter(), 0
 text_draw = TextDrawer(scale=0.75, thickness=2, bg_color=(0,0,0))
 
 # Feedback about controls
-info_msg = "[r to reverse colors]  [h for high contrast]  [n for sync]  [q to quit]"
-info_img = make_message_header_image(info_msg, 2*disp_w)
-use_async = not force_sync
-use_reverse_colors = False
-use_high_contrast = False
 print("", "Displaying results",
       "  - Click & drag to move playback",
       "  - Press esc or q to quit",
       "", sep="\n", flush=True)
 for frame in vreader:
+    
+    # Read controls
+    use_high_contrast = toggle_high_contrast.read()
+    use_reverse_colors = toggle_reverse_color.read()
+    use_async = toggle_async.read()
     
     # Only process frame data when the device is ready
     if device_stream.is_ready():
@@ -175,14 +181,15 @@ for frame in vreader:
         if use_high_contrast: depth_uint8 = histogram_equalization(depth_uint8)
         depth_color = cmap_btns.apply_colormap(depth_uint8)
     
-    # Set up inference time text for display
+    # Draw image/depth map with inference time
     infer_txt = "inference: {:.1f}ms".format(time_ms_model)
     if not use_async: infer_txt = "{} (sync)".format(infer_txt)
-    
-    # Generate display image: info / colormaps / side-by-side images / playback control
-    display_frame = cmap_btns.append_to_frame(info_img)
     sidebyside = np.hstack((frame, depth_color))
     sidebyside = text_draw.xy_norm(sidebyside, infer_txt, xy_norm=(0,0), pad_xy_px=(5,5))
+    
+    # Generate display image: buttons / colormaps / side-by-side images / playback control
+    display_frame = btnbar.draw_standalone(sidebyside.shape[1])
+    display_frame = cmap_btns.append_to_frame(display_frame)
     display_frame = np.vstack((display_frame, sidebyside))
     display_frame = playback_ctrl.append_to_frame(display_frame)
     
@@ -196,15 +203,7 @@ for frame in vreader:
     playback_ctrl.change_playback_position_on_mouse_press()
     
     # Respond to keypresses
-    if keypress == ord("n"):
-        use_async = not use_async
-        print(f"Synchronized: {not use_async}")
-    if keypress == ord("r"):
-        use_reverse_colors = not use_reverse_colors
-        print(f"Reversed colors: {use_reverse_colors}")
-    if keypress == ord("h"):
-        use_high_contrast = not use_high_contrast
-        print(f"High contrast: {use_high_contrast}")
+    btnbar.on_keypress(keypress)
 
 # Clean up resources
 vreader.release()

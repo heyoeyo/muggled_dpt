@@ -33,9 +33,10 @@ except ModuleNotFoundError:
 from lib.make_dpt import make_dpt_from_state_dict
 
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
+from lib.demo_helpers.saving import save_image
 from lib.demo_helpers.visualization import DisplayWindow, add_bounding_box, grid_stack_by_columns_first
 from lib.demo_helpers.text import TextDrawer
-from lib.demo_helpers.ui import SliderCB, ColormapButtonsCB, ToggleBar
+from lib.demo_helpers.ui import SliderCB, ColormapButtonsCB, ButtonBar
 from lib.demo_helpers.model_capture import ModelOutputCapture
 from lib.demo_helpers.misc import (
     get_default_device_string, make_device_config, print_config_feedback, reduce_overthreading
@@ -693,25 +694,27 @@ KEY_SPACEBAR = ord(" ")
 attn_tiler = AttentionTileRenderer(patch_grid_hw, cls_token_index)
 attn_disp_size = AttentionDisplayArrangement(orig_image_bgr.shape, patch_grid_hw, num_heads, display_size_px)
 
-# Set up toggle controls
-togglebar_cb = ToggleBar()
-toggle_rowwise_attn = togglebar_cb.add("[a] Row-wise Attn", "[a] Col-wise Attn", keypress="a")
-toggle_lin_scale = togglebar_cb.add("[l] Linear-Scale", "[l] Log-Scale", keypress="l", default=False)
+# Set up button controls
+btnbar = ButtonBar()
+toggle_rowwise_attn = btnbar.add_toggle("[a] Row-wise Attn", "[a] Col-wise Attn", keypress="a")
+toggle_lin_scale = btnbar.add_toggle("[l] Linear-Scale", "[l] Log-Scale", keypress="l", default=False)
+btn_save = btnbar.add_button("[s] Save", keypress="s")
 
-# Set up display window + controls
-dispwin = DisplayWindow("Self-Attention Maps (Per-Head) - q to quit")
-cmap_btns = ColormapButtonsCB(cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TURBO, cv2.COLORMAP_HOT, include_grayscale=False)
+# Set up other UI elements
+cmap_btns = ColormapButtonsCB(cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TURBO, cv2.COLORMAP_HOT)
 patch_select_cb = PatchSelectCB(orig_image_bgr, patch_grid_hw)
 layer_slider = SliderCB("Attention Layer Index", 0, 0, num_layers - 1, 1, marker_step_size=1, bar_bg_color=(10,10,10))
-dispwin.set_callbacks(cmap_btns, patch_select_cb, layer_slider, togglebar_cb)
 
-# Hacky-ish fix to make sure patch hover reads mouse position properly
-patch_select_cb.set_interaction_offsets(0, cmap_btns.height_px)
+# Set up display window + controls
+cv2.destroyAllWindows()
+dispwin = DisplayWindow("Self-Attention Maps (Per-Head) - q to quit")
+dispwin.set_callbacks(cmap_btns, patch_select_cb, layer_slider, btnbar)
 
 # Feedback about controls
 print("", "Displaying attention maps",
       "  - Hover mouse over image to highlight a patch token",
       "   -> Attention map for selected patch token is shown on the right",
+      "  - Click to lock/unlock patch selection",
       "  - Press spacebar to flip display orientation",
       "  - Press , or . to adjust tiling",
       "  - Use up/down arrows to change display scale",
@@ -751,21 +754,29 @@ while True:
     sidebyside_img = patch_select_cb.stack(attn_heads_img, stack_horizontally = use_wide_display)
 
     # Build image for display
-    # -> colormap  |  side-by-side image + attn | toggle controls | layer select slider
-    display_image = cmap_btns.prepend_to_frame(sidebyside_img)
-    display_image = togglebar_cb.append_to_frame(display_image)
+    # -> buttons | colormaps | side-by-side image + attn | layer select slider
+    display_image = btnbar.draw_standalone(sidebyside_img.shape[1])
+    display_image = cmap_btns.append_to_frame(display_image)
+    patch_select_cb.set_interaction_offsets(0, display_image.shape[0])
+    display_image = np.vstack((display_image, sidebyside_img))
     display_image = layer_slider.append_to_frame(display_image)
     dispwin.imshow(display_image)
     req_break, keypress = dispwin.waitKey(35)
     if req_break:
         break
     
-    # Handle keypresses
-    togglebar_cb.toggle_on_keypress(keypress)
+    # Handle button keypresses
+    btnbar.on_keypress(keypress)
+    if btn_save.read():
+        ok_save, save_path = save_image(display_image, image_path, save_folder=save_folder)
+        if ok_save: print("", "SAVED:", save_path, "", sep="\n")
+    
+    # Handle remaining keypresses
     layer_slider.on_keypress(keypress, KEY_LEFTARROW, KEY_RIGHTARROW)
     attn_disp_size.adjust_scale_on_keypress(keypress, KEY_DOWNARROW, KEY_UPARROW)
     attn_disp_size.adjust_tiling_on_keypress(keypress, KEY_PERIOD, KEY_COMMA)
     attn_disp_size.wide_tall_toggle_on_keypress(keypress, KEY_SPACEBAR)
+    
 
 # Clean up
 cv2.destroyAllWindows()

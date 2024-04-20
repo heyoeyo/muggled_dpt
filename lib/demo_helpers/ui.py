@@ -11,6 +11,8 @@ import numpy as np
 from .text import TextDrawer
 from .visualization import add_bounding_box
 
+from typing import Protocol
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Slider UI
@@ -148,9 +150,10 @@ class SliderCB:
             value_str = str(self._slider_value)[:self._max_digits]
             txt_w, txt_h, txt_baseline = self._txt.get_text_size(value_str)
             x1, x2 = x_px + 5, x_px - txt_w - 5
-            y_mid = (self._bar_h + txt_h - txt_baseline) // 2
-            txt_pos = (x1, y_mid) if (x1 + txt_w) < frame_w else (x2, y_mid)
-            self._txt.xy_px(bar_img, value_str, txt_pos)
+            txt_x = x1 if (x1 + txt_w) < frame_w else x2
+            txt_y = txt_baseline + self._bar_h//2
+            txt_xy = (txt_x, txt_y)
+            self._txt.xy_px(bar_img, value_str, txt_xy)
         
         # Draw indicator line onto the bar
         cv2.line(bar_img, (x_px, 2), (x_px, self._bar_h-2), (255,255,255), self._indicator_thickness)
@@ -375,54 +378,59 @@ class ColormapButtonsCB:
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Toggle bar UI
+#%% Button bar UI
 
-class ToggleBar:
+class ButtonBar:
     
     '''
-    Class used to provide a simple set of toggle controls drawn
+    Class used to provide a simple set of button controls drawn
     as a single-row bar on in an  opencv window
     
     Works as a window callback (within opencv callback interface)
     while also providing functions to draw onto display frames
     
     Example usage:
-        # Attach slider callback to cv2 window
-        toggle_bar = ToggleBar()
-        cv2.setMouseCallback(winname, toggle_bar)
+        # Attach callback to cv2 window
+        btn_bar = ButtonBar()
+        cv2.setMouseCallback(winname, btn_bar)
         
-        # Add toggle controls to bar
-        enable_toggle = toggle_bar.add(label_true = "Enabled", label_false = "Disabled", default=True)
-        onoff_toggle = toggle_bar.add(label_true = "On", label_false = "Off", default=False)
+        # Add controls to bar
+        enable_toggle = btn_bar.add_toggle(label_true = "Enabled", label_false = "Disabled", default=True)
+        save_btn = btn_bar.add_button(label = "Save")
         
-        # Read toggle values
+        # Read control values
         is_enabled = enable_toggle.read()
-        is_on = onoff_toggle.read()
+        need_save = save_btn.read()
         
-        # Draw toggle bar onto displayed frame
-        disp_frame = toggle_bar.append_to_frame(disp_frame)
+        # Draw bar onto displayed frame
+        disp_frame = btn_bar.append_to_frame(disp_frame)
         cv2.imshow(winname, disp_frame)
         cv2.waitKey(1)
     '''
     
+    class Control(Protocol):
+        ''' Define what a single 'control' on the button bar should be able to do '''
+        def read(self): ...
+        def click(self): ...
+        def on_keypress(self, keycode): ...
+        def make_image(self, button_height, button_width): ...
+    
     # .................................................................................................................
     
-    def __init__(self, bar_height = 60,
-                 on_bg_color = (60,60,60), off_bg_color = (40,40,40), line_color = (255,255,255)):
+    def __init__(self, bar_height = 36):
         
+        # Drawing config
         self.height_px = bar_height
-        self._on_bg_color = on_bg_color
-        self._off_bg_color = off_bg_color
-        self._line_color = line_color
         self._base_img = np.full((1,1,3), 0, dtype = np.uint8)
         self._requires_redraw = True
         
-        self._ctrls_list = []
-        self._txt_writer = TextDrawer(0.5)
-        
+        # Mouse interaction settings
         self._interact_y_offset = 0
         self._interact_y1y2 = (-10, -10)
         self._enable = True
+        
+        # Storage for controls that get added
+        self._ctrls_list = []
     
     # .................................................................................................................
     
@@ -442,31 +450,45 @@ class ToggleBar:
         if event == cv2.EVENT_LBUTTONDOWN:
             
             # Bail if we have no controls!
-            num_toggles = len(self._ctrls_list)
-            if num_toggles == 0:
+            num_ctrls = len(self._ctrls_list)
+            if num_ctrls == 0:
                 return
             
             # Figure out which control was clicked
             bar_w = self._base_img.shape[1]
             x_norm = x / (bar_w - 1)
-            idx_select = int(x_norm * num_toggles)
-            idx_select = min(num_toggles - 1, idx_select)
+            idx_select = int(x_norm * num_ctrls)
+            idx_select = min(num_ctrls - 1, idx_select)
             idx_select = max(0, idx_select)
             
-            # Toggle the clicked control
-            self._ctrls_list[idx_select].toggle()
-            self._requires_redraw = True
+            # Click the selected control!
+            self._ctrls_list[idx_select].click()
         
         return
     
     # .................................................................................................................
     
-    def add(self, label_true="On", label_false="Off", default=True, keypress=None):
+    def _on_control_change(self):
+        self._requires_redraw = True
+        return
         
-        new_ctrl = _ToggleControl(label_true, label_false, default, keypress)
-        self._ctrls_list.append(new_ctrl)
+    # .................................................................................................................
+    
+    def add_toggle(self, label_true="On", label_false="Off", default=True, keypress=None):
         
-        return new_ctrl
+        new_toggle_ctrl = _ToggleControl(self._on_control_change, label_true, label_false, default, keypress)
+        self._ctrls_list.append(new_toggle_ctrl)
+        
+        return new_toggle_ctrl
+    
+    # .................................................................................................................
+    
+    def add_button(self, label="Button", keypress=None):
+        
+        new_btn_ctrl = _ButtonControl(self._on_control_change, label, keypress)
+        self._ctrls_list.append(new_btn_ctrl)
+        
+        return new_btn_ctrl
     
     # .................................................................................................................
     
@@ -486,23 +508,12 @@ class ToggleBar:
         
         # For convenience
         num_ctrls = len(self._ctrls_list)
+        if num_ctrls == 0 or not self._enable:
+            return np.zeros((0, bar_width, 3), dtype=np.uint8)
         btn_width = round(bar_width / num_ctrls)
         
-        btn_imgs_list = []
-        for idx, toggle_ctrl in enumerate(self._ctrls_list):
-            
-            # Make (small) image just for our button
-            is_on = toggle_ctrl.read()
-            btn_bg_color = self._on_bg_color if is_on else self._off_bg_color
-            btn_img = np.full((self.height_px, btn_width, 3), btn_bg_color, dtype=np.uint8)
-            
-            # Draw text onto button image & store for combining
-            label = toggle_ctrl.get_label()
-            btn_img = self._txt_writer.xy_centered(btn_img, label)
-            btn_img = add_bounding_box(btn_img, thickness=2, inset_box=False)
-            btn_imgs_list.append(btn_img)
-        
         # Stack all button images together & scale to reach final target size, if needed
+        btn_imgs_list = [ctrl.make_image(self.height_px, btn_width) for ctrl in self._ctrls_list]
         new_base_img = np.hstack(btn_imgs_list)
         wrong_final_wdith = (new_base_img.shape[1] != bar_width)
         if wrong_final_wdith:
@@ -515,41 +526,92 @@ class ToggleBar:
     
     # .................................................................................................................
     
-    def append_to_frame(self, display_frame):
+    def draw_standalone(self, frame_width) -> np.ndarray:
         
-        disp_h, disp_w = display_frame.shape[0:2]
+        '''
+        Used to draw the bar by itself. Assumes bar will be the top-most part of the
+        image in which it is displayed (if not, mouse clicks will be handled incorrectly!)
+        '''
+        
         base_w = self._base_img.shape[1]
-        size_mismatch = disp_w != base_w
+        size_mismatch = frame_width != base_w
         if size_mismatch or self._requires_redraw:
-            self._base_img = self._make_base_image(disp_w)
+            self._base_img = self._make_base_image(frame_width)
         
         base_h = self._base_img.shape[0]
-        self._interact_y1y2 = (disp_h, disp_h + base_h)
+        self._interact_y1y2 = (0, base_h)
         
-        return np.vstack((display_frame, self._base_img))
+        return self._base_img.copy()
     
     # .................................................................................................................
     
-    def toggle_on_keypress(self, keypress_code):
+    def prepend_to_frame(self, frame) -> np.ndarray:
         
-        keypress_match = [ctrl.toggle_on_keypress(keypress_code) for ctrl in self._ctrls_list]
-        if any(keypress_match):
-            self._requires_redraw = True
+        '''
+        Used to add bar 'above' the given frame
+        Importantly, updates the expected y-location so that mouse clicks are handled properly
+        '''
         
-        return
+        frame_h, frame_w = frame.shape[0:2]
+        base_w = self._base_img.shape[1]
+        size_mismatch = frame_w != base_w
+        if size_mismatch or self._requires_redraw:
+            self._base_img = self._make_base_image(frame_w)
+        
+        base_h = self._base_img.shape[0]
+        self._interact_y1y2 = (0, base_h)
+        
+        return np.vstack((self._base_img, frame))
+    
+    # .................................................................................................................
+    
+    def append_to_frame(self, frame):
+        
+        '''
+        Used to add bar 'under' the given frame
+        Importantly, updates the expected y-location so that mouse clicks are handled properly
+        '''
+        
+        frame_h, frame_w = frame.shape[0:2]
+        base_w = self._base_img.shape[1]
+        size_mismatch = frame_w != base_w
+        if size_mismatch or self._requires_redraw:
+            self._base_img = self._make_base_image(frame_w)
+        
+        base_h = self._base_img.shape[0]
+        self._interact_y1y2 = (frame_h, frame_h + base_h)
+        
+        return np.vstack((frame, self._base_img))
+    
+    # .................................................................................................................
+    
+    def on_keypress(self, keypress_code):
+        keypress_match = [ctrl.on_keypress(keypress_code) for ctrl in self._ctrls_list]
+        return keypress_match
         
     # .................................................................................................................
 
 
-class _ToggleControl:
+class _ToggleControl(ButtonBar.Control):
     
-    ''' Class representing a single toggle-able entry on a ToggleBar '''
+    ''' Class representing a single toggle-able button entry on a ButtonBar '''
     
-    def __init__(self, label_true="On", label_false="Off", default=True, keypress=None):
+    def __init__(self, on_change_callback, label_true="On", label_false="Off", default=True, keypress=None):
+        self._on_change_cb = on_change_callback
         self._state = default
         self._label_true = label_true
         self._label_false = label_false
         self._keypress = ord(keypress) if isinstance(keypress, str) else keypress
+        
+        # For graphics
+        self._txt = TextDrawer(0.5)
+        self._txt_color = (255,255,255)
+        self._on_bg_color = (60,60,60)
+        self._off_bg_color = (40,40,40)
+    
+    def __repr__(self):
+        label_state = self._label_true if self._state else self._label_false
+        return f"ToggleControl: {label_state}"
     
     def get_label(self) -> str:
         return self._label_true if self._state else self._label_false
@@ -557,15 +619,21 @@ class _ToggleControl:
     def read(self) -> bool:
         return self._state
     
+    def click(self):
+        self.toggle()
+        return self
+    
     def toggle(self):
         self._state = not self._state
+        self._on_change_cb()
         return self
     
     def set(self, new_state: bool):
         self._state = new_state
+        self._on_change_cb()
         return self
     
-    def toggle_on_keypress(self, keypress_code):
+    def on_keypress(self, keypress_code):
         
         # Bail if we don't have a target key to listen for!
         is_match = False
@@ -577,27 +645,84 @@ class _ToggleControl:
         
         return is_match
     
+    def make_image(self, button_height, button_width):
+        
+        # Make (small) image just for our button
+        bg_color = self._on_bg_color if self._state else self._off_bg_color
+        toggle_img = np.full((button_height, button_width, 3), bg_color, dtype=np.uint8)
+        
+        # Draw text onto button image & store for combining
+        label = self.get_label()
+        toggle_img = self._txt.xy_centered(toggle_img, label, self._txt_color)
+        toggle_img = add_bounding_box(toggle_img, thickness=2, inset_box=False)
+        
+        return toggle_img
+
+
+class _ButtonControl(ButtonBar.Control):
+    
+    ''' Class representing a single button for use on a ButtonBar '''
+    
+    def __init__(self, on_change_callback, label="Button", keypress=None):
+        self._on_change_cb = on_change_callback
+        self._state = False
+        self._label = label
+        self._keypress = ord(keypress) if isinstance(keypress, str) else keypress
+        
+        # For graphics
+        self._txt = TextDrawer(0.5)
+        self._txt_color = (255,255,255)
+        self._bg_color = (60,60,60)
+    
     def __repr__(self):
-        label_state = self._label_true if self._state else self._label_false
-        return f"ToggleControl: {label_state}"
-
-# ---------------------------------------------------------------------------------------------------------------------
-#%% Functions
-
-def make_message_header_image(message: str, frame_width: int,
-                              header_height_px = 30, bg_color = (53,29,31)) -> np.ndarray:
+        return f"ButtonControl: {self._label} ({self._state})"
     
-    ''' Helper which makes a header image containing the given message '''
+    def get_label(self) -> str:
+        return self._label
     
-    # Figure out text scaling so that it fits in width of frame
-    for scale in [0.5, 0.4, 0.3, 0.2, 0.1]:    
-        (txt_w, txt_h), txt_base = cv2.getTextSize(message, 0, scale, 1)
-        if txt_w < frame_width: break
+    def read(self) -> bool:
+        ''' Read button state. The state returns to False afterwards! '''
+        read_state = self._state
+        self.reset()
+        return read_state
     
-    # Find centering position
-    x_pos = (frame_width - txt_w) // 2
-    y_pos = header_height_px//2 + txt_base
-    xy_pos = (x_pos, y_pos)
+    def click(self):
+        self.set()
+        return self
     
-    header_img = np.full((header_height_px, frame_width, 3), bg_color, dtype = np.uint8)
-    return cv2.putText(header_img, message, xy_pos, 0, scale, (255,255,255), 1, cv2.LINE_AA)
+    def set(self):
+        self._state = True
+        self._on_change_cb()
+        return self
+    
+    def reset(self):
+        if self._state == True:
+            self._state = False
+            self._on_change_cb()
+        return self
+    
+    def on_keypress(self, keypress_code):
+        
+        # Bail if we don't have a target key to listen for!
+        is_match = False
+        if self._keypress is None: return is_match
+        
+        # Change state on target keypress code
+        is_match = (keypress_code == self._keypress)
+        if is_match:
+            # Note can't just do: self._state = is_match
+            # -> It's possible state is True already but hasn't been read
+            # -> setting if is_match is False, doing _state = is_match
+            #    would clear the True state before it's read!
+            self.set()
+        
+        return is_match
+    
+    def make_image(self, button_height, button_width):
+        
+        # Draw button image with label
+        btn_img = np.full((button_height, button_width, 3), self._bg_color, dtype=np.uint8)
+        btn_img = self._txt.xy_centered(btn_img, self._label, self._txt_color)
+        btn_img = add_bounding_box(btn_img, thickness=2, inset_box=False)
+        
+        return btn_img

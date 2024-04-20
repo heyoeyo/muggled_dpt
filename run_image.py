@@ -15,7 +15,7 @@ import torch
 from lib.make_dpt import make_dpt_from_state_dict
 
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
-from lib.demo_helpers.ui import SliderCB, ColormapButtonsCB, make_message_header_image
+from lib.demo_helpers.ui import SliderCB, ColormapButtonsCB, ButtonBar
 from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
 from lib.demo_helpers.plane_fit import estimate_plane_of_best_fit
 from lib.demo_helpers.saving import save_image
@@ -127,35 +127,34 @@ if device_str == "cuda":
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Display results
 
-# Set up window with trackbar controls
-cv2.destroyAllWindows()
-window = DisplayWindow("Inverse Depth Result")
+# Calculate a plane-of-best-fit, so we can (potentially) remove it during display
+plane_depth = estimate_plane_of_best_fit(depth_norm)
 
-# Set up UI elements
+# Set up button controls
+btnbar = ButtonBar()
+toggle_reverse_color = btnbar.add_toggle("[r] Reversed", "[r] Normal Order", keypress="r", default=False)
+toggle_high_contrast = btnbar.add_toggle("[h] High Contrast", "[h] Normal Contrast", keypress="h", default=False)
+btn_save = btnbar.add_button("[s] Save", keypress="s")
+
+# Set up other UI elements
 cmap_btns = ColormapButtonsCB(cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, cv2.COLORMAP_TURBO)
 plane_slider = SliderCB("Remove plane", 0, -1, 2, 0.01, marker_step_size=0.5)
 min_slider = SliderCB("Min Threshold", 0, 0, 1, 0.01, marker_step_size=0.1)
 max_slider = SliderCB("Max Threshold", 1, 0, 1, 0.01, marker_step_size=0.1)
-window.set_callbacks(cmap_btns, plane_slider, min_slider, max_slider)
 
-# Calculate a plane-of-best-fit, so we can (potentially) remove it during display
-plane_depth = estimate_plane_of_best_fit(depth_norm)
+# Set up window with controls
+cv2.destroyAllWindows()
+window = DisplayWindow("Inverse Depth Result - q to quit")
+window.set_callbacks(btnbar, cmap_btns, plane_slider, min_slider, max_slider)
 
 # Pre-define parameters used inside conditionals
 prev_plane_removal_factor = None
 depth_1ch = depth_norm
 
 # Feedback about controls
-info_msg = "[r to reverse colors]  [h for high contrast]  [s to save image]  [q to quit]"
-info_img = make_message_header_image(info_msg, 2*disp_w)
-use_reverse_colors = False
-use_high_contrast = False
 print("", "Displaying results",
       "  - Click and drag bars to adjust display",
       "  - Right click on bars to reset values",
-      "  - Press r to reverse coloring",
-      "  - Press h to enable high-contrast display",
-      "  - Press s to save depth image",
       "  - Press esc or q to quit",
       "",
       sep="\n", flush=True)
@@ -166,6 +165,8 @@ while True:
     plane_removal_factor = plane_slider.read()
     thresh_min = min_slider.read()
     thresh_max = max_slider.read()
+    use_high_contrast = toggle_high_contrast.read()
+    use_reverse_colors = toggle_reverse_color.read()
     
     # Re-calculate depth image if plane removal changes
     removal_factor_changed = (plane_removal_factor != prev_plane_removal_factor)
@@ -185,9 +186,10 @@ while True:
     if use_reverse_colors: depth_uint8 = 255 - depth_uint8
     depth_color = cmap_btns.apply_colormap(depth_uint8)
     
-    # Generate display image: info / colormaps / side-by-side images / sliders
+    # Generate display image: button controls / colormaps / side-by-side images / sliders
     sidebyside_display = np.hstack((scaled_input_img, depth_color))
-    display_frame = cmap_btns.append_to_frame(info_img)
+    display_frame = btnbar.draw_standalone(sidebyside_display.shape[1])
+    display_frame = cmap_btns.append_to_frame(display_frame)
     display_frame = np.vstack((display_frame, sidebyside_display))
     display_frame = SliderCB.append_many_to_frame(
         display_frame,
@@ -202,16 +204,13 @@ while True:
     if req_break:
         break
     
-    # Respond to keypresses
-    if keypress == ord("s"):
+    # Handle button keypresses
+    btnbar.on_keypress(keypress)
+    if btn_save.read():
         ok_save, save_path = save_image(depth_color, image_path)
         if ok_save: print("", "SAVED:", save_path, "", sep="\n")
-    if keypress == ord("r"):
-        use_reverse_colors = not use_reverse_colors
-        print(f"Reversed colors: {use_reverse_colors}")
-    if keypress == ord("h"):
-        use_high_contrast = not use_high_contrast
-        print(f"High contrast: {use_high_contrast}")
+    
+    pass
 
 # Clean up windows
 cv2.destroyAllWindows()
