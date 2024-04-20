@@ -121,7 +121,7 @@ class PatchSelectCB:
         # Allocate storage for scaled 'display copy' of input frame
         self._disp_frame = frame.copy()
         self._disp_h, self._disp_w = self._disp_frame.shape[0:2]
-        self._cls_h = 0
+        self._cls_h = 32
         
         # Store coloring info
         self._cls_bg_color = cls_bg_color
@@ -268,10 +268,9 @@ class PatchSelectCB:
         # Figure out how much to scale input image for display
         oth_h, oth_w = other_frame.shape[0:2]
         if oth_h != self._disp_h:
-
-            cls_bar_height = round(oth_h / self._grid_h)
             
             # Figure out sizing to match height of other frame
+            cls_bar_height = self._cls_h
             frame_h, frame_w = self._frame_hw
             scaled_h = oth_h - cls_bar_height
             scaled_w = round(frame_w * (oth_h / frame_h))
@@ -281,10 +280,10 @@ class PatchSelectCB:
             cls_bar_img = self.make_cls_bar_image(disp_frame, cls_bar_height)
             self._disp_frame = np.vstack((disp_frame, cls_bar_img))
             self._disp_h, self._disp_w = self._disp_frame.shape[0:2]
-            self._cls_h = cls_bar_height
+            self._cls_h = cls_bar_img.shape[0]
             self._interact_x1x2 = (0, scaled_w)
             self._interact_y1y2 = (0, scaled_h)
-            self._cls_y1y2 = (scaled_h, scaled_h + cls_bar_height)
+            self._cls_y1y2 = (scaled_h, scaled_h + self._cls_h)
 
         disp_frame = self._disp_frame.copy()
         disp_frame = self.draw_selected_patch(disp_frame)
@@ -300,21 +299,20 @@ class PatchSelectCB:
         if oth_w != self._disp_w:
 
             # Figure out sizing to match width of other frame:
+            cls_bar_height = self._cls_h
             frame_h, frame_w = self._frame_hw
             scaled_w = oth_w
             scaled_h = round(frame_h * (oth_w / frame_w))
-            
-            cls_bar_height = round(scaled_h / self._grid_h)
             
             # Update display copy & interaction region
             disp_frame = cv2.resize(self._frame, dsize=(scaled_w, scaled_h))
             cls_bar_img = self.make_cls_bar_image(disp_frame, cls_bar_height)
             self._disp_frame = np.vstack((disp_frame, cls_bar_img))
             self._disp_h, self._disp_w = self._disp_frame.shape[0:2]
-            self._cls_h = cls_bar_height
+            self._cls_h = cls_bar_img.shape[0]
             self._interact_x1x2 = (0, scaled_w)
             self._interact_y1y2 = (0, scaled_h)
-            self._cls_y1y2 = (scaled_h, scaled_h + cls_bar_height)
+            self._cls_y1y2 = (scaled_h, scaled_h + self._cls_h)
 
         disp_frame = self._disp_frame.copy()
         disp_frame = self.draw_selected_patch(disp_frame)
