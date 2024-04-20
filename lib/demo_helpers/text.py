@@ -53,7 +53,11 @@ class TextDrawer:
         img_h, img_w = image.shape[0:2]
         x_norm, y_norm = xy_norm
         txt_x = round((img_w - txt_w) * x_norm)
-        txt_y = round((img_h * y_norm) + (txt_h * (1 - 3*y_norm)*0.5)) + txt_base
+        txt_y = round(txt_base + img_h * y_norm + txt_h * (1 - 2.0*y_norm))
+        # This comes from:
+        #    x @ x_norm = 0: 0  and  x @ x_norm = 1: img_w - txt_w
+        #    y @ y_norm = 0: txt_h + txt_base
+        #    y @ y_norm = 1: img_h + txt_base - txt_h
         
         pad_x, pad_y = pad_xy_px
         txt_xy_px = (txt_x + pad_x, txt_y + pad_y)
