@@ -27,7 +27,7 @@ except ModuleNotFoundError:
 from lib.make_dpt import make_dpt_from_state_dict
 
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
-from lib.demo_helpers.ui import SliderCB, ColormapButtonsCB, ButtonBar
+from lib.demo_helpers.ui import SliderCB, ColormapButtonsCB, ButtonBar, ScaleByKeypress
 from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
 from lib.demo_helpers.saving import save_image
 from lib.demo_helpers.misc import (
@@ -143,6 +143,7 @@ btn_save = btnbar.add_button("[s] Save", keypress="s")
 # Set up other UI elements
 cmap_btns = ColormapButtonsCB(cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, cv2.COLORMAP_TURBO)
 sliders = [SliderCB(f"Fusion {1+idx}", 1, -5, 5, 0.01, marker_step_size=1) for idx in range(4)]
+display_scaler = ScaleByKeypress()
 
 # Set up window with controls
 cv2.destroyAllWindows()
@@ -153,6 +154,7 @@ window.set_callbacks(btnbar, cmap_btns, *sliders)
 print("", "Displaying results",
       "  - Drag bars to change fusion scaling factors",
       "  - Right click on bars to reset values",
+      "  - Use up/down arrow keys to adjust display size",
       "  - Press esc or q to quit",
       "",
       sep="\n", flush=True)
@@ -185,7 +187,7 @@ while True:
     depth_color = cmap_btns.apply_colormap(depth_uint8)
     
     # Generate display image: buttons / colormaps / side-by-side images / sliders
-    sidebyside_img = np.hstack((scaled_input_img, depth_color))
+    sidebyside_img = display_scaler.resize(np.hstack((scaled_input_img, depth_color)))
     display_frame = btnbar.draw_standalone(sidebyside_img.shape[1])
     display_frame = cmap_btns.append_to_frame(display_frame)
     display_frame = np.vstack((display_frame, sidebyside_img))
@@ -197,7 +199,8 @@ while True:
     if req_break:
         break
     
-    # Handle button keypresses
+    # Handle keypresses
+    display_scaler.on_keypress(keypress)
     btnbar.on_keypress(keypress)
     if btn_save.read():
         ok_save, save_path = save_image(depth_color, image_path, save_folder=save_folder)

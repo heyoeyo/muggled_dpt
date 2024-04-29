@@ -726,3 +726,52 @@ class _ButtonControl(ButtonBar.Control):
         btn_img = add_bounding_box(btn_img, thickness=2, inset_box=False)
         
         return btn_img
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Scale keys
+
+class ScaleByKeypress:
+    
+    '''
+    Very simple helper which keeps track of a scaling factor that can
+    be adjusted by pressing up/down arrow keys on OpenCV window updates.
+    
+    Example usage:
+        
+        # Create instance
+        scaler = ScaleByKeypress()
+        
+        # ... do stuff ...
+        
+        # Get keypress code from opencv
+        keypress = cv2.waitKey(1) & 0xFF
+        
+        # Update/listen for up/down arrow keys
+        scale_factor = scaler.on_keypress(keypress)
+        
+        # Apply current scaling factor directly
+        scaler.resize(numpy_image)
+    '''
+    
+    KEY_UPARROW = 82
+    KEY_DOWNARROW = 84
+    
+    def __init__(self):
+        self._key_up = self.KEY_UPARROW
+        self._key_down = self.KEY_DOWNARROW
+        self._min_factor, self._max_factor = 0.1, 10
+        self._step_factor = 1.05
+        self._scale_factor = 1.0
+    
+    def resize(self, image):
+        if abs(self._scale_factor - 1.0) < 0.001:
+            return image
+        return cv2.resize(image, dsize=None, fx=self._scale_factor, fy=self._scale_factor)
+    
+    def on_keypress(self, keypress_code):
+        if keypress_code == self._key_up:
+            self._scale_factor = min(self._scale_factor * self._step_factor, self._max_factor)
+        elif keypress_code == self._key_down:
+            self._scale_factor = max(self._scale_factor * (1/self._step_factor), self._min_factor)
+        return self._scale_factor

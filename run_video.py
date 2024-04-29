@@ -15,7 +15,7 @@ import numpy as np
 from lib.make_dpt import make_dpt_from_state_dict
 
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
-from lib.demo_helpers.ui import ColormapButtonsCB, ButtonBar
+from lib.demo_helpers.ui import ColormapButtonsCB, ButtonBar, ScaleByKeypress
 from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
 from lib.demo_helpers.text import TextDrawer
 from lib.demo_helpers.video import LoopingVideoReader, PlaybackIndicatorCB
@@ -127,6 +127,7 @@ toggle_async = btnbar.add_toggle("[n] Async", "[n] Sync", keypress="n", default=
 # Set up other UI elements
 cmap_btns = ColormapButtonsCB(cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, cv2.COLORMAP_TURBO)
 playback_ctrl = PlaybackIndicatorCB(vreader)
+display_scaler = ScaleByKeypress()
 
 # Set up window with controls
 cv2.destroyAllWindows()
@@ -144,6 +145,7 @@ text_draw = TextDrawer(scale=0.75, thickness=2, bg_color=(0,0,0))
 # Feedback about controls
 print("", "Displaying results",
       "  - Click & drag to move playback",
+      "  - Use up/down arrow keys to adjust display size",
       "  - Press esc or q to quit",
       "", sep="\n", flush=True)
 for frame in vreader:
@@ -184,7 +186,7 @@ for frame in vreader:
     # Draw image/depth map with inference time
     infer_txt = "inference: {:.1f}ms".format(time_ms_model)
     if not use_async: infer_txt = "{} (sync)".format(infer_txt)
-    sidebyside = np.hstack((frame, depth_color))
+    sidebyside = display_scaler.resize(np.hstack((frame, depth_color)))
     sidebyside = text_draw.xy_norm(sidebyside, infer_txt, xy_norm=(0,0), pad_xy_px=(5,5))
     
     # Generate display image: buttons / colormaps / side-by-side images / playback control
@@ -204,6 +206,7 @@ for frame in vreader:
     
     # Respond to keypresses
     btnbar.on_keypress(keypress)
+    display_scaler.on_keypress(keypress)
 
 # Clean up resources
 vreader.release()
