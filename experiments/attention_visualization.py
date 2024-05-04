@@ -69,6 +69,8 @@ parser.add_argument("-ar", "--use_aspect_ratio", default=False, action="store_tr
                     help="Process the image at it's original aspect ratio, if the model supports it")
 parser.add_argument("-b", "--base_size_px", default=default_base_size, type=int,
                     help="Override base (e.g. 384, 512) model size")
+parser.add_argument("-c", "--hide_cls", default=False, action="store_true",
+                    help="Use to disable display of cls token on attention maps")
 
 # For convenience
 args = parser.parse_args()
@@ -79,6 +81,7 @@ device_str = args.device
 use_float32 = args.use_float32
 force_square_resolution = not args.use_aspect_ratio
 model_base_size = args.base_size_px
+show_cls_token = not args.hide_cls
 
 # Build pathing to repo-root, so we can search model weights properly
 root_path = osp.dirname(osp.dirname(__file__))
@@ -333,7 +336,7 @@ class AttentionTileRenderer:
     
     # .................................................................................................................
     
-    def __init__(self, patch_grid_hw, cls_token_index = None,
+    def __init__(self, patch_grid_hw, cls_token_index = None, show_cls = True,
                  max_cls_footer_height = 18, select_color = (255, 0, 255)):
         
         self._patch_grid_hw = patch_grid_hw
@@ -341,6 +344,7 @@ class AttentionTileRenderer:
         self._has_cls_token = (cls_token_index is not None)
         self._max_cls_footer_height = max_cls_footer_height
         self._selection_color = select_color
+        self._show_cls = show_cls
         
         # Rendering configs
         self._text = TextDrawer(scale = 0.35, bg_color=(0,0,0))
@@ -431,7 +435,7 @@ class AttentionTileRenderer:
             tile_img = cv2.circle(tile_img, xy_pt, circ_rad, self._selection_color, -1)
         
         # Attach image representing cls value if needed
-        if self._has_cls_token:
+        if self._has_cls_token and self._show_cls:
             img_h, img_w = tile_img.shape[0:2]
             footer_height = min(self._max_cls_footer_height, int(img_h * 0.4))
             cls_img = cv2.resize(cls_img, dsize=(img_w, footer_height))
@@ -689,7 +693,7 @@ KEY_COMMA, KEY_PERIOD = ord(","), ord(".")
 KEY_SPACEBAR = ord(" ")
 
 # Set up handlerS for managing the arrangement of attention tiles (display + sizing + grid rows/columns)
-attn_tiler = AttentionTileRenderer(patch_grid_hw, cls_token_index)
+attn_tiler = AttentionTileRenderer(patch_grid_hw, cls_token_index, show_cls_token)
 attn_disp_size = AttentionDisplayArrangement(orig_image_bgr.shape, patch_grid_hw, num_heads, display_size_px)
 
 # Set up button controls
