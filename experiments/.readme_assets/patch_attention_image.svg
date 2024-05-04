@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" width="672.428" height="317.396" viewBox="0 0 177.913 83.978">
+  <g transform="translate(-348.95301,-115.27513)">
+    <path d="M457.97 134.643h68.896v6.459H457.97zM348.953 115.275v83.978h4.648v-79.33h79.33v-4.648z" paint-order="markers stroke fill"/>
+    <g id="f" stroke-width=".427" transform="matrix(2.3424012,0,0,2.3424012,291.62512,57.947379)">
+      <path id="a" fill="#f9f9f9" stroke="none" stroke-width=".113" d="M26.458 26.458h8.467v8.467h-8.467z" paint-order="markers stroke fill"/>
+      <use xlink:href="#a" fill="#f2f2f2" transform="translate(16.933334)"/>
+    </g>
+    <g id="c" stroke-width=".427" transform="matrix(2.3424012,0,0,2.3424012,291.62512,57.947379)">
+      <path id="b" fill="#ececec" stroke="none" stroke-width=".113" d="M34.925 26.458h8.467v8.467h-8.467z" paint-order="markers stroke fill"/>
+      <use xlink:href="#b" transform="translate(16.933334)"/>
+    </g>
+    <use xlink:href="#c" id="d" x="0" y="0" stroke-width=".427" transform="translate(-19.832327,19.832329)"/>
+    <use xlink:href="#d" id="e" x="0" y="0" stroke-width=".427" transform="translate(19.832328,19.832329)"/>
+    <use xlink:href="#e" stroke-width=".427" transform="translate(-19.832327,19.83233)"/>
+    <use xlink:href="#f" id="g" x="0" y="0" stroke-width=".427" transform="translate(19.832328,19.832329)"/>
+    <use xlink:href="#g" id="h" x="0" y="0" stroke-width=".427" transform="translate(-19.832327,19.832329)"/>
+    <use xlink:href="#h" stroke-width=".427" transform="translate(19.832328,19.832329)"/>
+    <text xml:space="preserve" id="j" x="383.303" y="119.336" fill="#fff" stroke="none" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="383.303" y="119.336">Patch 1</tspan></text>
+    <text xml:space="preserve" id="k" x="403.163" y="119.336" fill="#fff" stroke="none" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="403.163" y="119.336">Patch 2</tspan></text>
+    <text xml:space="preserve" id="i" x="363.466" y="119.336" fill="#fff" stroke="none" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="363.466" y="119.336">Patch 0</tspan></text>
+    <text xml:space="preserve" id="l" x="422.98" y="119.336" fill="#fff" stroke="none" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="422.98" y="119.336">Patch 3</tspan></text>
+    <use xlink:href="#i" stroke-width="1.708" transform="rotate(-90,363.51735,129.83955)"/>
+    <use xlink:href="#j" stroke-width="1.708" transform="rotate(-90,383.34968,149.67188)"/>
+    <use xlink:href="#k" stroke-width="1.708" transform="rotate(-90,403.18199,169.50423)"/>
+    <use xlink:href="#l" stroke-width="1.708" transform="rotate(-90,423.01432,189.33656)"/>
+    <text xml:space="preserve" x="363.517" y="131.043" fill="#f2f2f2" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="363.517" y="131.043" fill="#000">0.26</tspan></text>
+    <text xml:space="preserve" x="383.35" y="131.043" fill="red" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="383.35" y="131.043" fill="#000">0.26</tspan></text>
+    <text xml:space="preserve" x="403.182" y="131.043" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="403.182" y="131.043">0.22</tspan></text>
+    <text xml:space="preserve" x="423.014" y="131.043" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="423.014" y="131.043">0.26</tspan></text>
+    <text xml:space="preserve" x="363.522" y="150.875" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="363.522" y="150.875">0.21</tspan></text>
+    <text xml:space="preserve" x="383.35" y="150.875" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="383.35" y="150.875">0.66</tspan></text>
+    <text xml:space="preserve" x="403.182" y="150.875" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="403.182" y="150.875">0.07</tspan></text>
+    <text xml:space="preserve" x="423.039" y="150.875" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="423.039" y="150.875">0.06</tspan></text>
+    <text xml:space="preserve" x="363.534" y="170.707" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="363.534" y="170.707">0.13</tspan></text>
+    <text xml:space="preserve" x="383.35" y="170.707" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="383.35" y="170.707">0.06</tspan></text>
+    <text xml:space="preserve" x="403.207" y="170.707" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="403.207" y="170.707">0.46</tspan></text>
+    <text xml:space="preserve" x="423.039" y="170.707" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="423.039" y="170.707">0.35</tspan></text>
+    <text xml:space="preserve" x="363.489" y="190.54" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="363.489" y="190.54">0.15</tspan></text>
+    <text xml:space="preserve" x="383.321" y="190.54" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="383.321" y="190.54">0.05</tspan></text>
+    <text xml:space="preserve" x="403.182" y="190.54" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="403.182" y="190.54">0.31</tspan></text>
+    <text xml:space="preserve" x="423.019" y="190.54" stroke-width=".265" font-family="Monospace" font-size="3.305" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="423.019" y="190.54">0.49</tspan></text>
+    <g stroke-width="1.229" paint-order="markers stroke fill">
+      <path fill="#3b528b" d="M457.97 141.103h34.448v19.377H457.97z"/>
+      <path fill="#482374" d="M492.418 141.103h34.448v19.377h-34.448z"/>
+      <path fill="#67cc5c" d="M492.418 160.479h34.448v19.377h-34.448z"/>
+      <path fill="#fde725" d="M457.97 160.479h34.448v19.377H457.97z"/>
+      <text xml:space="preserve" x="446.325" y="182.905" fill="#fff" stroke-width=".325" font-family="Monospace" font-size="5.644" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle" transform="matrix(0.81372769,0,0,0.81372769,112.0309,3.6281411)"><tspan x="446.325" y="182.905">0.13</tspan></text>
+      <text xml:space="preserve" x="488.63" y="182.905" fill="#fff" stroke-width=".325" font-family="Monospace" font-size="5.644" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle" transform="matrix(0.81372769,0,0,0.81372769,112.0309,3.6281411)"><tspan x="488.63" y="182.905">0.06</tspan></text>
+      <text xml:space="preserve" x="446.339" y="206.717" stroke-width=".325" font-family="Monospace" font-size="5.644" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle" transform="matrix(0.81372769,0,0,0.81372769,112.0309,3.6281411)"><tspan x="446.339" y="206.717">0.45</tspan></text>
+      <text xml:space="preserve" x="488.672" y="206.717" fill="#fff" stroke-width=".325" font-family="Monospace" font-size="5.644" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle" transform="matrix(0.81372769,0,0,0.81372769,112.0309,3.6281411)"><tspan x="488.672" y="206.717">0.35</tspan></text>
+    </g>
+    <path fill="none" stroke="red" stroke-width="1.323" d="M356.058 163.959h74.4v11.09h-74.4zM437.071 167.392l14.609-5.907" paint-order="markers stroke fill"/>
+    <path fill="red" d="m451.808 164.13-1.578-4.894 4.427 1.273z" paint-order="markers stroke fill"/>
+    <text xml:space="preserve" x="492.401" y="139.585" fill="#fff" stroke-width="1.323" font-family="Monospace" font-size="4.593" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Monospace, Normal&quot;;text-align:center" text-anchor="middle"><tspan x="492.401" y="139.585">Patch 2 Attention</tspan></text>
+  </g>
+</svg>
