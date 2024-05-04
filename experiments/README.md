@@ -14,7 +14,7 @@ The script takes in the position of your mouse cursor over top of the original i
 
 ### Explanation
 
-The image below depicts an image with a 2x2 patch embedding for a total of only 4 patches to make it easier to interpret. In practice, models usually operate with dozens of patches.
+The image below depicts an image with a 2x2 patch embedding for a total of only 4 patches to make it easier to interpret. In practice, models usually operate with dozens of patches along either edge (e.g. 30x30).
 
 <p align="center">
   <img src=".readme_assets/attentionviz_patch_example.webp" alt="Example of dividing an image into 4 patches. These end up corresponding the top-left/top-right/bottom-left/bottom-right quadrants of the image.">
