@@ -111,14 +111,17 @@ class PlaybackIndicatorCB:
     opencv window, for use when playing videos. Works as a window callback
     (within opencv callback interface) while also providing functions
     to draw a playback indicator onto display frames.
+    Can be disabled (i.e. when using none rewindable source),
+    which also disables UI input & drawing functionality
     '''
     
     # .................................................................................................................
     
-    def __init__(self, vreader, bar_height = 60):
+    def __init__(self, vreader, bar_height = 60, enabled = True):
         
         # Store vreader so we can access it later to change playback positioning
         self._vreader = vreader
+        self._enabled = enabled
         
         # Storage for mouse state
         self.mouse_x_px = 0
@@ -134,6 +137,10 @@ class PlaybackIndicatorCB:
     # .................................................................................................................
     
     def __call__(self, event, x, y, flags, param) -> None:
+        
+        # Bail when disabled
+        if not self._enabled:
+            return
         
         # Keep track of mouse positioning and click state
         self.mouse_x_px = x
@@ -154,8 +161,9 @@ class PlaybackIndicatorCB:
     
     def change_playback_position_on_mouse_press(self) -> None:
         
-        # Bail if mouse isn't pressed
-        if not self._is_pressed: return
+        # Bail if when not interacting
+        if not (self._is_pressed and self._enabled):
+            return
         
         playback_pos = self.mouse_x_px / (self._frame_w - 1)
         self._vreader.set_playback_position(playback_pos)
@@ -165,6 +173,10 @@ class PlaybackIndicatorCB:
     # .................................................................................................................
     
     def append_to_frame(self, frame) -> np.ndarray:
+        
+        # Don't draw anything when disabled
+        if not self._enabled:
+            return frame
         
         # Create base bar image, if we don't already have one matching the given frame size
         frame_h, frame_w = frame.shape[0:2]

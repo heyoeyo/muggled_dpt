@@ -126,7 +126,7 @@ toggle_async = btnbar.add_toggle("[n] Async", "[n] Sync", keypress="n", default=
 
 # Set up other UI elements
 cmap_btns = ColormapButtonsCB(cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, cv2.COLORMAP_TURBO)
-playback_ctrl = PlaybackIndicatorCB(vreader)
+playback_ctrl = PlaybackIndicatorCB(vreader, enabled=(not use_webcam))
 display_scaler = ScaleByKeypress()
 
 # Set up window with controls
