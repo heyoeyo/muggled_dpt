@@ -120,8 +120,8 @@ print_config_feedback(model_path, device_config_dict, use_cache, example_tensor)
 
 # Set up button controls
 btnbar = ButtonBar()
-toggle_reverse_color = btnbar.add_toggle("[r] Reversed", "[r] Normal Order", keypress="r", default=False)
-toggle_high_contrast = btnbar.add_toggle("[h] High Contrast", "[h] Normal Contrast", keypress="h", default=False)
+toggle_normal_order_colors = btnbar.add_toggle("[r] Normal Order", "[r] Reversed", keypress="r")
+toggle_normal_contrast = btnbar.add_toggle("[h] Normal Contrast", "[h] High Contrast", keypress="h")
 toggle_async = btnbar.add_toggle("[n] Async", "[n] Sync", keypress="n", default= not force_sync)
 
 # Set up other UI elements
@@ -151,8 +151,8 @@ print("", "Displaying results",
 for frame in vreader:
     
     # Read controls
-    use_high_contrast = toggle_high_contrast.read()
-    use_reverse_colors = toggle_reverse_color.read()
+    use_high_contrast = not toggle_normal_contrast.read()
+    use_reverse_colors = not toggle_normal_order_colors.read()
     use_async = toggle_async.read()
     
     # Only process frame data when the device is ready
