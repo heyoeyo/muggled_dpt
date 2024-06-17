@@ -220,7 +220,11 @@ if "beit" in model_name:
 elif "swin2" in model_name:
     from lib.v31_swinv2.image_encoder_model import SwinTransformerBlock as TargetBlock
 elif "vit" in model_name:
-    from lib.v1_depthanything.image_encoder_model import TransformerBlock as TargetBlock
+    # Figure out if we're using v1 or v2
+    from lib.v2_depthanything.image_encoder_model import TransformerBlock as TargetBlock
+    is_v2 = any(isinstance(m, TargetBlock) for m in dpt_model.modules())
+    if not is_v2:
+        from lib.v1_depthanything.image_encoder_model import TransformerBlock as TargetBlock
 else:
     raise NameError("Unknown model type! Expecting one of: {beit, swin2, vit} in model file path")
 

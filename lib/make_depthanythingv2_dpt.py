@@ -7,14 +7,14 @@
 
 from .dpt_model import DPTModel, DPTImagePrep
 
-from .v1_depthanything.patch_embed import PatchEmbed
-from .v1_depthanything.image_encoder_model import DinoV2Model4Stages
-from .v1_depthanything.reassembly_model import ReassembleModel
-from .v1_depthanything.fusion_model import FusionModel
-from .v1_depthanything.head_model import MonocularDepthHead
+from .v2_depthanything.patch_embed import PatchEmbed
+from .v2_depthanything.image_encoder_model import DinoV2Model4Stages
+from .v2_depthanything.reassembly_model import ReassembleModel
+from .v2_depthanything.fusion_model import FusionModel
+from .v2_depthanything.head_model import MonocularDepthHead
 
-from .v1_depthanything.state_dict_conversion.config_from_original_state_dict import get_model_config_from_state_dict
-from .v1_depthanything.state_dict_conversion.convert_original_state_dict_keys import convert_state_dict_keys
+from .v2_depthanything.state_dict_conversion.config_from_original_state_dict import get_model_config_from_state_dict
+from .v2_depthanything.state_dict_conversion.convert_original_state_dict_keys import convert_state_dict_keys
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -22,12 +22,12 @@ from .v1_depthanything.state_dict_conversion.convert_original_state_dict_keys im
 
 # .....................................................................................................................
 
-def make_depthanything_dpt_from_original_state_dict(state_dict, enable_cache = False, strict_load = True):
+def make_depthanythingv2_dpt_from_original_state_dict(state_dict, enable_cache = False, strict_load = True):
     
     '''
-    Function used to initialize a Depth-Anything DPT model from a state dictionary (i.e. model weights) file.
+    Function used to initialize a Depth-Anything V2 DPT model from a state dictionary (i.e. model weights) file.
     This function will automatically figure out the model sizing parameters from the state dict,
-    assuming it comes from the original Depth-Anything repo.
+    assuming it comes from the original Depth-AnythingV2 repo.
     Returns:
         model_config_dict, dpt_model
     '''
@@ -44,7 +44,7 @@ def make_depthanything_dpt_from_original_state_dict(state_dict, enable_cache = F
     new_state_dict = convert_state_dict_keys(config_dict, state_dict)
     
     # Load model & set model weights
-    dpt_model = make_depthanything_dpt(**config_dict, enable_cache = enable_cache)
+    dpt_model = make_depthanythingv2_dpt(**config_dict, enable_cache = enable_cache)
     dpt_model.patch_embed.load_state_dict(new_state_dict["patch_embed"], strict_load)
     dpt_model.imgencoder.load_state_dict(new_state_dict["imgencoder"], strict_load)
     dpt_model.reassemble.load_state_dict(new_state_dict["reassemble"], strict_load)
@@ -84,8 +84,8 @@ def make_opencv_image_prepost_processor(model_config_dict):
 
 # .....................................................................................................................
 
-def make_depthanything_dpt(features_per_token, num_heads, num_blocks, reassembly_features_list, base_patch_grid_hw,
-                           fusion_channels = 256, patch_size_px = 14, enable_cache = False):
+def make_depthanythingv2_dpt(features_per_token, num_heads, num_blocks, reassembly_features_list, base_patch_grid_hw,
+                             fusion_channels = 256, patch_size_px = 14, enable_cache = False):
     
     '''
     Helper used to build all Depth-Anything DPT components. The arguments for this function are
