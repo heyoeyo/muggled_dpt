@@ -1,6 +1,6 @@
 # Muggled DPT
 
-This repo contains a simplified implementation of the very cool 'dense prediction transformer' (DPT) depth estimation model from [isl-org/MiDaS](https://github.com/isl-org/MiDaS), with the intention of [removing the magic](https://en.wikipedia.org/wiki/Muggle) from the original code. Most of the changes come from eliminating dependencies as well as adjusting the code to more directly represent the model architecture as described in the preprint: ["Vision Transformers for Dense Prediction"](https://arxiv.org/abs/2103.13413). It also supports [Depth-Anything](https://github.com/LiheYoung/Depth-Anything) models, which use the same DPT structure.
+This repo contains a simplified implementation of the very cool 'dense prediction transformer' (DPT) depth estimation model from [isl-org/MiDaS](https://github.com/isl-org/MiDaS), with the intention of [removing the magic](https://en.wikipedia.org/wiki/Muggle) from the original code. Most of the changes come from eliminating dependencies as well as adjusting the code to more directly represent the model architecture as described in the preprint: ["Vision Transformers for Dense Prediction"](https://arxiv.org/abs/2103.13413). It also supports [Depth-Anything V1](https://github.com/LiheYoung/Depth-Anything) and [Depth-Anything V2](https://github.com/DepthAnything/Depth-Anything-V2) models, which use the same DPT structure.
 
 <p align="center">
   <img src=".readme_assets/turtle_example.webp">
@@ -40,7 +40,7 @@ pip install -r requirements.txt
 ```
 
 <details>
-<summary>Additional Info</summary>
+<summary>Additional info for GPU usage</summary>
 
 If you're using Windows and want to use an Nvidia GPU or if you're on Linux and don't have a GPU, you'll need to use a slightly different install command to make use of your hardware setup. You can use the [Pytorch installer guide](https://pytorch.org/get-started/locally/) to figure out the command to use. For example, for GPU use on Windows it may look something like:
 ```bash
@@ -56,7 +56,7 @@ pip3 install torch --index-url https://download.pytorch.org/whl/cu121
 
 Before you can run a model, you'll need to download it's weights.
 
-This repo supports the [BEiT](https://arxiv.org/abs/2106.08254) and [SwinV2](https://arxiv.org/abs/2111.09883) models from [MiDaS v3.1](https://arxiv.org/abs/2307.14460) which can be downloaded from the [isl-org/MiDaS releases page](https://github.com/isl-org/MiDaS/releases/tag/v3_1). Additionally, [DINOv2](https://arxiv.org/abs/2304.07193) models are supported from [Depth-Anything](https://arxiv.org/abs/2401.10891), which can be downloaded from the [LiheYoung/Depth-Anything](https://huggingface.co/spaces/LiheYoung/Depth-Anything/tree/main/checkpoints) repo on Hugging Face.
+This repo supports the [BEiT](https://arxiv.org/abs/2106.08254) and [SwinV2](https://arxiv.org/abs/2111.09883) models from [MiDaS v3.1](https://arxiv.org/abs/2307.14460) which can be downloaded from the [isl-org/MiDaS releases page](https://github.com/isl-org/MiDaS/releases/tag/v3_1). Additionally, [DINOv2](https://arxiv.org/abs/2304.07193) models are supported from [Depth-Anything V1](https://arxiv.org/abs/2401.10891) and [Depth-Anything V2](https://arxiv.org/abs/2406.09414), which can be downloaded from the [LiheYoung/Depth-Anything](https://huggingface.co/spaces/LiheYoung/Depth-Anything/tree/main/checkpoints) and [Depth-Anything/Depth-Anything-V2](https://huggingface.co/collections/depth-anything/depth-anything-v2-666b22412f18a6dbfde23a93) repos on Hugging Face, respectively.
 
 After downloading a model file, you can place it in the `model_weights` folder of this repo or otherwise just keep note of the file path, since you'll need to provide this when running the demo scripts. If you do place the file in the [model_weights](https://github.com/heyoeyo/muggled_dpt/tree/main/model_weights) folder, then it will auto-load when running the scripts.
 
@@ -68,9 +68,12 @@ The table below includes direct download links to all of the supported models. *
 
 | Model | Size (MB) |
 | -----| -----|
-| [depth-anything-vit-small](https://huggingface.co/spaces/LiheYoung/Depth-Anything/resolve/main/checkpoints/depth_anything_vits14.pth?download=true) | 99 |
-| [depth-anything-vit-base](https://huggingface.co/spaces/LiheYoung/Depth-Anything/resolve/main/checkpoints/depth_anything_vitb14.pth?download=true) | 390 |
-| [depth-anything-vit-large](https://huggingface.co/spaces/LiheYoung/Depth-Anything/resolve/main/checkpoints/depth_anything_vitl14.pth?download=true) | 1340 |
+| [depth-anything-v2-vit-small](https://huggingface.co/depth-anything/Depth-Anything-V2-Small/resolve/main/depth_anything_v2_vits.pth?download=true) | 99 |
+| [depth-anything-v2-vit-base](https://huggingface.co/depth-anything/Depth-Anything-V2-Base/resolve/main/depth_anything_v2_vitb.pth?download=true) | 390 |
+| [depth-anything-v2-vit-large](https://huggingface.co/depth-anything/Depth-Anything-V2-Large/resolve/main/depth_anything_v2_vitl.pth?download=true) | 1340 |
+| [depth-anything-v1-vit-small](https://huggingface.co/spaces/LiheYoung/Depth-Anything/resolve/main/checkpoints/depth_anything_vits14.pth?download=true) | 99 |
+| [depth-anything-v1-vit-base](https://huggingface.co/spaces/LiheYoung/Depth-Anything/resolve/main/checkpoints/depth_anything_vitb14.pth?download=true) | 390 |
+| [depth-anything-v1-vit-large](https://huggingface.co/spaces/LiheYoung/Depth-Anything/resolve/main/checkpoints/depth_anything_vitl14.pth?download=true) | 1340 |
 | [swin2-tiny-256](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_swin2_tiny_256.pt) | 164 |
 | [swin2-base-384](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_swin2_base_384.pt) | 416 |
 | [swin2-large-384](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_swin2_large_384.pt) | 840 |
@@ -169,13 +172,23 @@ The code in this repo is based on code from the following sources.
 }
 ```
 
-[LiheYoung/Depth-Anything](https://github.com/LiheYoung/Depth-Anything):
+[LiheYoung/Depth-Anything (v1)](https://github.com/LiheYoung/Depth-Anything):
 ```bibtex
-@article{depthanything,
-      title={Depth Anything: Unleashing the Power of Large-Scale Unlabeled Data},
-      author={Yang, Lihe and Kang, Bingyi and Huang, Zilong and Xu, Xiaogang and Feng, Jiashi and Zhao, Hengshuang},
-      journal={arXiv:2401.10891},
-      year={2024}
+@inproceedings{depth_anything_v1,
+  title={Depth Anything: Unleashing the Power of Large-Scale Unlabeled Data},
+  author={Yang, Lihe and Kang, Bingyi and Huang, Zilong and Xu, Xiaogang and Feng, Jiashi and Zhao, Hengshuang},
+  booktitle={CVPR},
+  year={2024}
+}
+```
+
+[DepthAnything/Depth-Anything-V2](https://github.com/DepthAnything/Depth-Anything-V2):
+```bibtex
+@article{depth_anything_v2,
+  title={Depth Anything V2},
+  author={Yang, Lihe and Kang, Bingyi and Huang, Zilong and Zhao, Zhen and Xu, Xiaogang and Feng, Jiashi and Zhao, Hengshuang},
+  journal={arXiv:2406.09414},
+  year={2024}
 }
 ```
 
