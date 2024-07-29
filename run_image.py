@@ -14,6 +14,7 @@ import torch
 
 from lib.make_dpt import make_dpt_from_state_dict
 
+from lib.demo_helpers.history_keeper import HistoryKeeper
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from lib.demo_helpers.ui import SliderCB, ColormapButtonsCB, ButtonBar, ScaleByKeypress
 from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
@@ -67,9 +68,17 @@ use_cache = False
 # Set up device config
 device_config_dict = make_device_config(device_str, use_float32)
 
+# Create history to re-use selected inputs
+history = HistoryKeeper()
+_, history_imgpath = history.read("image_path")
+_, history_modelpath = history.read("model_path")
+
 # Get pathing to resources, if not provided already
-image_path = ask_for_path_if_missing(arg_image_path, "image")
-model_path = ask_for_model_path_if_missing(__file__, arg_model_path)
+image_path = ask_for_path_if_missing(arg_image_path, "image", history_imgpath)
+model_path = ask_for_model_path_if_missing(__file__, arg_model_path, history_modelpath)
+
+# Store history for use on reload
+history.store(image_path=image_path, model_path=model_path)
 
 # Improve cpu utilization
 reduce_overthreading(device_str)

@@ -14,6 +14,7 @@ import numpy as np
 
 from lib.make_dpt import make_dpt_from_state_dict
 
+from lib.demo_helpers.history_keeper import HistoryKeeper
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from lib.demo_helpers.ui import ColormapButtonsCB, ButtonBar, ScaleByKeypress
 from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
@@ -78,9 +79,22 @@ use_webcam = args.use_webcam
 device_config_dict = make_device_config(device_str, use_float32)
 device_stream = DeviceChecker(device_str)
 
+# Create history to re-use selected inputs
+history = HistoryKeeper()
+_, history_vidpath = history.read("video_path")
+_, history_modelpath = history.read("model_path")
+
 # Get pathing to resources, if not provided already
-video_path = ask_for_path_if_missing(arg_video_path, "video") if not use_webcam else 0
-model_path = ask_for_model_path_if_missing(__file__, arg_model_path)
+video_path = ask_for_path_if_missing(arg_video_path, "video", history_vidpath) if not use_webcam else 0
+model_path = ask_for_model_path_if_missing(__file__, arg_model_path, history_modelpath)
+
+# Store history for use on reload
+if use_webcam:
+    # Don't save video pathing when using a webcam as input, since it isn't intuitive looking
+    history.store(model_path=model_path)
+else:
+    history.store(video_path=video_path, model_path=model_path)
+
 
 # Improve cpu utilization
 reduce_overthreading(device_str)

@@ -32,6 +32,7 @@ except ModuleNotFoundError:
 
 from lib.make_dpt import make_dpt_from_state_dict
 
+from lib.demo_helpers.history_keeper import HistoryKeeper
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from lib.demo_helpers.saving import save_image
 from lib.demo_helpers.visualization import DisplayWindow, add_bounding_box, grid_stack_by_columns_first
@@ -87,13 +88,21 @@ show_cls_token = not args.hide_cls
 root_path = osp.dirname(osp.dirname(__file__))
 save_folder = osp.join(root_path, "saved_images", "attention_images")
 
+# Create history to re-use selected inputs
+history = HistoryKeeper(root_path)
+_, history_imgpath = history.read("image_path")
+_, history_modelpath = history.read("model_path")
+
 # Get pathing to resources, if not provided already
-image_path = ask_for_path_if_missing(arg_image_path, "image")
-model_path = ask_for_model_path_if_missing(root_path, arg_model_path)
+image_path = ask_for_path_if_missing(arg_image_path, "image", history_imgpath)
+model_path = ask_for_model_path_if_missing(root_path, arg_model_path, history_modelpath)
 
 # Warning for unsupported swin models
 if "swin" in model_path:
     raise NotImplementedError("Cannot handle swin models (yet)! Please try another model for now")
+
+# Store history for use on reload
+history.store(image_path=image_path, model_path=model_path)
 
 # Hard-code no-cache usage, since there is no benefit if the model only runs once
 use_cache = False
