@@ -18,7 +18,7 @@ from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path
 from lib.demo_helpers.ui import SliderCB, ColormapButtonsCB, ButtonBar, ScaleByKeypress
 from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
 from lib.demo_helpers.plane_fit import estimate_plane_of_best_fit
-from lib.demo_helpers.saving import save_image
+from lib.demo_helpers.saving import save_image, save_numpy_array, save_uint16
 from lib.demo_helpers.misc import (
     get_default_device_string, make_device_config, print_config_feedback, reduce_overthreading
 )
@@ -210,8 +210,26 @@ while True:
     display_scaler.on_keypress(keypress)
     btnbar.on_keypress(keypress)
     if btn_save.read():
-        ok_save, save_path = save_image(depth_color, image_path)
-        if ok_save: print("", "SAVED:", save_path, "", sep="\n")
+        
+        # Apply modifications to raw prediction for saving
+        npy_prediction = dpt_imgproc.remove_infinities(prediction.clone())
+        npy_prediction = dpt_imgproc.normalize_01(npy_prediction).float().cpu().numpy().squeeze()
+        npy_prediction = npy_prediction - (plane_removal_factor * estimate_plane_of_best_fit(npy_prediction))
+        npy_prediction = dpt_imgproc.normalize_01(npy_prediction)
+        npy_prediction = np.clip((npy_prediction - thresh_min) / thresh_delta, 0.0, 1.0)
+        if use_reverse_colors:
+            npy_prediction = 1.0 - npy_prediction
+        
+        # Save data!
+        ok_img_save, save_img_path = save_image(depth_color, image_path)
+        ok_npy_save, save_npy_path = save_numpy_array(npy_prediction, save_img_path)
+        ok_uint16_save, save_uint16_path = save_uint16(npy_prediction, save_img_path)
+        if any((ok_img_save, ok_npy_save, ok_uint16_save)):
+            print("", "SAVED:", save_img_path, sep="\n")
+            if ok_npy_save:
+                print(save_npy_path)
+            if ok_uint16_save:
+                print(save_uint16_path)
     
     pass
 

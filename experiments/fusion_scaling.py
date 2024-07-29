@@ -29,7 +29,7 @@ from lib.make_dpt import make_dpt_from_state_dict
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from lib.demo_helpers.ui import SliderCB, ColormapButtonsCB, ButtonBar, ScaleByKeypress
 from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
-from lib.demo_helpers.saving import save_image
+from lib.demo_helpers.saving import save_image, save_numpy_array, save_uint16
 from lib.demo_helpers.misc import (
     get_default_device_string, make_device_config, print_config_feedback, reduce_overthreading
 )
@@ -203,8 +203,22 @@ while True:
     display_scaler.on_keypress(keypress)
     btnbar.on_keypress(keypress)
     if btn_save.read():
-        ok_save, save_path = save_image(depth_color, image_path, save_folder=save_folder)
-        if ok_save: print("", "SAVED:", save_path, sep = "\n")
+        
+        # Apply modifications to raw prediction for saving
+        npy_prediction = dpt_imgproc.normalize_01(depth_prediction.clone()).float().cpu().numpy().squeeze()
+        if use_reverse_colors:
+            npy_prediction = 1.0 - npy_prediction
+        
+        # Save data!
+        ok_img_save, save_img_path = save_image(depth_color, image_path, save_folder=save_folder)
+        ok_npy_save, save_npy_path = save_numpy_array(npy_prediction, save_img_path)
+        ok_uint16_save, save_uint16_path = save_uint16(npy_prediction, save_img_path)
+        if any((ok_img_save, ok_npy_save, ok_uint16_save)):
+            print("", "SAVED:", save_img_path, sep="\n")
+            if ok_npy_save:
+                print(save_npy_path)
+            if ok_uint16_save:
+                print(save_uint16_path)
     
     pass
 
