@@ -147,7 +147,9 @@ toggle_high_contrast = btnbar.add_toggle("[h] High Contrast", "[h] Normal Contra
 btn_save = btnbar.add_button("[s] Save", keypress="s")
 
 # Set up other UI elements
-cmap_btns = ColormapButtonsCB(cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, cv2.COLORMAP_TURBO)
+gray_cmap = ColormapButtonsCB.make_gray_colormap()
+spec_cmap = ColormapButtonsCB.make_spectral_colormap()
+cmap_btns = ColormapButtonsCB(cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, spec_cmap, gray_cmap)
 sliders = [SliderCB(f"Fusion {1+idx}", 1, -5, 5, 0.01, marker_step_size=1) for idx in range(4)]
 display_scaler = ScaleByKeypress()
 

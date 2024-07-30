@@ -256,10 +256,20 @@ class ColormapButtonsCB:
     
     # .................................................................................................................
     
-    def __init__(self, *cv2_colormap_codes, bar_height = 40, include_grayscale = True):
+    def __init__(self, *cv2_colormap_codes, bar_height = 40):
+        
+        # Check & store each provided colormap and interpret 'None' as grayscale colormap
+        cmaps = []
+        for cm in cv2_colormap_codes:
+            if cm is None:
+                cm = self.make_gray_colormap()
+            elif isinstance(cm, np.ndarray):
+                assert cm.shape == (1,256,3), "Bad colormap shape, must be: 1x256x3"
+            elif not isinstance(cm, int):
+                raise TypeError("Unrecognized colormap type! Must be a cv2 colormap code, None or an np array")
+            cmaps.append(cm)
         
         # Set up left/right boundaries for selecting cmaps
-        cmaps = [*cv2_colormap_codes, None] if include_grayscale else [*cv2_colormap_codes]
         num_cmaps = len(cmaps)
         xnorm_bounds = [idx/(num_cmaps) for idx in range(num_cmaps + 1)]
         self._cmap_x1x2_norm_list = list(zip(cmaps, xnorm_bounds[:-1], xnorm_bounds[1:]))
@@ -359,20 +369,104 @@ class ColormapButtonsCB:
     # .................................................................................................................
     
     @staticmethod
-    def apply_given_colormap(image_uint8_1ch, opencv_colormap_code = None) -> np.ndarray:
+    def apply_given_colormap(image_uint8_1ch, colormap_code_or_lut) -> np.ndarray:
         
         '''
         Converts a uint8 image (numpy array) into a bgr color image using opencv colormaps
-        Expects an image of shape: HxWxC (with 1 or no channels, i.e. HxW only)
+        or using LUTs (numpy arrays of shape 1x256x3).
         Colormap code should be from opencv, which are accessed with: cv2.COLORMAP_{name}
-        If the colormap code is None, then a grayscale (3ch) image is returned
+        LUTs should be numpy arrays of shape 1x256x3, where each of the 256 entries
+        encodes a bgr value which maps on to a 0-255 range.
+        
+        Expects an image of shape: HxWxC (with 1 or no channels, i.e. HxW only)
         '''
         
-        # Special case, if no colormap code is given, return 3ch grayscale image
-        if opencv_colormap_code is None:
+        if isinstance(colormap_code_or_lut, int):
+            # Handle maps provided as opencv colormap codes (e.g. cv2.COLORMAP_VIRIDIS)
+            return cv2.applyColorMap(image_uint8_1ch, colormap_code_or_lut)
+        
+        elif isinstance(colormap_code_or_lut, np.ndarray):
+            # Handle maps provided as LUTs (e.g. 1x256x3 numpy arrays)
+            image_ch3 = cv2.cvtColor(image_uint8_1ch, cv2.COLOR_GRAY2BGR)
+            return cv2.LUT(image_ch3, colormap_code_or_lut)
+        
+        elif colormap_code_or_lut is None:
+            # Return grayscale image if no mapping is provided
             return cv2.cvtColor(image_uint8_1ch, cv2.COLOR_GRAY2BGR)
         
-        return cv2.applyColorMap(image_uint8_1ch, opencv_colormap_code)
+        # Error if we didn't deal with the colormap above
+        raise TypeError(f"Error applying colormap, unrecognized colormap type: {type(colormap_code_or_lut)}")
+    
+    # .................................................................................................................
+    
+    @staticmethod
+    def make_gray_colormap(num_samples = 256):
+        
+        """ Makes a colormap in opencv LUT format, for grayscale output using cv2.LUT function """
+        
+        gray_ramp = np.round(np.linspace(0, 1, num_samples) * 255).astype(np.uint8)
+        gray_ramp_img = np.expand_dims(gray_ramp, 0)
+        
+        return cv2.cvtColor(gray_ramp_img, cv2.COLOR_GRAY2BGR)
+    
+    # .................................................................................................................
+    
+    @staticmethod
+    def make_spectral_colormap(num_samples = 256):
+        
+        """
+        Creates a colormap for use with opencv which matches the (reversed) appearance of a
+        colormap called 'Spectral' from the library matplotlib.
+        The colormap is generated this way in order to avoid requiring the full matplotlib dependency!
+        
+        The original colormap definition can be found here:
+        https://github.com/matplotlib/matplotlib/blob/30f803b2e9b5e237c5c31df57f657ae69bec240d/lib/matplotlib/_cm.py#L793
+        -> The version here uses a slightly truncated copy of the values
+        -> This version is also pre-reversed compared to the original
+        -> Also, color keypoints are in bgr order (the original uses rgb ordering, opencv needs bgr)
+        
+        Returns a colormap which can be used with opencv, for example:
+            
+            spectral_colormap = make_spectral_colormap()
+            gray_image_3ch = cv2.cvtColor(gray_image_1ch, cv2.COLOR_GRAY2BGR)
+            colormapped_image = cv2.LUT(gray_image_3ch, spectral_colormap)
+            
+        The result has a shape of: 1xNx3, where N is number of samples (256 by default and required for cv2.LUT usage)
+        """
+        
+        # Colormap keypoints from matplotlib. The colormap is produced by linear-interpolation of these points
+        spectral_rev_bgr = np.float32(
+            (
+                (0.635, 0.310, 0.369),
+                (0.741, 0.533, 0.196),
+                (0.647, 0.761, 0.400),
+                (0.643, 0.867, 0.671),
+                (0.596, 0.961, 0.902),
+                (0.749, 1.000, 1.000),
+                (0.545, 0.878, 0.996),
+                (0.380, 0.682, 0.992),
+                (0.263, 0.427, 0.957),
+                (0.310, 0.243, 0.835),
+                (0.259, 0.004, 0.620),
+            )
+        )
+        
+        # Build out indexing into the keypoint array vs. colormap sample indexes
+        norm_idx = np.linspace(0, 1, num_samples)
+        keypoint_idx = norm_idx * (len(spectral_rev_bgr) - 1)
+        
+        # Get the start/end indexes for linear interpolation at each colormap sample
+        a_idx = np.int32(np.floor(keypoint_idx))
+        b_idx = np.int32(np.ceil(keypoint_idx))
+        t_val = keypoint_idx - a_idx
+        
+        # Compute colormap as a linear interpolation between bgr keypoints
+        bias = spectral_rev_bgr[a_idx]
+        slope = spectral_rev_bgr[b_idx] - spectral_rev_bgr[a_idx]
+        cmap_bgr_values = bias + slope * np.expand_dims(t_val, 1)
+        cmap_bgr_values = np.round(cmap_bgr_values * 255).astype(np.uint8)
+        
+        return np.expand_dims(cmap_bgr_values, 0)
     
     # .................................................................................................................
 

@@ -139,7 +139,9 @@ toggle_normal_contrast = btnbar.add_toggle("[h] Normal Contrast", "[h] High Cont
 toggle_async = btnbar.add_toggle("[n] Async", "[n] Sync", keypress="n", default= not force_sync)
 
 # Set up other UI elements
-cmap_btns = ColormapButtonsCB(cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, cv2.COLORMAP_TURBO)
+gray_cmap = ColormapButtonsCB.make_gray_colormap()
+spec_cmap = ColormapButtonsCB.make_spectral_colormap()
+cmap_btns = ColormapButtonsCB(cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, spec_cmap, gray_cmap)
 playback_ctrl = PlaybackIndicatorCB(vreader, enabled=(not use_webcam))
 display_scaler = ScaleByKeypress()
 
@@ -228,5 +230,5 @@ cv2.destroyAllWindows()
 
 # Provide memory usage feedback, if using cuda GPU
 if device_str == "cuda":
-    vram_bytes = torch.cuda.memory_allocated()
-    print("", f"Used {vram_bytes // 1_000_000} MB of VRAM total", "", sep = "\n")
+    peak_vram_mb = torch.cuda.max_memory_allocated() // 1_000_000
+    print("", f"Peak VRAM usage: {peak_vram_mb} MB", "", sep = "\n")

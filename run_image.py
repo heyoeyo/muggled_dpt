@@ -129,8 +129,8 @@ print("  -> Took", round(1000*(t2-t1), 1), "ms")
 
 # Provide memory usage feedback, if using cuda GPU
 if device_str == "cuda":
-    vram_bytes = torch.cuda.memory_allocated()
-    print("  -> Using", vram_bytes // 1_000_000, "MB of VRAM total")
+    peak_vram_mb = torch.cuda.max_memory_allocated() // 1_000_000
+    print("  -> Peak VRAM:", peak_vram_mb, "MB")
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -146,7 +146,9 @@ toggle_high_contrast = btnbar.add_toggle("[h] High Contrast", "[h] Normal Contra
 btn_save = btnbar.add_button("[s] Save", keypress="s")
 
 # Set up other UI elements
-cmap_btns = ColormapButtonsCB(cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, cv2.COLORMAP_TURBO)
+gray_cmap = ColormapButtonsCB.make_gray_colormap()
+spec_cmap = ColormapButtonsCB.make_spectral_colormap()
+cmap_btns = ColormapButtonsCB(cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, spec_cmap, gray_cmap)
 plane_slider = SliderCB("Remove plane", 0, -1, 2, 0.01, marker_step_size=0.5)
 min_slider = SliderCB("Min Threshold", 0, 0, 1, 0.01, marker_step_size=0.1)
 max_slider = SliderCB("Max Threshold", 1, 0, 1, 0.01, marker_step_size=0.1)

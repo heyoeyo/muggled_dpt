@@ -359,7 +359,7 @@ class AttentionTileRenderer:
         self._text = TextDrawer(scale = 0.35, bg_color=(0,0,0))
         self._interp = cv2.INTER_NEAREST_EXACT
         self._display_scale = 1
-        self._cmap = cv2.COLORMAP_VIRIDIS
+        self._cmap = ColormapButtonsCB(cv2.COLORMAP_VIRIDIS)
         self._use_log_scaling = False
         self._show_idx = True
     
@@ -369,8 +369,8 @@ class AttentionTileRenderer:
         self._display_scale = new_scale_factor
         return self
     
-    def set_colormap(self, new_colormap_code):
-        self._cmap = new_colormap_code if new_colormap_code is not None else cv2.COLORMAP_BONE
+    def set_colormap(self, colormap_handler):
+        self._cmap = colormap_handler
         return self
     
     def set_ln_scaling(self, use_log_scaling = True):
@@ -420,7 +420,7 @@ class AttentionTileRenderer:
         '''
         
         # Apply colormap to all attention values (includes patches + cls entries)
-        cmap_attn = cv2.applyColorMap(attention_head_uint8, self._cmap)
+        cmap_attn = self._cmap.apply_colormap(attention_head_uint8)
         
         # Separate cls and patch tokens for rendering
         # -> patches can be rendered as an image
@@ -712,9 +712,14 @@ toggle_lin_scale = btnbar.add_toggle("[l] Linear-Scale", "[l] Log-Scale", keypre
 btn_save = btnbar.add_button("[s] Save", keypress="s")
 
 # Set up other UI elements
-cmap_btns = ColormapButtonsCB(cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TURBO, cv2.COLORMAP_HOT)
+gray_cmap = ColormapButtonsCB.make_gray_colormap()
+spec_cmap = ColormapButtonsCB.make_spectral_colormap()
+cmap_btns = ColormapButtonsCB(cv2.COLORMAP_VIRIDIS, spec_cmap, cv2.COLORMAP_TURBO, cv2.COLORMAP_HOT, gray_cmap)
 patch_select_cb = PatchSelectCB(orig_image_bgr, patch_grid_hw)
 layer_slider = SliderCB("Attention Layer Index", 0, 0, num_layers - 1, 1, marker_step_size=1, bar_bg_color=(10,10,10))
+
+# Provide colormapping to the tiler for display updates
+attn_tiler.set_colormap(cmap_btns)
 
 # Set up display window + controls
 cv2.destroyAllWindows()
@@ -756,7 +761,6 @@ while True:
     
     # Update tiler display settings
     attn_tiler.set_scale_factor(disp_scale)
-    attn_tiler.set_colormap(cmap_select)
     attn_tiler.set_ln_scaling(use_log_scale)
     
     # Draw attention tiles & combine with original input image
