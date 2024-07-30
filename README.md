@@ -109,7 +109,7 @@ The `run_video.py` script will run the depth prediction model on individual fram
 ```bash
 python run_video.py
 ```
-As with the image script, you can add `--help` to the end of this command to see a list of additional modifiers flags you can set. For example, you can use a webcam as input using the flag `--use_webcam` 
+As with the image script, you can add `--help` to the end of this command to see a list of additional modifiers flags you can set. For example, you can use a webcam as input using the flag `--use_webcam`. It's possible to record video results (per-frame) using the `--allow_recording` flag.
 
 When processing video, depth predictions are made _asynchrounously_, (i.e. only when the GPU is ready to do more processing). This leads to faster playback/interaction, but the depth results may appear choppy. You can force synchrounous playback using the `-sync` flag or toggling the option within the UI (this also gives more accurate inference timing results).
 

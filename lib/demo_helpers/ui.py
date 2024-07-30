@@ -586,6 +586,21 @@ class ButtonBar:
     
     # .................................................................................................................
     
+    def make_disabled_button(self, read_value = True):
+        
+        """
+        Special function used to create a 'placeholder' button that isn't part of the UI,
+        but can be 'read' (returns a constant value) as if it were in the UI. This is meant
+        for cases where UI elements are disabled/hidden, but ideally still need to be
+        available for reading in code.
+        """
+        on_change = lambda x: None
+        new_toggle_ctrl = _ToggleControl(on_change, "_", "_", read_value, None)
+        
+        return new_toggle_ctrl
+    
+    # .................................................................................................................
+    
     def enable(self, enable = True):
         self._enable = enable
         return self

@@ -63,9 +63,11 @@ class LoopingVideoReader:
     
     # .................................................................................................................
     
-    def get_playback_position(self):
-        ''' Returns playback position as a number between 0 and 1 '''
-        return self.vcap.get(cv2.CAP_PROP_POS_FRAMES) / self.total_frames
+    def get_playback_position(self, normalized=True):
+        ''' Returns playback position either as a frame index or a number between 0 and 1 (if normalized) '''
+        if normalized:
+            return self.vcap.get(cv2.CAP_PROP_POS_FRAMES) / self.total_frames
+        return int(self.vcap.get(cv2.CAP_PROP_POS_FRAMES))
     
     # .................................................................................................................
     

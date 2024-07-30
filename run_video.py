@@ -5,8 +5,9 @@
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
+import os
 import argparse
-from time import perf_counter
+from time import perf_counter, sleep
 
 import torch
 import cv2
@@ -60,6 +61,8 @@ parser.add_argument("-b", "--base_size_px", default=default_base_size, type=int,
                     help="Override base (e.g. 384, 512) model size. Must be multiple of 32")
 parser.add_argument("-cam", "--use_webcam", default=False, action="store_true",
                     help="Use a webcam as the video input, instead of a file")
+parser.add_argument("-r", "--allow_recording", default=False, action="store_true",
+                    help="Enables toggle-able recording of per-frame depth predictions")
 
 # For convenience
 args = parser.parse_args()
@@ -74,6 +77,7 @@ use_float32 = args.use_float32
 force_square_resolution = not args.use_aspect_ratio
 model_base_size = args.base_size_px
 use_webcam = args.use_webcam
+allow_recording = args.allow_recording
 
 # Set up device config
 device_config_dict = make_device_config(device_str, use_float32)
@@ -136,7 +140,37 @@ print_config_feedback(model_path, device_config_dict, use_cache, example_tensor)
 btnbar = ButtonBar()
 toggle_normal_order_colors = btnbar.add_toggle("[r] Normal Order", "[r] Reversed", keypress="r")
 toggle_normal_contrast = btnbar.add_toggle("[h] Normal Contrast", "[h] High Contrast", keypress="h")
-toggle_async = btnbar.add_toggle("[n] Async", "[n] Sync", keypress="n", default= not force_sync)
+
+# Use different UI if video recording is enabled
+save_folder=  None
+if not allow_recording:
+    toggle_async = btnbar.add_toggle("[n] Async", "[n] Sync", keypress="n", default=not force_sync)
+    toggle_record = btnbar.make_disabled_button(False)
+    
+else:
+    toggle_async = btnbar.make_disabled_button(False)
+    toggle_record = btnbar.add_toggle("[space] Recording", "[space] Not Recording", keypress=" ", default=False)
+    
+    # Create recording folder for saving video frames
+    video_base_name, _ = os.path.splitext(os.path.basename(video_path))
+    save_folder = os.path.join("saved_images", "video", video_base_name)
+    os.makedirs(save_folder, exist_ok=True)
+    
+    print(
+        "",
+        "Recording support is enabled",
+        "- Recording only occurs while the recording toggle is active!",
+        "- Beware of excessive disk usage when recording for long times",
+        "- Only the direct model output is recorded",
+        "- Use script with -ar and -b flags to adjust sizing of saved frames",
+        "- If colored data is needed, it's better to use a screen capture",
+        "",
+        "Results will be saved in:",
+        f"  {save_folder}",
+        sep="\n",
+        flush=True,
+    )
+    sleep(3)
 
 # Set up other UI elements
 gray_cmap = ColormapButtonsCB.make_gray_colormap()
@@ -170,6 +204,7 @@ for frame in vreader:
     use_high_contrast = not toggle_normal_contrast.read()
     use_reverse_colors = not toggle_normal_order_colors.read()
     use_async = toggle_async.read()
+    enable_video_recording = toggle_record.read()
     
     # Only process frame data when the device is ready
     if device_stream.is_ready():
@@ -198,6 +233,20 @@ for frame in vreader:
         if use_reverse_colors: depth_uint8 = 255 - depth_uint8
         if use_high_contrast: depth_uint8 = histogram_equalization(depth_uint8)
         depth_color = cmap_btns.apply_colormap(depth_uint8)
+        
+        # Handle video recording
+        if enable_video_recording:
+            
+            # Build save pathing
+            frame_idx = vreader.get_playback_position(normalized=False)
+            save_name = f"{frame_idx:0>8}.png"
+            save_path = os.path.join(save_folder, save_name)
+            
+            # Create frame for saving (matched to some of the display settings)
+            save_frame = dpt_imgproc.convert_to_uint8(prediction).to("cpu").squeeze().numpy()
+            if use_reverse_colors: save_frame = 255 - save_frame
+            if use_high_contrast: save_frame = histogram_equalization(save_frame)
+            cv2.imwrite(save_path, save_frame)
     
     # Draw image/depth map with inference time
     infer_txt = "inference: {:.1f}ms".format(time_ms_model)
