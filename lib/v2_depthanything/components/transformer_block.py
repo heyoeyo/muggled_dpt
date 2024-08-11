@@ -16,7 +16,7 @@ from .misc_helpers import MLP2Layers, LayerNormEPS6
 # -> It also dramatically reduces memory usage, so input image sizes can be used!
 try:
     from xformers.ops import memory_efficient_attention, unbind
-    XFORMERS_AVAILABLE = True
+    XFORMERS_AVAILABLE = torch.cuda.is_available()
 except ImportError:
     XFORMERS_AVAILABLE = False
 
