@@ -10,7 +10,7 @@ While the focus of this implementation is on readability, there are also some pe
 
 ### Purpose
 
-The purpose of this repo is to provide an easy to follow code base to understand how the DPT & image encoder models are structured. The code of the [run_image.py](https://github.com/heyoeyo/muggled_dpt/blob/main/run_image.py) demo script is a good starting point if you'd like to better understand how to make use of the DPT models.
+The purpose of this repo is to provide an easy to follow code base to understand how the DPT & image encoder models are structured. The scripts found in the [simple_examples](https://github.com/heyoeyo/muggled_dpt/blob/main/simple_examples) folder are a good starting point if you'd like to better understand how to make use of the DPT models. The [run_image.py](https://github.com/heyoeyo/muggled_dpt/blob/main/run_image.py) demo script is a good example of a more practical use of the models.
 
 To understand the model structure, there's a [written walkthrough](https://github.com/heyoeyo/muggled_dpt/tree/main/lib#dpt-structure) explaining each of the DPT components. It's also worth checking out the code implementation of the [DPT module](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/dpt_model.py), I'd recommended comparing this to the information in the [original preprint](https://arxiv.org/abs/2103.13413), particularly figure 1 in the paper.
 
@@ -84,6 +84,26 @@ The table below includes direct download links to all of the supported models. *
 </details>
 
 
+### Simple example
+
+Here is an [example](https://github.com/heyoeyo/muggled_dpt/blob/main/simple_examples/depth_prediction.py) of using the model to generate an inverse depth map from an image:
+
+```python
+import cv2
+from lib.make_dpt import make_dpt_from_state_dict
+
+# Define pathing
+image_path = "/path/to/image.jpg"
+model_path = "/path/to/model.pth"
+
+# Load image & model
+img_bgr = cv2.imread(image_path)
+model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path)
+
+# Process data
+img_tensor = dpt_imgproc.prepare_image_bgr(img_bgr)
+inverse_depth_prediction = dpt_model.inference(img_tensor)
+```
 
 ## Run Image
 
