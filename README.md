@@ -92,13 +92,9 @@ Here is an [example](https://github.com/heyoeyo/muggled_dpt/blob/main/simple_exa
 import cv2
 from lib.make_dpt import make_dpt_from_state_dict
 
-# Define pathing
-image_path = "/path/to/image.jpg"
-model_path = "/path/to/model.pth"
-
 # Load image & model
-img_bgr = cv2.imread(image_path)
-model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path)
+img_bgr = cv2.imread("/path/to/image.jpg")
+model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict("/path/to/model.pth")
 
 # Process data
 img_tensor = dpt_imgproc.prepare_image_bgr(img_bgr)
