@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="331.68" height="408.19" viewBox="0 0 87.757 108">
+  <g transform="translate(584.057 -167.481)">
+    <text xml:space="preserve" x="-565.869" y="204.395" fill="#f9f9f9" stroke="#1a1a1a" stroke-linecap="round" stroke-linejoin="bevel" stroke-width="1.058" font-family="Fira Mono" font-size="3.154" font-weight="700" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Fira Mono, Bold&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center" text-anchor="middle"><tspan x="-565.869" y="204.395" style="-inkscape-font-specification:&quot;Fira Mono, Bold&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center">Image Encoder</tspan><tspan x="-565.869" y="208.337" style="-inkscape-font-specification:&quot;Fira Mono, Bold&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center">(Depth-Anything v2)</tspan></text>
+    <rect width="20.193" height="11.121" x="-544.922" y="224.186" fill="#f05" rx="2.049" ry="2.049"/>
+    <rect width="20.193" height="11.121" x="-544.922" y="208.036" fill="#f05" rx="2.049" ry="2.049"/>
+    <rect width="20.193" height="11.121" x="-544.922" y="191.885" fill="#f05" rx="2.049" ry="2.049"/>
+    <rect width="20.193" height="11.121" x="-544.922" y="175.735" fill="#f05" rx="2.049" ry="2.049"/>
+    <rect width="11.706" height="1.463" x="-540.729" y="260.322" fill="#234884" ry="0"/>
+    <rect width="11.706" height="1.463" x="-540.729" y="258.616" fill="#ae2da2" ry="0"/>
+    <rect width="11.706" height="1.463" x="-540.729" y="261.954" fill="#234884" ry="0"/>
+    <rect width="11.706" height="1.463" x="-540.729" y="263.586" fill="#234884" ry="0"/>
+    <rect width="11.706" height="1.463" x="-540.729" y="265.219" fill="#234884" ry="0"/>
+    <rect width="11.706" height="1.463" x="-540.729" y="266.851" fill="#234884" ry="0"/>
+    <text xml:space="preserve" x="-559.125" y="258.837" fill="#f9f9f9" stroke="#1a1a1a" stroke-linecap="round" stroke-linejoin="bevel" stroke-width="1.058" font-family="Fira Mono" font-size="3.154" font-weight="700" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Fira Mono, Bold&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center" text-anchor="middle"><tspan x="-559.125" y="258.837" style="-inkscape-font-specification:&quot;Fira Mono, Bold&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Pre-pended</tspan><tspan x="-559.125" y="262.779" style="-inkscape-font-specification:&quot;Fira Mono, Bold&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Readout</tspan><tspan x="-559.125" y="266.721" style="-inkscape-font-specification:&quot;Fira Mono, Bold&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">token</tspan></text>
+    <path fill="#f9f9f9" stroke="#1a1a1a" stroke-linecap="round" stroke-width=".794" d="m-542.851 257.197-.218.58c-1.176-.32-2.129-.446-2.898-.446-.84 0-1.464.15-1.926.362a2.473 2.473 0 0 0-.931.709 1.603 1.603 0 0 0-.245.428l.564.179s.023-.085.146-.243c.124-.157.338-.364.713-.535.713-.326 2.026-.527 4.37.102l-.22.585 1.66-.36z" color="#000" paint-order="markers stroke fill"/>
+    <g fill="#6776bc" transform="matrix(.372 0 0 .372 -541.797 138.38)">
+      <rect width="31.426" height="3.928" x="71.237" y="211.833" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="216.213" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="220.593" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="224.973" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="229.353" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="233.733" ry="0"/>
+    </g>
+    <g fill="#75f0c2" transform="matrix(.372 0 0 .372 -541.797 121.955)">
+      <rect width="31.426" height="3.928" x="71.237" y="211.833" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="216.213" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="220.593" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="224.973" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="229.353" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="233.733" ry="0"/>
+    </g>
+    <g fill="#d2a7f9" transform="matrix(.372 0 0 .372 -541.797 105.53)">
+      <rect width="31.426" height="3.928" x="71.237" y="211.833" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="216.213" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="220.593" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="224.973" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="229.353" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="233.733" ry="0"/>
+    </g>
+    <g fill="#79d2f9" transform="matrix(.372 0 0 .372 -541.797 88.575)">
+      <rect width="31.426" height="3.928" x="71.237" y="211.833" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="216.213" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="220.593" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="224.973" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="229.353" ry="0"/>
+      <rect width="31.426" height="3.928" x="71.237" y="233.733" ry="0"/>
+    </g>
+    <text xml:space="preserve" x="-541.385" y="230.516" stroke-width=".099" font-family="Fira Mono" font-size="3.154" font-weight="400" style="-inkscape-font-specification:&quot;Fira Mono, Normal&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"><tspan x="-541.385" y="230.516" style="-inkscape-font-specification:&quot;Fira Mono, Normal&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Stage 1</tspan></text>
+    <g transform="translate(-357.651 151.313)">
+      <rect width="28.988" height="6.105" x="-191.668" y="92.709" fill="#ff9c00" rx=".471" ry=".471"/>
+      <text xml:space="preserve" x="-189.584" y="96.646" stroke-width=".099" font-family="Fira Mono" font-size="3.154" font-weight="400" style="-inkscape-font-specification:&quot;Fira Mono, Normal&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"><tspan x="-189.584" y="96.646" style="-inkscape-font-specification:&quot;Fira Mono, Normal&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Pos. Encoding</tspan></text>
+    </g>
+    <text xml:space="preserve" x="-541.347" y="214.366" stroke-width=".099" font-family="Fira Mono" font-size="3.154" font-weight="400" style="-inkscape-font-specification:&quot;Fira Mono, Normal&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"><tspan x="-541.347" y="214.366" style="-inkscape-font-specification:&quot;Fira Mono, Normal&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Stage 2</tspan></text>
+    <text xml:space="preserve" x="-541.362" y="198.215" stroke-width=".099" font-family="Fira Mono" font-size="3.154" font-weight="400" style="-inkscape-font-specification:&quot;Fira Mono, Normal&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"><tspan x="-541.362" y="198.215" style="-inkscape-font-specification:&quot;Fira Mono, Normal&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Stage 3</tspan></text>
+    <text xml:space="preserve" x="-541.402" y="182.065" stroke-width=".099" font-family="Fira Mono" font-size="3.154" font-weight="400" style="-inkscape-font-specification:&quot;Fira Mono, Normal&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"><tspan x="-541.402" y="182.065" style="-inkscape-font-specification:&quot;Fira Mono, Normal&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">Stage 4</tspan></text>
+    <text xml:space="preserve" x="-534.882" y="270.956" fill="#f9f9f9" stroke="#1a1a1a" stroke-linecap="round" stroke-linejoin="bevel" stroke-width="1.058" font-family="Fira Mono" font-size="3.154" font-weight="700" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Fira Mono, Bold&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center" text-anchor="middle"><tspan x="-534.882" y="270.956" style="-inkscape-font-specification:&quot;Fira Mono, Bold&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center">Image patch</tspan><tspan x="-534.882" y="274.898" style="-inkscape-font-specification:&quot;Fira Mono, Bold&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center">tokens</tspan></text>
+    <text xml:space="preserve" x="-508.923" y="231.528" fill="#f9f9f9" stroke="#1a1a1a" stroke-linecap="round" stroke-linejoin="bevel" stroke-width="1.058" font-family="Fira Mono" font-size="3.154" font-weight="700" paint-order="markers stroke fill" style="-inkscape-font-specification:&quot;Fira Mono, Bold&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center" text-anchor="middle"><tspan x="-508.923" y="231.528" style="-inkscape-font-specification:&quot;Fira Mono, Bold&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center">Output tokens</tspan><tspan x="-508.923" y="235.47" style="-inkscape-font-specification:&quot;Fira Mono, Bold&quot;;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center">(x4)</tspan></text>
+    <path fill="#f9f9f9" stroke="#1a1a1a" stroke-linecap="round" stroke-width=".794" d="m-534.565 219.877-.919 1.428h.716v2.341h.365v-1.28h17.218v.779l1.428-.92-1.428-.918V222h-17.218v-.696h.757zm0-16.151-.919 1.428h.716v2.32h.365v-1.28h17.218v.782l1.428-.919-1.428-.919v.691h-17.218v-.675h.757zm0 48.196-.919 1.428h.737v4.674h.365v-4.674h.736zm0-15.512-.919 1.429h.737v4.674h.365v-4.674h.736zm-.024-48.834-.918 1.428h.739v2.419h.365v-1.28h17.218v.75l1.428-.92-1.428-.919v.724h-17.218v-.774h.733zm17.404-16.19v.69h-17.8v2.629h.364v-2.266h17.436v.785l1.428-.919z" paint-order="markers stroke fill"/>
+  </g>
+</svg>
