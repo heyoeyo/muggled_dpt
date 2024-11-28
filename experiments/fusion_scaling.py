@@ -91,6 +91,9 @@ _, history_modelpath = history.read("model_path")
 image_path = ask_for_path_if_missing(arg_image_path, "image", history_imgpath)
 model_path = ask_for_model_path_if_missing(root_path, arg_model_path, history_modelpath)
 
+# Store history for use on reload
+history.store(image_path=image_path, model_path=model_path)
+
 # Improve cpu utilization
 reduce_overthreading(device_str)
 

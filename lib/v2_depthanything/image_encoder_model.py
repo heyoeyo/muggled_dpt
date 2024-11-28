@@ -24,9 +24,9 @@ class DinoV2Model4Stages(nn.Module):
         "DINOv2: Learning Robust Visual Features without Supervision"
         By: Maxime Oquab, Timothée Darcet, Théo Moutakanni et al.
         @ https://arxiv.org/abs/2304.07193
-            
-    The code here is derived from the Depth-Anything copy of the dinov2 repo:
-        @ https://github.com/LiheYoung/Depth-Anything/tree/e7ef4b4b7a0afd8a05ce9564f04c1e5b68268516/torchhub/facebookresearch_dinov2_main
+    
+    The code here is derived from the Depth-Anything V2 copy of the dinov2 implementation:
+        @ https://github.com/DepthAnything/Depth-Anything-V2/blob/main/depth_anything_v2/dinov2.py
     
     The original dinov2 code repo can be found here:
         @ https://github.com/facebookresearch/dinov2
@@ -36,9 +36,6 @@ class DinoV2Model4Stages(nn.Module):
     for use in the DPT model architecture for depth estimation, originally proposed in the
     paper "Vision Transformers for Dense Prediction":
         @ https://arxiv.org/abs/2103.13413
-    
-    Note that unlike the original DPT models, this model does not output intermediate tokens
-    from the transformers, instead it outputs the last 4 (consecutive) blocks!
     '''
     
     # .................................................................................................................
@@ -57,7 +54,7 @@ class DinoV2Model4Stages(nn.Module):
         self.outnorm = LayerNormEPS6(features_per_token)
         
         # Set up transformer stages (bulk of model processing)
-        num_stages= 4
+        num_stages = 4
         layers_per_stage = int(round(num_blocks / num_stages))
         stages_list= []
         for _ in range(num_stages):
@@ -80,7 +77,7 @@ class DinoV2Model4Stages(nn.Module):
             stage_results.append(tokens)
         
         # Apply (shared) layer norm to all outputs
-        stage_1, stage_2, stage_3, stage_4  = [self.outnorm(result) for result in stage_results]
+        stage_1, stage_2, stage_3, stage_4 = [self.outnorm(result) for result in stage_results]
         return stage_1, stage_2, stage_3, stage_4
     
     # .................................................................................................................
