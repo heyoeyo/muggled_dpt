@@ -49,12 +49,25 @@ This script was made to visualize the [L2 norms](https://builtin.com/data-scienc
 
 Running this script generates an image showing a plot of the norms of the image patches (tokens) from each transformer block. The high-norm tokens are easily visible in multiple models, usually on the later internal blocks. The minimum and maximum norm values are also printed out for each block, showing norms often in the 100's (rule of thumb suggests they should be around 1).
 
+## Depth Masking
+
+This script was inspired by a question on the Depth-Anything V2 issues board ([issue #25](https://github.com/DepthAnything/Depth-Anything-V2/issues/25)) about using the depth prediction to mask out areas of an image, for example, to mask out 'the background' based on depth.
+
+<p align="center">
+  <img src=".readme_assets/depth_masking_example.webp" alt="Image showing an image of a turtle on the left and a masked copy of the image on the right. The mask is set by excluding parts of the image with overly high or low depth values, in this case, the settings have eliminated much of the background.">
+</p>
+
+In the image above, 'far away' regions are masked out, which has the effect of removing much of the background behind the turtle. More generally, an upper and lower depth threshold can be specified and any part of the image with a predicted depth outside this range will be masked. The thresholding can also be inverted (i.e. parts of the image _within_ the range are masked out) and the resulting mask and mask image can be saved. Due to the fact that the [depth predictions are inverted](https://github.com/heyoeyo/muggled_dpt/blob/main/.readme_assets/results_explainer.md), the 'lower' threshold is used to exclude background elements and vice versa for the upper threshold.
+
+Masking using depth will tend to be limited due to the presence of a ground plane or other gradually varying elements which have depth values spanning most of the scene. For example, in the image above, the turtle cannot be fully segmented because it shares some depth values with the ground. However, a plane-removal control has been included in the script to help mitigate these sorts of problems by subtracting the gradual ramping depth from the prediction. In practice, this approach to masking is still very limited, for more consistent/controllable masking, consider checking out [MuggledSAM](https://github.com/heyoeyo/muggled_sam)!
+
+
 ## Fusion Scaling
 
 This script originally started as a test to see what would happen if some of the [4 fusion layers](https://github.com/heyoeyo/muggled_dpt/tree/main/lib#fusion-model) of the DPT model were disabled. Based on the DPT structure and the fact that the upper fusion layers are downscaled, it stands to reason that the upper layers should encode large scale patterns, while lower layers encode finer details. In practice something more complicated seems to be happening, and it varies (significantly) by model.
 
 <p align="center">
-  <img src=".readme_assets/fusion_scaling_example.webp" alt="">
+  <img src=".readme_assets/fusion_scaling_example.webp" alt="Image showing the UI of the fusion scaling script. The UI features 4 sliders which control the scaling of internal 'fusion features' within the DPT model. Adjusting these scaling terms has a noticable, often interesting looking, effect on the predicted depth results.">
 </p>
 
 Rather than simply disabling fusion layers, this script allows for each layer to be individually scaled (potentially to 0, which disables the layer) while observing the depth result. Interestingly, some of the fusion layers seem to have a kind of 'blurring' effect on the output. Reducing the impact of these blurring layers can lead to results that have far greater details than the normal model output, though this does seem to come at the expense of the correctness of the depth mapping for larger-scale details. Be sure to try this with different image base sizing as well, for example  by running the script with the `-b` flag (e.g. `-b 1000`).

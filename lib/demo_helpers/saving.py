@@ -16,11 +16,13 @@ import numpy as np
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Functions
 
-def save_image(image_bgr, save_name, save_folder="saved_images"):
+def save_image(image_bgr, save_name, save_folder="saved_images", append_to_name=None):
     
     # Strip off pathing/ext, in case we get a full path for the input name
     file_name = osp.basename(save_name)
     name_only, _ = osp.splitext(file_name)
+    if append_to_name is not None:
+        name_only = f"{name_only}{append_to_name}"
     
     # Generate timestamp, so user can save the same image name multiple times without overwriting
     save_time = dt.datetime.now().isoformat(timespec = "seconds").replace(":", "").replace("T", "_")
