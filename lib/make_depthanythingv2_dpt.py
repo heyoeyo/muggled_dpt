@@ -85,7 +85,7 @@ def make_opencv_image_prepost_processor(model_config_dict):
 # .....................................................................................................................
 
 def make_depthanythingv2_dpt(features_per_token, num_heads, num_blocks, reassembly_features_list, base_patch_grid_hw,
-                             fusion_channels = 256, patch_size_px = 14, enable_cache = False):
+                             fusion_channels = 256, patch_size_px = 14, is_metric = False, enable_cache = False):
     
     '''
     Helper used to build all Depth-Anything DPT components. The arguments for this function are
@@ -128,7 +128,7 @@ def make_depthanythingv2_dpt(features_per_token, num_heads, num_blocks, reassemb
     imgenc_model = DinoV2Model4Stages(features_per_token, num_heads, num_blocks, base_patch_grid_hw, enable_cache)
     reassembly_model = ReassembleModel(features_per_token, reassembly_features_list, fusion_channels)
     fusion_model = FusionModel(fusion_channels)
-    head_model = MonocularDepthHead(fusion_channels, patch_size_px)
+    head_model = MonocularDepthHead(fusion_channels, patch_size_px, is_metric)
     
     # Build combined DPT model!
     dpt_model = DPTModel(patch_embed_model, imgenc_model, reassembly_model, fusion_model, head_model)
@@ -136,4 +136,3 @@ def make_depthanythingv2_dpt(features_per_token, num_heads, num_blocks, reassemb
     return dpt_model
 
 # .....................................................................................................................
-

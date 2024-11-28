@@ -48,11 +48,14 @@ class MonocularDepthHead(nn.Module):
     
     This approach is more fragile than the original Depth-Anything version, but allows
     the model to share an implementation with existing DPT models, so is preferred here.
+    
+    Also note that the V2 metric models use a slightly modified head model, which
+    is supported by this implementation (though this isn't part of the original DPT structure).
     '''
     
     # .................................................................................................................
     
-    def __init__(self, num_channels_in, patch_size_px = 14):
+    def __init__(self, num_channels_in, patch_size_px = 14, is_metric = False):
         
         # Inherit from parent
         super().__init__()
@@ -75,7 +78,7 @@ class MonocularDepthHead(nn.Module):
             Conv3x3Layer(channels_half, channels_fixed),
             nn.ReLU(True),
             Conv1x1Layer(channels_fixed, channels_out),
-            nn.ReLU(True),
+            nn.ReLU(True) if not is_metric else nn.Sigmoid(),
         )
     
     # .................................................................................................................

@@ -56,7 +56,7 @@ pip3 install torch --index-url https://download.pytorch.org/whl/cu121
 
 Before you can run a model, you'll need to download it's weights.
 
-This repo supports the [BEiT](https://arxiv.org/abs/2106.08254) and [SwinV2](https://arxiv.org/abs/2111.09883) models from [MiDaS v3.1](https://arxiv.org/abs/2307.14460) which can be downloaded from the [isl-org/MiDaS releases page](https://github.com/isl-org/MiDaS/releases/tag/v3_1). Additionally, [DINOv2](https://arxiv.org/abs/2304.07193) models are supported from [Depth-Anything V1](https://arxiv.org/abs/2401.10891) and [Depth-Anything V2](https://arxiv.org/abs/2406.09414), which can be downloaded from the [LiheYoung/Depth-Anything](https://huggingface.co/spaces/LiheYoung/Depth-Anything/tree/main/checkpoints) and [Depth-Anything/Depth-Anything-V2](https://huggingface.co/collections/depth-anything/depth-anything-v2-666b22412f18a6dbfde23a93) repos on Hugging Face, respectively.
+This repo supports the [BEiT](https://arxiv.org/abs/2106.08254) and [SwinV2](https://arxiv.org/abs/2111.09883) models from [MiDaS v3.1](https://arxiv.org/abs/2307.14460) which can be downloaded from the [isl-org/MiDaS releases page](https://github.com/isl-org/MiDaS/releases/tag/v3_1). Additionally, [DINOv2](https://arxiv.org/abs/2304.07193) models are supported from [Depth-Anything V1](https://arxiv.org/abs/2401.10891) and [Depth-Anything V2](https://arxiv.org/abs/2406.09414), which can be downloaded from the [LiheYoung/Depth-Anything](https://huggingface.co/spaces/LiheYoung/Depth-Anything/tree/main/checkpoints) and [Depth-Anything/Depth-Anything-V2](https://huggingface.co/collections/depth-anything/depth-anything-v2-666b22412f18a6dbfde23a93) repos on Hugging Face, respectively. Note that only the relative depth models are support by this repo (however, Depth-Anything V2 metric models can be loaded in most cases).
 
 After downloading a model file, you can place it in the `model_weights` folder of this repo or otherwise just keep note of the file path, since you'll need to provide this when running the demo scripts. If you do place the file in the [model_weights](https://github.com/heyoeyo/muggled_dpt/tree/main/model_weights) folder, then it will auto-load when running the scripts.
 
@@ -66,17 +66,26 @@ After downloading a model file, you can place it in the `model_weights` folder o
 
 The table below includes direct download links to all of the supported models. **Note:** These are all links to _other_ repos, none of these files belong to MuggledDPT!
 
-| Model | Size (MB) |
-| -----| -----|
+| Depth-Anything V2 | Size (MB) |
+| ----------------- | --------- |
 | [depth-anything-v2-vit-small](https://huggingface.co/depth-anything/Depth-Anything-V2-Small/resolve/main/depth_anything_v2_vits.pth?download=true) | 99 |
 | [depth-anything-v2-vit-base](https://huggingface.co/depth-anything/Depth-Anything-V2-Base/resolve/main/depth_anything_v2_vitb.pth?download=true) | 390 |
 | [depth-anything-v2-vit-large](https://huggingface.co/depth-anything/Depth-Anything-V2-Large/resolve/main/depth_anything_v2_vitl.pth?download=true) | 1340 |
+
+| Depth-Anything V1 | Size (MB) |
+| ----------------- | --------- |
 | [depth-anything-v1-vit-small](https://huggingface.co/spaces/LiheYoung/Depth-Anything/resolve/main/checkpoints/depth_anything_vits14.pth?download=true) | 99 |
 | [depth-anything-v1-vit-base](https://huggingface.co/spaces/LiheYoung/Depth-Anything/resolve/main/checkpoints/depth_anything_vitb14.pth?download=true) | 390 |
 | [depth-anything-v1-vit-large](https://huggingface.co/spaces/LiheYoung/Depth-Anything/resolve/main/checkpoints/depth_anything_vitl14.pth?download=true) | 1340 |
+
+| Swin V2 | Size (MB) |
+| ------- | --------- |
 | [swin2-tiny-256](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_swin2_tiny_256.pt) | 164 |
 | [swin2-base-384](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_swin2_base_384.pt) | 416 |
 | [swin2-large-384](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_swin2_large_384.pt) | 840 |
+
+| BEiT | Size (MB) |
+| ---- | --------- |
 | [beit-base-384](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_beit_base_384.pt) | 456 |
 | [beit-large-384](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_beit_large_384.pt) | 1340 |
 | [beit-large-512](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_beit_large_512.pt) | 1470 |

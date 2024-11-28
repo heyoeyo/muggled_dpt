@@ -8,6 +8,8 @@
 import os.path as osp
 import torch
 
+from time import sleep
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Functions
@@ -29,6 +31,21 @@ def make_dpt_from_state_dict(path_to_state_dict, enable_cache = False, strict_lo
     if model_type not in known_model_types:
         print("Accepted model types:", *known_model_types, sep = "\n")
         raise NotImplementedError(f"Bad model type: {model_type}, no support for this yet!")
+    
+    # Special hack! If we get a depth-anything v2 model with the word 'metric' in it's name
+    # add an extra key to the state dict to indicate it's a metric model
+    # (the metric model weights are otherwise indistinguishable from the relative models!)
+    if model_type == "depthanythingv2" and "metric" in path_to_state_dict:
+        state_dict["is_metric"] = torch.tensor((1), dtype=torch.float32)
+        print(
+            "",
+            "Warning: Metric Depth-Anything V2 model detected!",
+            "  These models are not officially supported,",
+            "  model outputs may be incorrect...",
+            sep="\n",
+            flush=True,
+        )
+        sleep(1.5)
     
     # Build the model & supporting data
     make_dpt_func, make_imgprep_func = import_model_functions(model_type)
