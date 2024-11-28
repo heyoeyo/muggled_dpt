@@ -126,8 +126,8 @@ def ask_for_model_from_menu(model_files_paths, default_path=None):
         if not osp.exists(default_path):
             default_path = None
 
-    # Generate list of model selections (ordered by size)
-    model_files_paths = sorted(model_files_paths, key=osp.getsize)
+    # Generate list of model selections
+    model_files_paths = sorted(model_files_paths)
     model_names = [osp.basename(filepath) for filepath in model_files_paths]
     menu_item_strs = []
     for idx, (path, name) in enumerate(zip(model_files_paths, model_names)):
