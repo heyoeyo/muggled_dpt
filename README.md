@@ -3,7 +3,7 @@
 This repo contains a simplified implementation of the very cool 'dense prediction transformer' (DPT) depth estimation model from [isl-org/MiDaS](https://github.com/isl-org/MiDaS), with the intention of [removing the magic](https://en.wikipedia.org/wiki/Muggle) from the original code. Most of the changes come from eliminating dependencies as well as adjusting the code to more directly represent the model architecture as described in the preprint: ["Vision Transformers for Dense Prediction"](https://arxiv.org/abs/2103.13413). It also supports [Depth-Anything V1](https://github.com/LiheYoung/Depth-Anything) and [Depth-Anything V2](https://github.com/DepthAnything/Depth-Anything-V2) models, which use the same DPT structure.
 
 <p align="center">
-  <img src=".readme_assets/turtle_example.webp">
+  <img src=".readme_assets/turtle_anim.gif" style="height:280px">
 </p>
 
 While the focus of this implementation is on readability, there are also some performance improvements with MiDaS v3.1 models (40-60% on my GPU at least) due to caching of positional encodings, at the cost of higher VRAM usage (this can be disabled).
