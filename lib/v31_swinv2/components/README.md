@@ -119,8 +119,8 @@ The code for the SwinV2 position encoding includes a few undocumented scaling st
 
 While the original paper describes a log-scaling of the relative position offsets (see equation 4 in the paper, which is also written in the section above), the [actual code implementation](https://github.com/huggingface/pytorch-image-models/blob/ce4d3485b690837ba4e1cb4e0e6c4ed415e36cea/timm/models/swin_transformer_v2.py#L166C9-L174C67) is as follows:
 
-$$\hat{\Delta x} = \text{sign}(\Delta x) \times \text{log}_{2} \left (1 + \left | \frac{8 \Delta x}{p_x} \right | \right ) \frac{1}{\text{log}_{2}(8)}$$
-$$\hat{\Delta y} = \text{sign}(\Delta y) \times \text{log}_{2} \left (1 + \left | \frac{8 \Delta y}{p_y} \right | \right )\frac{1}{\text{log}_{2}(8)}$$
+$$\hat{\Delta x} = \text{sign}(\Delta x) \times \text{log}_2 \left (1 + \left | \frac{8 \Delta x}{p_x} \right | \right ) \times \frac{1}{\text{log}_2(8)}$$
+$$\hat{\Delta y} = \text{sign}(\Delta y) \times \text{log}_2 \left (1 + \left | \frac{8 \Delta y}{p_y} \right | \right ) \times \frac{1}{\text{log}_2(8)}$$
 
 Notably, the calculation uses log-base-2 and there are additional scaling factors of 8, p<sub>x</sub> and p<sub>y</sub>. The 'p' factors correspond to scaling by a window sizing, either the 'pretraining window size' or the current model window size. These scaling factors may be related to the discussion of extrapolating to larger window sizes described in section 3.3 of the [SwinV2 paper](https://arxiv.org/abs/2111.09883).
 
