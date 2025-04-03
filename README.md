@@ -19,7 +19,7 @@ To get a better sense of what these models are actually doing internally, check 
 
 ## Getting started
 
-This repo includes two demo scripts, [run_image.py](https://github.com/heyoeyo/muggled_dpt/blob/main/run_image.py) and [run_video.py](https://github.com/heyoeyo/muggled_dpt/blob/main/run_video.py). To use these scripts, you'll need to first have [Python](https://www.python.org/) (v3.10+) installed, then set up a virtual environment and install some additional requirements.
+This repo includes three demo scripts, [run_image.py](https://github.com/heyoeyo/muggled_dpt/blob/main/run_image.py), [run_video.py](https://github.com/heyoeyo/muggled_dpt/blob/main/run_video.py) and [run_3dviewer.py](https://github.com/heyoeyo/muggled_dpt/blob/main/run_3dviewer.py). To use these scripts, you'll need to first have [Python](https://www.python.org/) (v3.10+) installed, then set up a virtual environment and install some additional requirements.
 
 
 ### Install
@@ -38,6 +38,7 @@ Then install the requirements (or you could install them manually from the [requ
 ```bash
 pip install -r requirements.txt
 ```
+(if you have an existing virtual environment or conda env for Pytorch projects, it may work without requiring installation)
 
 <details>
 <summary>Additional info for GPU usage</summary>
@@ -139,6 +140,24 @@ As with the image script, you can add `--help` to the end of this command to see
 When processing video, depth predictions are made _asynchrounously_, (i.e. only when the GPU is ready to do more processing). This leads to faster playback/interaction, but the depth results may appear choppy. You can force synchrounous playback using the `-sync` flag or toggling the option within the UI (this also gives more accurate inference timing results).
 
 **Note:** The original DPT implementation is not designed for consistency across video frames, so the results can be very noisy looking. If you actually need video depth estimation, consider [Consistent Depth of Moving Objects in Video](https://dynamic-video-depth.github.io/) and the listed related works.
+
+
+## Run 3D Viewer
+
+<p align="center">
+  <img src=".readme_assets/run_3dviewer_anim.gif">
+</p>
+
+The `run_3dviewer.py` script will start a local server running a DPT model, which can provide image and depth data to the browser for 3D rendering. To use the script, make sure you're in the activated virtual environment, then from the repo folder run the command:
+```
+python run_3dviewer.py -l
+```
+The `-l` flag will launch a browser window, you can leave this out if you prefer to open the page manually. As with the other scripts, you can add `--help` to the end of this command to see the other modifier flags that are available. For example, you can change the `--host` to `"0.0.0.0"` to make the server available to other devices on your network (including smartphones), though this is only recommended if you're on a trusted network! The server supports images, video files and even webcams (using the `--use_webcam` flag when launching the script).
+
+The web interface provides support for visualizing depth data as a 3D model by displacing a dense plane mesh using depth predictions. There are controls for setting the scaling factors needed to [properly interpret](https://github.com/heyoeyo/muggled_dpt?tab=readme-ov-file#note-on-depth-results) the (inverse relative) depth estimate. There are also some controls bound to keypresses, for example the `p` key, which enables recording (the repo [demo animation](https://github.com/heyoeyo/muggled_dpt/blob/main/.readme_assets/turtle_anim.gif) was made this way). An `info` page is available (via a link on the UI) that explains the controls and other available options in more detail.
+
+> [!Note]
+> In an attempt to minimize the dependencies for this repo, the server is very simple and is written in plain python. As a result, it has minimal features, efficiency and security. It's built purely for use as a local-running demo and is not suitable for deployment in a production environment!
 
 
 ## Note on depth results
