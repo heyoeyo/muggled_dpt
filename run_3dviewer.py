@@ -248,6 +248,9 @@ class WebcamData(VideoData):
         return isinstance(input_path, int)
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# %% Setup
+
 # Load data as if it is a video
 IS_WEBCAM_INPUT = WebcamData.check_is_webcam(input_path)
 IS_IMAGE_INPUT = ImageAsVideoData.check_is_valid_image(input_path)
@@ -281,13 +284,12 @@ BASE_FILES_PATH = osp.join(osp.dirname(__file__), "lib", "demo_helpers", "3dview
 VALID_FILES = set(os.listdir(BASE_FILES_PATH))
 IS_METRIC_MODEL = model_config_dict.get("is_metric", False)
 
-
 # Figure out image sizing
 IMAGE_WH = data.get_wh()
 ex_frame = np.random.randint(0, 255, [IMAGE_WH[1], IMAGE_WH[0], 3], dtype=np.uint8)
 ex_tensor = dpt_imgproc.prepare_image_bgr(ex_frame, force_square_resolution).to(**device_config_dict)
 ex_prediction = dpt_model.inference(ex_tensor)
-DEPTH_WH = ex_prediction.shape[1:]
+DEPTH_WH = (ex_prediction.shape[2], ex_prediction.shape[1])
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -382,7 +384,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
             # Set content type based on file extention
             _, file_ext = osp.splitext(self.path)
-            content_type = f"text/{file_ext[1:]}"
+            content_type = f"text/{file_ext[1:]}" if file_ext != ".js" else "text/javascript"
             self._set_simple_headers(content_type)
 
             # Respond with file contents
