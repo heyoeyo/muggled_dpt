@@ -5,7 +5,6 @@
   <meta name="description" content="3D Visualizer for depth map predictions" />
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  
   <title>MuggledDPT</title>
 </head>
 
@@ -298,8 +297,9 @@
 <script src="shaders.js"></script>
 <script src="linalg.js"></script>
 <script src="orbitcam.js"></script>
+<script src="textures.js"></script>
 <script src="mesh.js"></script>
-<script src="webglhelpers.js"></script>
+<script src="gldata.js"></script>
 
 
 <!-- Main script for the page -->
@@ -347,19 +347,14 @@
   // Set up webgl data
   
   // Set up camera orbitting
-  const ORBITCAM = new Orbit_Camera(initial_distance=3.5);
+  const ORBITCAM = new Orbit_Camera(initial_distance=5);
   ORBITCAM.bind_to_canvas(DOM.canvas_3d, render_3d);
   
   // Set up webgl rendering
-  CTX.gl.pixelStorei(CTX.gl.UNPACK_FLIP_Y_WEBGL, false);
-  const gl_program = create_program(CTX.gl, vertex_shader_str, fragment_shader_str);
-  const textures_dict = init_texture_data(CTX.gl, gl_program);
-  const gl_uniforms = init_uniform_data(CTX.gl, gl_program);
+  const GLDATA = new GLData(CTX.gl, SHADERDEFS);
+  const TEXTUREDATA = new TextureData(CTX.gl, SHADERDEFS.textures);
+  const MESHDATA = new MeshData(CTX.gl, SHADERDEFS.attrs);
 
-  // Basic config
-  CTX.gl.useProgram(gl_program);
-  CTX.gl.enable(WebGLRenderingContext.DEPTH_TEST);
-  
 
   // -----------------------------------------------------------------------------------------------------------------
   // Global data
@@ -369,9 +364,11 @@
     width: DOM.canvas_3d.clientWidth,
     height: DOM.canvas_3d.clientHeight,
     ar: DOM.canvas_3d.clientWidth / DOM.canvas_3d.clientHeight,
-    res_scale: 0.05,
+    res_scale: 0.75,
+    draw_mode: WebGL2RenderingContext.POINTS,
   }
 
+  // Holds info about the source of image & depth data
   const SOURCEINFO = {
     is_static_image: true,
     is_video_file: false,
@@ -381,6 +378,7 @@
     max_frame_idx: 0,
   }
 
+  // Holds information about how the server is encoding image & depth data
   const ENCODEINFO = {
     rgb: "image/jpg",
     depth: "image/png",
@@ -414,11 +412,10 @@
   const CTRLS = {
     view_fov: 60.0,
     depth_limit: 100.0,
-    point_size: 8.0,
     scale_points_with_zoom: true,
     max_faces: 5_000_000,
-    hide_backfaces: true,
     debug_line_render: false,
+    wasd_sensitivity: 2.5,
   }
 
   // For saving frame data!
@@ -442,14 +439,14 @@
   // -----------------------------------------------------------------------------------------------------------------
   // Define UI
   
-  const fov_ctrl = new SliderUI(DOM.sidebar, "FOV", 60.0, 0, 180);
-  const nplane_ctrl = make_01_slider(DOM.sidebar, "Near Plane", 1.0, 0.01);
-  const zoff_ctrl = make_01_slider(DOM.sidebar, "Z-Offset", 0.25, 0.005);
+  const fov_ctrl = new SliderUI(DOM.sidebar, "FOV", 50.0, 0, 180);
+  const nplane_ctrl = make_01_slider(DOM.sidebar, "Near Plane", 0.0, 0.01);
+  const zoff_ctrl = make_01_slider(DOM.sidebar, "Z-Offset", 0.05, 0.005);
   [fov_ctrl, nplane_ctrl, zoff_ctrl].forEach(elem => elem.set_color(...SLIDER_COLORS[0]));
   append_spacer(DOM.sidebar);
   
-  const dmax_ctrl = make_01_slider(DOM.sidebar, "Max Depth", 0.05, 0.001, min=0.001);
-  const dmin_ctrl = make_01_slider(DOM.sidebar, "Min Depth (%)", 0.2, 0.001);
+  const dmax_ctrl = make_01_slider(DOM.sidebar, "Max Depth", 0.30, 0.001, min=0.001);
+  const dmin_ctrl = make_01_slider(DOM.sidebar, "Min Depth (%)", 0.05, 0.001);
   [dmax_ctrl, dmin_ctrl].forEach(elem => elem.set_color(...SLIDER_COLORS[1]));
   append_spacer(DOM.sidebar);
   
@@ -458,26 +455,48 @@
   [density_ctrl, jitter_ctrl].forEach(elem => elem.set_color(...SLIDER_COLORS[2]));
   append_spacer(DOM.sidebar);
   
-  const dispres_ctrl = make_01_slider(DOM.sidebar, "Display Resolution", 0.75, 0.05, min=0.05);
+  const dispres_ctrl = make_01_slider(DOM.sidebar, "Display Resolution", DISPLAYINFO.res_scale, 0.05, min=0.05);
+  const pointsize_ctrl = new SliderUI(DOM.sidebar, "Point Size", 12, 0.5, 50, 0.5);
   const ortho_toggle = new ToggleUI(DOM.sidebar, "Use Ortho Camera", false);
   const tri_toggle = new ToggleUI(DOM.sidebar, "Use Triangles", false);
   const depth_toggle = new ToggleUI(DOM.sidebar, "Use Depth Image", false);
-  [dispres_ctrl, ortho_toggle, tri_toggle, depth_toggle].forEach(elem => elem.set_color(...SLIDER_COLORS[3]));
+  const topdown_toggle = new ToggleUI(DOM.sidebar, "Top-down Image", false);
+  [dispres_ctrl, pointsize_ctrl, ortho_toggle, tri_toggle, depth_toggle, topdown_toggle].forEach(
+    elem => elem.set_color(...SLIDER_COLORS[3])
+  );
 
   // Add basic render update listeners
   [
     fov_ctrl, nplane_ctrl, zoff_ctrl,
     dmin_ctrl, dmax_ctrl,
-    dispres_ctrl, ortho_toggle, tri_toggle, depth_toggle,
+    pointsize_ctrl, ortho_toggle, topdown_toggle,
   ].forEach(elem => elem.add_listener(rerender));
 
+  // Special camera modifier callback
+  topdown_toggle.add_listener(() => {
+    const new_up_axis = topdown_toggle.value ? [0, 0, 1] : [0, 1, 0];
+    ORBITCAM.set_world_axes(world_up=new_up_axis);
+    ORBITCAM.reset();
+    rerender();
+  });
+
   // Add re-mesh listeners
-  density_ctrl.add_listener(update_mesh_and_render);
-  jitter_ctrl.add_listener(update_mesh_and_render);
+  [tri_toggle, density_ctrl, jitter_ctrl].forEach(elem => {
+    elem.add_listener(() => {
+      update_mesh();
+      rerender();
+    });
+  });
   dispres_ctrl.add_listener(() => {
     DISPLAYINFO.res_scale = dispres_ctrl.value;
     update_main_canvas_sizing();
-  }).trigger();
+  });
+
+  // Special callback for changes that require shader compilation
+  [depth_toggle].forEach(elem => elem.add_listener(() => {
+    update_gl_program();
+    rerender();
+  }));
 
   // Listener for play/pause behavior
   DOM.play_btn.addEventListener("click", () => {
@@ -502,7 +521,7 @@
       ANIMSTATE.idx = null;
     }
     return
-  })
+  });
 
   // Listener for adjusting playback slider
   const playback_event_handler = new UIRateLimiter(DOM.playback_ctrl, 2);
@@ -511,7 +530,7 @@
       play_btn.click();
     }
     ANIMSTATE.idx = requestAnimationFrame(request_current_frame);
-  })
+  });
 
   // Listeners for hiding/showing controls
   DOM.unhide_btn.addEventListener("click", () => DOM.hide_btn.click());
@@ -523,13 +542,8 @@
   // Canvas resizer (shouldn't happen often!)
   window.addEventListener("resize", update_main_canvas_sizing);
 
-  // Create initial mesh data
-  let attr_dict = null;
-  attr_dict = update_mesh();
-
-  // Set up initial display!
+  // Finalize display by asking for first frame!
   initialize_page();
-  update_main_canvas_sizing();
 
 
   // -----------------------------------------------------------------------------------------------------------------
@@ -537,31 +551,34 @@
 
   document.addEventListener("keydown", evt => {
 
-    // Toggle image vs. depth coloring with 'd' key
-    if (evt.code === "KeyD") {
+    // Toggle image vs. depth coloring
+    if (evt.code === "KeyV") {
       depth_toggle.toggle();
-      rerender();
     }
 
-    // Toggle triangle vs. point rendering with 't' key
+    // Toggle triangle vs. point rendering
     if (evt.code === "KeyT") {
       tri_toggle.toggle();
-      rerender();
     }
 
-    // Toggle line rendering using the 'l' key
-    if (evt.code === "KeyL") {
-      CTRLS.debug_line_render = !CTRLS.debug_line_render;
-      rerender();
+    // Toggle camera (top-down vs. side-on)
+    if (evt.code === "KeyC") {
+      topdown_toggle.toggle();
     }
 
-    // Switch ortho camera with 'o' key
+    // Switch ortho camera
     if (evt.code === "KeyO") {
       ortho_toggle.toggle();
+    }
+
+    // Toggle line rendering
+    if (evt.code === "KeyL") {
+      CTRLS.debug_line_render = !CTRLS.debug_line_render;
+      update_mesh();
       rerender();
     }
 
-    // Hide controls on 'h' key
+    // Hide controls
     if (evt.code === "KeyH") {
       // Toggle control hiding, but always hide 'show controls' button when using keys
       DOM.hide_btn.click();
@@ -573,8 +590,8 @@
       }
     }
 
-    // Toggle frame saving on 'p' key
-    if (evt.code === "KeyP") {
+    // Toggle frame saving (uses the ` key, aka tilde key ~)
+    if (evt.code === "Backquote") {
       SAVECONFIG.enable = !SAVECONFIG.enable;
       if (SAVECONFIG.enable) {
         DOM.page.classList.add(GCSS.is_recording);
@@ -604,9 +621,8 @@
 
     // Adjust point sizing using square bracket keys [ & ]
     if (["BracketLeft", "BracketRight"].includes(evt.code)) {
-      const change_amt = (evt.code === "BracketLeft") ? -1 : 1;
-      CTRLS.point_size = Math.max(Math.min(CTRLS.point_size + change_amt, 100), 1);
-      rerender();
+      (evt.code == "BracketLeft") ? pointsize_ctrl.decrement() : pointsize_ctrl.increment();
+      pointsize_ctrl.trigger();
     }
 
     // Snap camera with xyz keys
@@ -617,71 +633,23 @@
       ORBITCAM.snap_to_axis(is_snap_x, is_snap_y, is_snap_z, invert = evt.shiftKey);
       rerender();
     }
+
+    // Move camera as if in first-person with WASD or arrow keys
+    if (["KeyW", "KeyS", "KeyA", "KeyD"].includes(evt.code)) {
+      const scale = CTRLS.wasd_sensitivity * CTRLS.depth_limit * dmax_ctrl.value;
+      const dx = scale * ((evt.code === "KeyA") - (evt.code === "KeyD"));
+      const dz = scale * ((evt.code === "KeyW") - (evt.code === "KeyS"));
+      ORBITCAM.translate(dx, 0, dz);
+      rerender();
+    }
   });
 
   // -----------------------------------------------------------------------------------------------------------------
   // Functions
 
-  function update_main_canvas_sizing() {
-    DISPLAYINFO.width = DOM.canvas_3d.clientWidth;
-    DISPLAYINFO.height = DOM.canvas_3d.clientHeight;
-    DISPLAYINFO.ar = DISPLAYINFO.width / DISPLAYINFO.height;
-  
-    const [res_w, res_h] = [DISPLAYINFO.width, DISPLAYINFO.height].map(v => v * DISPLAYINFO.res_scale);
-    DOM.canvas_3d.width = res_w;
-    DOM.canvas_3d.height = res_h;
-    DOM.canvas_3d.style.width = res_w;
-    DOM.canvas_3d.style.height = res_h
-  
-    rerender();
-  }
-
-  // ..................................................................................................................
-
-  function set_mesh_data(webgl_context, webgl_program, mesh_wh, num_faces_pct, vertex_jitter_pct) {
-
-    // Create plane mesh
-    const num_faces = Math.pow(Math.min(1.0, num_faces_pct), 4) * CTRLS.max_faces;
-    const [mesh_w, mesh_h] = mesh_wh;
-    let [mesh_vxys, mesh_tri_faces, mesh_info] = make_plane_mesh(mesh_w, mesh_h, num_faces);
-
-    // Add jitter to xys
-    if (vertex_jitter_pct > 0.0001) {
-      mesh_vxys = apply_mesh_jitter(mesh_vxys, mesh_info, vertex_jitter_pct);
-    }
-    
-    return init_attribute_data(webgl_context, webgl_program, mesh_vxys, mesh_tri_faces);
-  }
-
-  // ..................................................................................................................
-
-  function rerender() {
-    if (!ANIMSTATE.is_playing) {
-      cancelAnimationFrame(ANIMSTATE.idx);
-      ANIMSTATE.idx = requestAnimationFrame(render_3d);
-    }
-  }
-  
-  // ..................................................................................................................
-
-  function update_mesh() {
-    const mesh_wh = [IMAGEINFO.width, IMAGEINFO.height];
-    const num_subdiv = density_ctrl.value;
-    const vertex_jitter = jitter_ctrl.value;
-    attr_dict = set_mesh_data(CTX.gl, gl_program, mesh_wh, num_subdiv, vertex_jitter);
-    return attr_dict;
-  }
-
-  // ..................................................................................................................
-
-  function update_mesh_and_render() {
-    update_mesh();
-    rerender();
-  }
-
-  // ..................................................................................................................
-
   async function initialize_page() {
+
+    /* Function used to get the page ready for display/playback on initial load */
 
     // Retrieve setup info from server
     const resp = await fetch("/get-source-info");
@@ -694,7 +662,7 @@
     // Grab info about video source
     SOURCEINFO.total_frame_count = resp_json["total_frames"];
     SOURCEINFO.max_frame_idx = SOURCEINFO.total_frame_count - 1;
-    SOURCEINFO.is_metric_depth = resp["is_metric_depth"];
+    SOURCEINFO.is_metric_depth = resp_json["is_metric_depth"];
     SOURCEINFO.is_static_image = resp_json["is_static_image"];
     SOURCEINFO.is_video_file = resp_json["is_video_file"];
     SOURCEINFO.is_webcam = resp_json["is_webcam"];
@@ -704,7 +672,7 @@
     ENCODEINFO.rgb = resp_json["encode_type_rgb"];
     ENCODEINFO.depth = resp_json["encode_type_depth"];
     
-    // Initialize texture maps
+    // Record texture sizing
     const [img_w, img_h] = image_wh;
     const [dep_w, dep_h] = depth_wh;
     IMAGEINFO.width = img_w;
@@ -713,12 +681,18 @@
     DEPTHINFO.width = dep_w;
     DEPTHINFO.height = dep_h;
     DEPTHINFO.ar = dep_w / dep_h;
-    textures_dict.init_textures(image_wh, depth_wh);
 
     // Set slider to appropriate range and initial frame
     DOM.playback_ctrl.min = 0;
     DOM.playback_ctrl.max = SOURCEINFO.max_frame_idx;
     DOM.playback_ctrl.value = initial_frame_index;
+
+    // Change default control values for metric depth predictions
+    if (SOURCEINFO.is_metric_depth) {
+      nplane_ctrl.set_value(0);
+      dmax_ctrl.set_value(0.20);
+      dmin_ctrl.set_value(0);
+    }
 
     // If we have a video source, show the play button and (if it's not a webcam) show the playback bar as well
     if (SOURCEINFO.is_video_file) {
@@ -731,7 +705,77 @@
       DOM.play_btn.click();
     }
 
+    // Update render data/display
+    update_main_canvas_sizing();
+    update_mesh();
+    update_gl_program();
     request_current_frame();
+
+    return;
+  }
+
+  // ..................................................................................................................
+
+  function rerender() {
+    /* Helper used to handle re-renders for control updates */
+    if (!ANIMSTATE.is_playing) {
+      cancelAnimationFrame(ANIMSTATE.idx);
+      ANIMSTATE.idx = requestAnimationFrame(render_3d);
+    }
+  }
+
+  // ..................................................................................................................
+
+  function update_gl_program() {
+
+    /* Helper used to set (or swap) the current webgl program */
+
+    // Connect texture & mesh data to program
+    const gl_program = GLDATA.create_new_program(SOURCEINFO.is_metric_depth, depth_toggle.value);
+    TEXTUREDATA.allocate(gl_program, [IMAGEINFO.width,IMAGEINFO.height], [DEPTHINFO.width, DEPTHINFO.height]);
+    MESHDATA.allocate(gl_program);
+
+    return;
+  }
+
+  // ..................................................................................................................
+
+  function update_main_canvas_sizing() {
+
+    /* Function used to scale the display canvas (includes support for downscaling compared to display resolution) */
+
+    DISPLAYINFO.width = DOM.canvas_3d.clientWidth;
+    DISPLAYINFO.height = DOM.canvas_3d.clientHeight;
+    DISPLAYINFO.ar = DISPLAYINFO.width / DISPLAYINFO.height;
+
+    const [res_w, res_h] = [DISPLAYINFO.width, DISPLAYINFO.height].map(v => v * DISPLAYINFO.res_scale);
+    DOM.canvas_3d.width = res_w;
+    DOM.canvas_3d.height = res_h;
+    DOM.canvas_3d.style.width = res_w;
+    DOM.canvas_3d.style.height = res_h
+
+    rerender();
+  }
+
+  // ..................................................................................................................
+
+  function update_mesh() {
+
+    /* Helper used to update mesh data based on UI settings */
+
+    // Update drawing style if needed
+    let draw_mode = (tri_toggle.value ? WebGL2RenderingContext.TRIANGLES : WebGL2RenderingContext.POINTS);
+    if (CTRLS.debug_line_render) {
+      draw_mode = WebGL2RenderingContext.LINES;
+    }
+    DISPLAYINFO.draw_mode = draw_mode;
+
+    // Create new mesh
+    const mesh_wh = [IMAGEINFO.width, IMAGEINFO.height];
+    const num_faces_pct = density_ctrl.value;
+    const vertex_jitter = jitter_ctrl.value;
+    const target_num_faces = Math.pow(Math.min(1.0, num_faces_pct), 4) * CTRLS.max_faces;
+    MESHDATA.update(mesh_wh, target_num_faces, vertex_jitter, draw_mode);
   }
 
   // ..................................................................................................................
@@ -747,7 +791,7 @@
     // Get image data and write to the GPU
     let curr_idx = parseInt(DOM.playback_ctrl.value);
     const [rgb_bmp, depth_bmp] = await fetchImages(curr_idx);
-    textures_dict.update_textures(rgb_bmp, depth_bmp);
+    TEXTUREDATA.update(rgb_bmp, depth_bmp);
     
     // Render new image data!
     render_3d();
@@ -826,7 +870,7 @@
     const is_wide_img = IMAGEINFO.width > IMAGEINFO.height;
     const x_scale_factor = is_wide_img ? 1.0 : (IMAGEINFO.width / IMAGEINFO.height);
     const y_scale_factor = is_wide_img ? (IMAGEINFO.height / IMAGEINFO.width) : 1.0;
-    const point_size = CTRLS.scale_points_with_zoom ? CTRLS.point_size / ORBITCAM.distance : CTRLS.point_size * 0.5;
+    const point_size = pointsize_ctrl.value * (CTRLS.scale_points_with_zoom ? 1.0 / ORBITCAM.distance : 0.5);
 
     // Read controls
     const max_depth = dmax_ctrl.value * CTRLS.depth_limit;
@@ -835,44 +879,40 @@
     const near_plane_dist = nplane_ctrl.value * min_depth;
     const use_ortho_camera = ortho_toggle.value;
     const use_depth_texture = depth_toggle.value;
-    const tris_or_points = tri_toggle.value ? WebGLRenderingContext.TRIANGLES : WebGLRenderingContext.POINTS;
-    const draw_mode = CTRLS.debug_line_render ? WebGLRenderingContext.LINES : tris_or_points;
 
     // Figure out depth scaling factors to get 'true' depth. Assumes inverse relative depth:
-    //   TrueDepth = 1 / (A + B*inv_depth)
-    const depth_a_value = 1.0 / max_depth;
-    const depth_b_value = (1.0 / min_depth) - (1.0 / max_depth);
-    const view_depth_offset = zoff_ctrl.value * (max_depth - min_depth) + min_depth;
+    const view_depth_offset = min_depth + zoff_ctrl.value * (max_depth - min_depth);
+    let depth_a_value, depth_b_value;
+    if (SOURCEINFO.is_metric_depth) {
+      // MetricDepth = A + B*depth_pred
+      depth_a_value = min_depth;
+      depth_b_value = max_depth - min_depth;
+    } else {
+      // TrueDepth = 1 / (A + B*inv_depth)
+      depth_a_value = 1.0 / max_depth;
+      depth_b_value = (1.0 / min_depth) - (1.0 / max_depth);
+    }
 
     // Figure out view & projection matrix
     const view_fov_rad = CTRLS.view_fov * DEG2RAD;
     const view_matrix = ORBITCAM.get_world_to_view_mat4()
     const proj_matrix = ORBITCAM.get_view_to_clipspace_mat4(view_fov_rad, DISPLAYINFO.ar, use_ortho_camera);
     const view_proj_matrix = MAT4.multiply(view_matrix, proj_matrix);
-  
-    // Decide if we're showing backfaces or not
-    const gl = CTX.gl;
-    if (CTRLS.hide_backfaces) {
-      gl.enable(gl.CULL_FACE);
-    } else {
-      gl.disable(gl.CULL_FACE);
-    }
 
     // Clear the canvas
+    const gl = CTX.gl;
     gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  
+
     // Set uniforms
     const is_transpose_matrix = false;
-    gl.uniform4f(gl_uniforms.scaling_loc, x_scale_factor, y_scale_factor, near_plane_dist, point_size);
-    gl.uniformMatrix4fv(gl_uniforms.matrix_loc, is_transpose_matrix, view_proj_matrix);
-    gl.uniform1i(gl_uniforms.uv_select_loc, use_depth_texture);
-    gl.uniform4f(gl_uniforms.camparam_loc, depth_a_value, depth_b_value, half_fov_rad_value, view_depth_offset);
-  
+    gl.uniform4f(GLDATA.uniloc.scaling, x_scale_factor, y_scale_factor, near_plane_dist, point_size);
+    gl.uniform4f(GLDATA.uniloc.camparam, depth_a_value, depth_b_value, half_fov_rad_value, view_depth_offset);
+    gl.uniformMatrix4fv(GLDATA.uniloc.matrix, is_transpose_matrix, view_proj_matrix);
+
     // Render out data!
-    const draw_offset = 0;
-    gl.drawElements(draw_mode, attr_dict.num_elements, gl.UNSIGNED_INT, draw_offset);
+    MESHDATA.draw_elements(DISPLAYINFO.draw_mode);
 
     // Save every N frames, if enabled!
     if (SAVECONFIG.enable) {

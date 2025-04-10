@@ -44,6 +44,7 @@
     flex-flow: column nowrap;
     width: 100%;
   }
+
 </style>
 
 <body>
@@ -93,6 +94,9 @@
     
     <h2>Use Depth Image:</h2>
     <p>If enabled, the depth map will be used to texture the 3D surface (as a black-and-white image) instead of the original RGB source image.</p>
+
+    <h2>Top-down Image:</h2>
+    <p>Intended to be used when working with images that are taken from a top-down perspective. When enabled, the camera controls will be altered.</p>
     
   </section>
 
@@ -108,13 +112,15 @@
     <h1>Keyboard shortcuts</h1>
     
     <p><b>Spacebar:</b> Play/pause video (doesn't do anything for static images)</p>
-    <p><b>X, Y, Z keys:</b> Snap the camera along the x/y/z axes, also <b>Shift + X/Y/Z</b></p>
+    <p><b>XYZ (+Shift) keys:</b> Snap the camera along the x/y/z axes</b></p>
+    <p><b>WASD keys:</b> Move camera origin</p>
     <p><b>H key:</b> Show/hide the UI</p>
     <p><b>O key:</b> Toggle orthographic projection</p>
     <p><b>T key:</b> Toggle points vs. triangle rendering</p>
-    <p><b>D key:</b> Toggle use of depth image for surface texturing</p>
-    <p><b>L key:</b> Toggle line rendering (like wireframe, but not quite. Used for debugging)</p>
-    <p><b>P key:</b> Enable recording (this can be very demanding!). The background will change color to indicate active recording</p>
+    <p><b>V key:</b> Toggle use of depth image for surface texturing</p>
+    <p><b>C key:</b> Toggle top-down image perspective</p>
+    <p><b>L key:</b> Toggle line rendering</p>
+    <p><b>` or ~ key:</b> Enable recording (this can be very demanding!). The background will change color to indicate active recording</p>
     <p><b>+/- keys:</b> Adjust the display resolution</p>
     <p><b>[ or ] keys:</b> Adjust point sizing (only affects point rendering mode)</p>
     

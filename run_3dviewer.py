@@ -49,11 +49,11 @@ parser.add_argument(
     help="Device to use when running model (ex: 'cpu', 'cuda', 'mps')",
 )
 parser.add_argument(
-    "-f32",
-    "--use_float32",
+    "-f16",
+    "--use_float16",
     default=False,
     action="store_true",
-    help="Use 32-bit floating point model weights. Note: this doubles VRAM usage",
+    help="Use 16-bit floating point model weights. This reduces prediction quality, but will run faster",
 )
 parser.add_argument(
     "-ar",
@@ -103,7 +103,7 @@ args = parser.parse_args()
 arg_input_path = args.input_path
 arg_model_path = args.model_path
 device_str = args.device
-use_float32 = args.use_float32
+use_float32 = not args.use_float16
 force_square_resolution = not args.use_aspect_ratio
 model_base_size = args.base_size_px
 server_host = args.host
@@ -164,7 +164,8 @@ class VideoData:
 
         # Jump to frame, if it's not just the next frame
         if frame_index != self._curr_idx:
-            print("FRAME INDEX MISMATCH! Current:", self._curr_idx, "New:", frame_index)
+            if frame_index > 0:
+                print("FRAME INDEX MISMATCH! Current:", self._curr_idx, "New:", frame_index)
             self.set_frame_index(frame_index)
 
         # Read frame, with 'wrap-around' if there's is no frame (which happens at the end of videos)
@@ -313,7 +314,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             # Run depth estimation
             frame_tensor = dpt_imgproc.prepare_image_bgr(frame, force_square_resolution)
             frame_tensor = frame_tensor.to(**device_config_dict)
-            depth_prediction = dpt_imgproc.normalize_01(dpt_model.inference(frame_tensor))
+            depth_prediction = dpt_model.inference(frame_tensor)
+            if not IS_METRIC_MODEL:
+                depth_prediction = dpt_imgproc.normalize_01(depth_prediction)
             depth_tensor_u24 = (torch.round(MAX_UINT24 * depth_prediction)).to(dtype=torch.uint32)
             depth_u24 = depth_tensor_u24.squeeze().cpu().numpy()
 
