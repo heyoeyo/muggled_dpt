@@ -9,9 +9,10 @@ import os
 import os.path as osp
 import json
 import argparse
-from http.server import HTTPServer, BaseHTTPRequestHandler
 import webbrowser
 import socket
+from dataclasses import dataclass
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 import cv2
 import numpy as np
@@ -119,7 +120,7 @@ _, history_vidpath = history.read("video_path")
 _, history_modelpath = history.read("model_path")
 
 # Get pathing to resources, if not provided already
-input_path = ask_for_path_if_missing(arg_input_path, "video", history_vidpath) if not use_webcam else 0
+input_path = ask_for_path_if_missing(arg_input_path, "image or video", history_vidpath) if not use_webcam else 0
 model_path = ask_for_model_path_if_missing(__file__, arg_model_path, history_modelpath)
 
 # Store history for use on reload (but don't save video path when using webcam)
@@ -219,6 +220,14 @@ class ImageAsVideoData:
         return False
 
 
+class UploadedImageData(ImageAsVideoData):
+
+    def __init__(self, raw_upload_buffer):
+        raw_image = np.frombuffer(raw_upload_buffer, dtype=np.uint8)
+        self._image = cv2.imdecode(raw_image, cv2.IMREAD_COLOR)
+        assert self._image is not None, "Error reading upload buffer!"
+
+
 class WebcamData(VideoData):
     """Class used to 'fake' a video file when using a webcam, which doesn't have a fixed frame count"""
 
@@ -249,25 +258,72 @@ class WebcamData(VideoData):
         return isinstance(input_path, int)
 
 
+@dataclass
+class InputState:
+    """Simple class used to hold global information about the input data source"""
+
+    source_name = "unknown"
+    data = None
+    is_webcam = False
+    is_video = False
+    is_image = False
+    image_wh = (0, 0)
+    depth_wh = (0, 0)
+
+    def read_input_path(self, input_path):
+        """Helper used to properly interpret input data as image/video/webcam"""
+
+        # Load data as if it is a video
+        is_webcam = WebcamData.check_is_webcam(input_path)
+        is_image = ImageAsVideoData.check_is_valid_image(input_path)
+        is_video = not (is_webcam or is_image)
+        if is_webcam:
+            vreader = WebcamData(input_path)
+        elif is_image:
+            vreader = ImageAsVideoData(input_path)
+        elif is_video:
+            vreader = VideoData(input_path)
+        else:
+            raise TypeError("Unknown input data type!")
+
+        # Store results
+        self.vreader = vreader
+        self.source_name = osp.basename(input_path) if not is_webcam else "webcam"
+        self.is_webcam = is_webcam
+        self.is_image = is_image
+        self.is_video = is_video
+
+        return self
+
+    def update_sizing(self, dpt_image_preproc, dpt_model, device_config_dict, force_square_resolution=True):
+        """Helper used to update internal record of image/depth sizing"""
+
+        # Create example image to run through model
+        image_wh = self.vreader.get_wh()
+        ex_frame = np.random.randint(0, 255, [image_wh[1], image_wh[0], 3], dtype=np.uint8)
+        ex_tensor = dpt_image_preproc.prepare_image_bgr(ex_frame, force_square_resolution).to(**device_config_dict)
+
+        # Run model on example fraame to get output sizing
+        ex_prediction = dpt_model.inference(ex_tensor)
+        depth_wh = (ex_prediction.shape[2], ex_prediction.shape[1])
+
+        # Store sizing
+        self.image_wh = image_wh
+        self.depth_wh = depth_wh
+
+        return self
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 # %% Setup
 
-# Load data as if it is a video
-IS_WEBCAM_INPUT = WebcamData.check_is_webcam(input_path)
-IS_IMAGE_INPUT = ImageAsVideoData.check_is_valid_image(input_path)
-IS_VIDEO_INPUT = not (IS_WEBCAM_INPUT or IS_IMAGE_INPUT)
-if IS_WEBCAM_INPUT:
-    data = WebcamData(input_path)
-elif IS_IMAGE_INPUT:
-    data = ImageAsVideoData(input_path)
-elif IS_VIDEO_INPUT:
-    data = VideoData(input_path)
-else:
-    raise TypeError("Unknown input data type!")
 
+# Make sure we can read the input
+INDATA = InputState()
+INDATA.read_input_path(input_path)
 
 # Load model & image pre-processor
-print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
+print("", f"Loading model weights ({osp.basename(model_path)})", sep="\n", flush=True)
 model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, enable_cache=True)
 if model_base_size is not None:
     dpt_imgproc.set_base_size(model_base_size)
@@ -277,7 +333,6 @@ dpt_model.eval()
 
 # Set up globals for use in requests
 MAX_UINT24 = (2**24) - 1
-SOURCE_NAME = osp.basename(input_path) if not IS_WEBCAM_INPUT else "webcam"
 ENCODE_TYPE_RGB = arg_image_encoding if arg_image_encoding.startswith(".") else f".{arg_image_encoding}"
 ENCODE_TYPE_DEPTH = arg_depth_encoding if arg_depth_encoding.startswith(".") else f".{arg_depth_encoding}"
 DEPTH_IS_LOSSY = ENCODE_TYPE_DEPTH in {".jpg", "jpeg"}
@@ -285,12 +340,19 @@ BASE_FILES_PATH = osp.join(osp.dirname(__file__), "lib", "demo_helpers", "3dview
 VALID_FILES = set(os.listdir(BASE_FILES_PATH))
 IS_METRIC_MODEL = model_config_dict.get("is_metric", False)
 
-# Figure out image sizing
-IMAGE_WH = data.get_wh()
-ex_frame = np.random.randint(0, 255, [IMAGE_WH[1], IMAGE_WH[0], 3], dtype=np.uint8)
-ex_tensor = dpt_imgproc.prepare_image_bgr(ex_frame, force_square_resolution).to(**device_config_dict)
-ex_prediction = dpt_model.inference(ex_tensor)
-DEPTH_WH = (ex_prediction.shape[2], ex_prediction.shape[1])
+# Figure out image/depth sizing
+INDATA.update_sizing(dpt_imgproc, dpt_model, device_config_dict, force_square_resolution)
+
+# Some feedback for user
+print(
+    "",
+    f"   Input: {INDATA.source_name}",
+    f"Input WH: {INDATA.image_wh[0]} x {INDATA.image_wh[1]}",
+    f"Depth WH: {INDATA.depth_wh[0]} x {INDATA.depth_wh[1]}",
+    f"  Device: {device_config_dict.get('device', '...error...')}",
+    f"   DType: {device_config_dict.get('dtype', '...error...')}",
+    sep="\n",
+)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -309,7 +371,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
             # Update the current frame index (and jump video forward/backward if needed)
             frame_idx = int(self.path[7:])
-            frame = data.read_frame(frame_idx)
+            frame = INDATA.vreader.read_frame(frame_idx)
 
             # Run depth estimation
             frame_tensor = dpt_imgproc.prepare_image_bgr(frame, force_square_resolution)
@@ -351,17 +413,17 @@ class RequestHandler(BaseHTTPRequestHandler):
         elif self.path == "/get-source-info":
 
             info_dict = {
-                "image_wh": IMAGE_WH,
-                "depth_wh": DEPTH_WH,
+                "image_wh": INDATA.image_wh,
+                "depth_wh": INDATA.depth_wh,
                 "encode_type_rgb": ENCODE_TYPE_RGB,
                 "encode_type_depth": ENCODE_TYPE_DEPTH,
-                "total_frames": data.get_total_frames(),
-                "frame_index": data.get_frame_index(),
-                "is_static_image": IS_IMAGE_INPUT,
-                "is_webcam": IS_WEBCAM_INPUT,
-                "is_video_file": IS_VIDEO_INPUT,
+                "total_frames": INDATA.vreader.get_total_frames(),
+                "frame_index": INDATA.vreader.get_frame_index(),
+                "is_static_image": INDATA.is_image,
+                "is_webcam": INDATA.is_webcam,
+                "is_video_file": INDATA.is_video,
                 "is_metric_depth": IS_METRIC_MODEL,
-                "source_name": SOURCE_NAME,
+                "source_name": INDATA.source_name,
             }
 
             self._set_simple_headers("text/json")
@@ -398,6 +460,28 @@ class RequestHandler(BaseHTTPRequestHandler):
         else:
             self.send_error(404, f"Error! Unknown recognized request: {self.path}")
             return
+
+        return
+
+    def do_POST(self):
+
+        if self.path.startswith("/upload"):
+
+            # Read raw buffer data
+            content_length = int(self.headers["Content-Length"])
+            buffer_data = self.rfile.read(content_length)
+
+            # Update data state
+            INDATA.vreader = UploadedImageData(buffer_data)
+            INDATA.is_image = True
+            INDATA.is_video = False
+            INDATA.is_webcam = False
+            INDATA.source_name = self.headers.get("X-filename", "unknown")
+            INDATA.update_sizing(dpt_imgproc, dpt_model, device_config_dict, force_square_resolution)
+
+            # Return ok response
+            self._set_simple_headers("text/plain", 201)
+            self.wfile.write("ok".encode("utf-8"))
 
         return
 
@@ -481,4 +565,4 @@ except Exception as err:
 finally:
     print("", "Closing...", sep="\n")
     server.server_close()
-    data.close()
+    INDATA.vreader.close()

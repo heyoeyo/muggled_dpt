@@ -93,6 +93,10 @@
     image-rendering: pixelated;
   }
 
+  .drag_and_drop_indicator {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+
   #playback_slider {
     accent-color: var(--playback_color);
     width: 100%;
@@ -101,7 +105,7 @@
     z-index: 10;
   }
 
-  #play_btn {
+  #playpause_btn {
     background-color: var(--bg_grad_end);
     font-size: 1.5rem;
     padding: 0;
@@ -112,7 +116,7 @@
     user-select: none;
   }
 
-  #play_btn:hover {
+  #playpause_btn:hover {
     outline-color: white;
   }
 
@@ -224,10 +228,8 @@
   }
 
   #hide_btn, #unhide_btn {
-    /* background-color: rgb(0,0,0); */
     padding: 0.5rem 1rem;
     cursor: pointer;
-    /* border: solid 1px rgb(40,40,40); */
     user-select: none;
     text-decoration: underline;
   }
@@ -276,7 +278,7 @@
 
   <!-- Video playback control (hidden when visualizing images) -->
   <div id="playback_container" class="hidden_elem">
-    <div id="play_btn" class="hidden_elem">
+    <div id="playpause_btn" class="hidden_elem">
       <svg id="symbol_play" height="12" width="12" xmlns="http://www.w3.org/2000/svg">
         <polygon points="1,0 11,6 1,12" fill="white" />
       </svg>
@@ -316,7 +318,7 @@
     unhide_btn: get_elem("unhide_btn"),
     canvas_3d : get_elem("canvas_3d"),
     playback_container: get_elem("playback_container"),
-    play_btn: get_elem("play_btn"),
+    playpause_btn: get_elem("playpause_btn"),
     playback_ctrl: get_elem("playback_slider"),
     save_frame_link: get_elem("save_frame_link"),
     symbol_play: get_elem("symbol_play"),
@@ -327,6 +329,7 @@
   const GCSS = {
     hidden: "hidden_elem",
     is_recording: "is_recording",
+    drag_and_drop: "drag_and_drop_indicator",
   };
 
   const CTX = {
@@ -499,7 +502,7 @@
   }));
 
   // Listener for play/pause behavior
-  DOM.play_btn.addEventListener("click", () => {
+  DOM.playpause_btn.addEventListener("click", () => {
 
     // Toggle play/pause state
     ANIMSTATE.is_playing = !ANIMSTATE.is_playing;
@@ -527,7 +530,7 @@
   const playback_event_handler = new UIRateLimiter(DOM.playback_ctrl, 2);
   playback_event_handler.addEventListener("input", () => {
     if (ANIMSTATE.is_playing) {
-      play_btn.click();
+      playpause_btn.click();
     }
     ANIMSTATE.idx = requestAnimationFrame(request_current_frame);
   });
@@ -538,6 +541,51 @@
     DOM.sidebar.classList.toggle(GCSS.hidden);
     DOM.unhide_btn.classList.toggle(GCSS.hidden);
   });
+
+  // Drag-and-drop handler for uploading new image files
+  DOM.canvas_3d.addEventListener("dragenter", evt => {
+    evt.preventDefault();
+    DOM.canvas_3d.classList.add(GCSS.drag_and_drop);
+  });
+  DOM.canvas_3d.addEventListener("dragleave", evt => {
+    evt.preventDefault();
+    DOM.canvas_3d.classList.remove(GCSS.drag_and_drop);
+  });
+  DOM.canvas_3d.addEventListener("dragover", evt => {
+    evt.preventDefault();
+  })
+  DOM.canvas_3d.addEventListener("drop", async evt => {
+    evt.preventDefault();
+
+    // Sanity check. Make sure we got at least 1 file (and warn if we got more than 1)
+    const uploaded_files = evt.dataTransfer.files;
+    if (uploaded_files.length === 0) {
+      console.warn("No files uploaded!")
+      return;
+    } else if (uploaded_files.length > 1) {
+      console.warn("Only 1 file upload is allowed at a time!");
+    }
+
+    // Send image to server to use as new source for depth prediction
+    const file = uploaded_files[0];
+    const is_image_file = file.type.startsWith("image");
+    if (is_image_file) {
+      const post_headers = {"Content-Type": file.type, "X-filename": file.name};
+      const buffer_data = await file.arrayBuffer();
+      const resp = await fetch("/upload", {method: "POST", body: buffer_data, headers: post_headers})
+      if (resp.ok && resp.status === 201) {
+        initialize_page();
+      }
+
+    } else {
+      alert(`Only image files can be uploaded! Got: ${file.type}`);
+    }
+
+    // Clear drag-state indicator if needed
+    DOM.canvas_3d.classList.remove(GCSS.drag_and_drop);
+
+    return;
+  })
 
   // Canvas resizer (shouldn't happen often!)
   window.addEventListener("resize", update_main_canvas_sizing);
@@ -605,7 +653,7 @@
       evt.preventDefault();
 
       if (SOURCEINFO.is_video_file || SOURCEINFO.is_webcam) {
-        DOM.play_btn.click();
+        DOM.playpause_btn.click();
       }
       if (SOURCEINFO.is_video_file) {
         DOM.playback_ctrl.focus();
@@ -654,7 +702,8 @@
     // Retrieve setup info from server
     const resp = await fetch("/get-source-info");
     const resp_json = await resp.json();
-    console.log("Source info from server:", resp_json);
+    console.log("Showing:", resp_json["source_name"]);
+    console.log(resp_json);
 
     // Get image sizing info
     const {image_wh, depth_wh} = resp_json;
@@ -697,12 +746,15 @@
     // If we have a video source, show the play button and (if it's not a webcam) show the playback bar as well
     if (SOURCEINFO.is_video_file) {
       DOM.playback_container.classList.remove(GCSS.hidden);
-      DOM.play_btn.classList.remove(GCSS.hidden);
+      DOM.playpause_btn.classList.remove(GCSS.hidden);
       DOM.playback_ctrl.classList.remove(GCSS.hidden);
     } else if (SOURCEINFO.is_webcam) {
       DOM.playback_container.classList.remove(GCSS.hidden);
-      DOM.play_btn.classList.remove(GCSS.hidden);
-      DOM.play_btn.click();
+      DOM.playpause_btn.classList.remove(GCSS.hidden);
+      if (!ANIMSTATE.is_playing) DOM.playpause_btn.click();
+    } else {
+      [DOM.playback_container, DOM.playpause_btn, DOM.playback_ctrl].forEach(elem => elem.classList.add(GCSS.hidden));
+      if (ANIMSTATE.is_playing) DOM.playpause_btn.click();
     }
 
     // Update render data/display
