@@ -116,18 +116,18 @@ arg_depth_encoding = str(args.encode_depth).lower()
 
 # Create history to re-use selected inputs
 history = HistoryKeeper()
-_, history_vidpath = history.read("video_path")
+_, history_inputpath = history.read("input3d_path")
 _, history_modelpath = history.read("model_path")
 
 # Get pathing to resources, if not provided already
-input_path = ask_for_path_if_missing(arg_input_path, "image or video", history_vidpath) if not use_webcam else 0
+input_path = ask_for_path_if_missing(arg_input_path, "image or video", history_inputpath) if not use_webcam else 0
 model_path = ask_for_model_path_if_missing(__file__, arg_model_path, history_modelpath)
 
 # Store history for use on reload (but don't save video path when using webcam)
 if use_webcam:
     history.store(model_path=model_path)
 else:
-    history.store(video_path=input_path, model_path=model_path)
+    history.store(input3d_path=input_path, model_path=model_path)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
