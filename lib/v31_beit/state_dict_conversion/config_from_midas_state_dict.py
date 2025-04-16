@@ -13,7 +13,7 @@ from .key_regex import get_nth_integer
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Main function
 
-def get_model_config_from_midas_state_dict(state_dict):
+def get_model_config_from_midas_state_dict(state_dict, enable_cache, enable_optimizations):
     
     # Get model config from state dict
     config_dict = {
@@ -24,6 +24,8 @@ def get_model_config_from_midas_state_dict(state_dict):
         "fusion_channels": get_num_fusion_channels(state_dict),
         "patch_size_px": get_patch_size_px(state_dict),
         "base_patch_grid_hw": get_base_patch_grid_size(state_dict),
+        "enable_cache": enable_cache,
+        "enable_optimizations": enable_optimizations,
     }
     
     return config_dict
@@ -232,4 +234,3 @@ def get_base_patch_grid_size(state_dict):
     return (grid_side_length, grid_side_length)
 
 # .....................................................................................................................
-

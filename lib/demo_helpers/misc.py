@@ -127,3 +127,12 @@ def reduce_overthreading(device_str):
     torch.set_num_threads(target_max_threads if is_using_cpu else 2)
     
     return
+
+# .....................................................................................................................
+
+def get_total_cuda_vram_usage_mb():
+    '''Helper used to measure the total VRAM usage when using CUDA. Returns 0 if not using CUDA'''
+    if torch.cuda.is_available():
+        free_vram_bytes, total_vram_bytes = torch.cuda.mem_get_info()
+        return (total_vram_bytes - free_vram_bytes) // 1_000_000
+    return 0

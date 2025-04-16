@@ -10,33 +10,6 @@ import torch.nn as nn
 
 from .misc_helpers import MLP2Layers, LayerNormEPS6
 
-# Check if XFormers library is installed
-# -> This gives improved float16 performance compared to normal 'pytorch' code
-# -> The improvement is significant when running larger image sizes (2x speed up)
-# -> It also dramatically reduces memory usage, so input image sizes can be used!
-try:
-    from xformers.ops import memory_efficient_attention, unbind
-    XFORMERS_AVAILABLE = torch.cuda.is_available()
-except ImportError:
-    XFORMERS_AVAILABLE = False
-
-# Allow disabling of XFormers by setting a 'NO_XFORMERS' env variable
-# ex: $ export NO_XFORMERS=1
-if XFORMERS_AVAILABLE:
-    import os
-    _xformers_disable_key = "NO_XFORMERS"
-    XFORMERS_AVAILABLE = _xformers_disable_key not in os.environ
-    if XFORMERS_AVAILABLE:
-        print("",
-              "XFormers Detected! (enabled)",
-              f"  To disable, set environment variable: '{_xformers_disable_key}'",
-              sep = "\n")
-    else:
-        print("",
-              "XFormers Detected! (disabled)",
-              f"  To enable, un-set environment variable: '{_xformers_disable_key}'",
-              sep = "\n")
-
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Main model
@@ -45,14 +18,14 @@ class TransformerBlock(nn.Module):
     
     # .................................................................................................................
     
-    def __init__(self, features_per_token, num_heads, mlp_ratio = 4.0):
+    def __init__(self, features_per_token, num_heads, enable_optimizations=True, mlp_ratio=4.0):
         
         # Inherit from parent
         super().__init__()
         
         # Special check to switch to high-performance attention, if possible
         attn_args = (features_per_token, num_heads)
-        self.attn = AttentionXFormers(*attn_args) if XFORMERS_AVAILABLE else Attention(*attn_args)
+        self.attn = OptimizedAttention(*attn_args) if enable_optimizations else Attention(*attn_args)
         
         # Define components for self-attention
         self.norm1 = LayerNormEPS6(features_per_token)
@@ -155,33 +128,35 @@ class Attention(nn.Module):
     # .................................................................................................................
 
 
-class AttentionXFormers(Attention):
+class OptimizedAttention(Attention):
     
     '''
     This is a faster executing version of the attention module, which
-    makes use of functions from the XFormers library.
+    makes use of the built-in SDPA operation in pytorch. The downside
+    of using this is that it doesn't provide access to the 'softmax'
+    attention results, which can be useful for analysis.
     
-    Due to my own uncertainty about the compatibility/stability of XFormers,
-    this is implemented as a 'special upgrade', rather than being the
-    default implementation. Note this also breaks when using cpu-only!
+    In the original depth-anything model, the 'XFormers' library was
+    used to provide the same sort of speed up.
     '''
     
     # .................................................................................................................
     
     def forward(self, tokens):
         
-        ''' Faster self-attention implementation due to XFormers '''
+        ''' Faster self-attention implementation due to built-in SDPA '''
 
         # Create query/key/value as usual
+        # Shape: 3xBxHxNxc
         B, N, C = tokens.shape
-        qkv = self.qkv(tokens).reshape(B, N, 3, self.num_heads, self.features_per_head)
+        qkv = self.qkv(tokens).reshape(B, N, 3, self.num_heads, self.features_per_head).permute(2, 0, 3, 1, 4)
         
-        # XFormers magic!
-        q, k, v = unbind(qkv, 2)
-        tokens = memory_efficient_attention(q, k, v)
+        # Use faster built-in attention operation instead of doing each step manually
+        q, k, v = torch.unbind(qkv, 0)
+        tokens = nn.functional.scaled_dot_product_attention(q, k, v)
         
         # Reshape to match input
-        tokens = tokens.reshape([B, N, C])
+        tokens = tokens.transpose(1, 2).reshape([B, N, C])
         tokens = self.proj(tokens)
         
         return tokens

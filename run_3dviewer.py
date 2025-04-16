@@ -50,11 +50,21 @@ parser.add_argument(
     help="Device to use when running model (ex: 'cpu', 'cuda', 'mps')",
 )
 parser.add_argument(
+    "-nc", "--no_cache", default=False, action="store_true", help="Disable caching to reduce VRAM usage"
+)
+parser.add_argument(
     "-f16",
     "--use_float16",
     default=False,
     action="store_true",
     help="Use 16-bit floating point model weights. This reduces prediction quality, but will run faster",
+)
+parser.add_argument(
+    "-z",
+    "--no_optimization",
+    default=False,
+    action="store_true",
+    help="Disable attention optimizations (only effects DepthAnything models)"
 )
 parser.add_argument(
     "-ar",
@@ -104,7 +114,9 @@ args = parser.parse_args()
 arg_input_path = args.input_path
 arg_model_path = args.model_path
 device_str = args.device
+use_cache = not args.no_cache
 use_float32 = not args.use_float16
+use_optimizations = not args.no_optimization
 force_square_resolution = not args.use_aspect_ratio
 model_base_size = args.base_size_px
 server_host = args.host
@@ -324,7 +336,7 @@ INDATA.read_input_path(input_path)
 
 # Load model & image pre-processor
 print("", f"Loading model weights ({osp.basename(model_path)})", sep="\n", flush=True)
-model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, enable_cache=True)
+model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache, use_optimizations)
 if model_base_size is not None:
     dpt_imgproc.set_base_size(model_base_size)
 device_config_dict = make_device_config(device_str, use_float32)

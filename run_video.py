@@ -22,7 +22,8 @@ from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
 from lib.demo_helpers.text import TextDrawer
 from lib.demo_helpers.video import LoopingVideoReader, PlaybackIndicatorCB
 from lib.demo_helpers.misc import (
-    DeviceChecker, get_default_device_string, make_device_config, print_config_feedback, reduce_overthreading
+    DeviceChecker, get_default_device_string, make_device_config, print_config_feedback,
+    reduce_overthreading, get_total_cuda_vram_usage_mb,
 )
 
 
@@ -55,6 +56,8 @@ parser.add_argument("-nc", "--no_cache", default=False, action="store_true",
                     help="Disable caching to reduce VRAM usage")
 parser.add_argument("-f32", "--use_float32", default=False, action="store_true",
                     help="Use 32-bit floating point model weights. Note: this doubles VRAM usage")
+parser.add_argument("-z", "--no_optimization", default=False, action="store_true",
+                    help="Disable attention optimizations (only effects DepthAnything models)")
 parser.add_argument("-ar", "--use_aspect_ratio", default=False, action="store_true",
                     help="Process the video at it's original aspect ratio, if the model supports it")
 parser.add_argument("-b", "--base_size_px", default=default_base_size, type=int,
@@ -74,6 +77,7 @@ force_sync = args.force_sync
 device_str = args.device
 use_cache = not args.no_cache
 use_float32 = args.use_float32
+use_optimizations = not args.no_optimization
 force_square_resolution = not args.use_aspect_ratio
 model_base_size = args.base_size_px
 use_webcam = args.use_webcam
@@ -109,7 +113,7 @@ reduce_overthreading(device_str)
 
 # Load model & image pre-processor
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
-model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache)
+model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache, use_optimizations)
 if (model_base_size is not None):
     dpt_imgproc.set_base_size(model_base_size)
 
@@ -279,5 +283,5 @@ cv2.destroyAllWindows()
 
 # Provide memory usage feedback, if using cuda GPU
 if device_str == "cuda":
-    peak_vram_mb = torch.cuda.max_memory_allocated() // 1_000_000
-    print("", f"Peak VRAM usage: {peak_vram_mb} MB", "", sep = "\n")
+    total_vram_mb = get_total_cuda_vram_usage_mb()
+    print("  VRAM:", total_vram_mb, "MB")

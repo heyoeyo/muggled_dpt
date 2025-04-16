@@ -2,9 +2,6 @@ opencv-python   >=4.5, <4.10
 numpy           >=1, <2
 torch           >=2.0.0, <2.3.0
 
-# Optional: Speeds up Depth-Anything models (prevents CPU support though!)
-#xformers	>=0.0.18, <0.0.26
-
 # Optional: Needed for onnx exporting
 #onnx 		==1.15.0
 #onnxruntime 	==1.17.1

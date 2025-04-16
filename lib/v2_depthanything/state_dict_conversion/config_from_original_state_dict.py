@@ -13,7 +13,7 @@ from .key_regex import get_nth_integer
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Main function
 
-def get_model_config_from_state_dict(state_dict):
+def get_model_config_from_state_dict(state_dict, enable_cache, enable_optimizations):
     
     # Special check for a key that WE add during loading if the model name suggests it's metric
     # -> This is needed because metric model weights are identical to normal relative model weights
@@ -34,6 +34,8 @@ def get_model_config_from_state_dict(state_dict):
         "patch_size_px": get_patch_size_px(state_dict),
         "base_patch_grid_hw": get_base_patch_grid_size(state_dict),
         "is_metric": is_metric,
+        "enable_cache": enable_cache,
+        "enable_optimizations": enable_optimizations,
     }
     
     return config_dict

@@ -21,7 +21,8 @@ from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
 from lib.demo_helpers.plane_fit import estimate_plane_of_best_fit
 from lib.demo_helpers.saving import save_image, save_numpy_array, save_uint16
 from lib.demo_helpers.misc import (
-    get_default_device_string, make_device_config, print_config_feedback, reduce_overthreading
+    get_default_device_string, make_device_config, print_config_feedback,
+    reduce_overthreading, get_total_cuda_vram_usage_mb,
 )
 
 
@@ -47,6 +48,8 @@ parser.add_argument("-d", "--device", default=default_device, type=str,
                     help="Device to use when running model (ex: 'cpu', 'cuda', 'mps')")
 parser.add_argument("-f32", "--use_float32", default=False, action="store_true",
                     help="Use 32-bit floating point model weights. Note: this doubles VRAM usage")
+parser.add_argument("-z", "--no_optimization", default=False, action="store_true",
+                    help="Disable attention optimizations (only effects DepthAnything models)")
 parser.add_argument("-ar", "--use_aspect_ratio", default=False, action="store_true",
                     help="Process the image at it's original aspect ratio, if the model supports it")
 parser.add_argument("-b", "--base_size_px", default=default_base_size, type=int,
@@ -59,6 +62,7 @@ arg_model_path = args.model_path
 display_size_px = args.display_size
 device_str = args.device
 use_float32 = args.use_float32
+use_optimizations = not args.no_optimization
 force_square_resolution = not args.use_aspect_ratio
 model_base_size = args.base_size_px
 
@@ -89,7 +93,7 @@ reduce_overthreading(device_str)
 
 # Load model & image pre-processor
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
-model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache)
+model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache, use_optimizations)
 if (model_base_size is not None):
     dpt_imgproc.set_base_size(model_base_size)
 
@@ -129,8 +133,8 @@ print("  -> Took", round(1000*(t2-t1), 1), "ms")
 
 # Provide memory usage feedback, if using cuda GPU
 if device_str == "cuda":
-    peak_vram_mb = torch.cuda.max_memory_allocated() // 1_000_000
-    print("  -> Peak VRAM:", peak_vram_mb, "MB")
+    total_vram_mb = get_total_cuda_vram_usage_mb()
+    print("  VRAM:", total_vram_mb, "MB")
 
 
 # ---------------------------------------------------------------------------------------------------------------------

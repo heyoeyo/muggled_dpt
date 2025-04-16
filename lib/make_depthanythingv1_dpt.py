@@ -22,7 +22,9 @@ from .v1_depthanything.state_dict_conversion.convert_original_state_dict_keys im
 
 # .....................................................................................................................
 
-def make_depthanythingv1_dpt_from_original_state_dict(state_dict, enable_cache = False, strict_load = True):
+def make_depthanythingv1_dpt_from_original_state_dict(
+        state_dict, enable_cache=False, enable_optimizations=True, strict_load=True
+    ):
     
     '''
     Function used to initialize a Depth-Anything DPT model from a state dictionary (i.e. model weights) file.
@@ -40,11 +42,11 @@ def make_depthanythingv1_dpt_from_original_state_dict(state_dict, enable_cache =
               "  Some weights may be missing or unused!", sep = "\n", flush = True)
     
     # Get model config from weights (i.e. vit-small vs vit-large) & convert to new keys/state dict
-    config_dict = get_model_config_from_state_dict(state_dict)
+    config_dict = get_model_config_from_state_dict(state_dict, enable_cache, enable_optimizations)
     new_state_dict = convert_state_dict_keys(config_dict, state_dict)
     
     # Load model & set model weights
-    dpt_model = make_depthanythingv1_dpt(**config_dict, enable_cache = enable_cache)
+    dpt_model = make_depthanythingv1_dpt(**config_dict)
     dpt_model.patch_embed.load_state_dict(new_state_dict["patch_embed"], strict_load)
     dpt_model.imgencoder.load_state_dict(new_state_dict["imgencoder"], strict_load)
     dpt_model.reassemble.load_state_dict(new_state_dict["reassemble"], strict_load)
@@ -84,8 +86,17 @@ def make_opencv_image_prepost_processor(model_config_dict):
 
 # .....................................................................................................................
 
-def make_depthanythingv1_dpt(features_per_token, num_heads, num_blocks, reassembly_features_list, base_patch_grid_hw,
-                             fusion_channels = 256, patch_size_px = 14, enable_cache = False):
+def make_depthanythingv1_dpt(
+        features_per_token,
+        num_heads,
+        num_blocks,
+        reassembly_features_list,
+        base_patch_grid_hw,
+        fusion_channels=256,
+        patch_size_px=14,
+        enable_cache=False,
+        enable_optimizations=True,
+    ):
     
     '''
     Helper used to build all Depth-Anything DPT components. The arguments for this function are
@@ -125,7 +136,9 @@ def make_depthanythingv1_dpt(features_per_token, num_heads, num_blocks, reassemb
     
     # Construct model components
     patch_embed_model = PatchEmbed(features_per_token, patch_size_px)
-    imgenc_model = DinoV2Model4Stages(features_per_token, num_heads, num_blocks, base_patch_grid_hw, enable_cache)
+    imgenc_model = DinoV2Model4Stages(
+        features_per_token, num_heads, num_blocks, base_patch_grid_hw, enable_cache, enable_optimizations
+    )
     reassembly_model = ReassembleModel(features_per_token, reassembly_features_list, fusion_channels)
     fusion_model = FusionModel(fusion_channels)
     head_model = MonocularDepthHead(fusion_channels, patch_size_px)
@@ -136,4 +149,3 @@ def make_depthanythingv1_dpt(features_per_token, num_heads, num_blocks, reassemb
     return dpt_model
 
 # .....................................................................................................................
-

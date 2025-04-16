@@ -14,7 +14,9 @@ from time import sleep
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Functions
 
-def make_dpt_from_state_dict(path_to_state_dict, enable_cache = False, strict_load = True, model_type = None):
+def make_dpt_from_state_dict(
+        path_to_state_dict, enable_cache=False, enable_optimizations=True, strict_load=True, model_type=None
+    ):
     
     # Load model weights with fail check in case weights are in cuda format and user doesn't have cuda
     try:
@@ -49,7 +51,7 @@ def make_dpt_from_state_dict(path_to_state_dict, enable_cache = False, strict_lo
     
     # Build the model & supporting data
     make_dpt_func, make_imgprep_func = import_model_functions(model_type)
-    config_dict, dpt_model = make_dpt_func(state_dict, enable_cache, strict_load)
+    config_dict, dpt_model = make_dpt_func(state_dict, enable_cache, enable_optimizations, strict_load)
     imgprep = make_imgprep_func(config_dict)
     
     return config_dict, dpt_model, imgprep
@@ -103,8 +105,6 @@ def import_model_functions(model_type):
     Function used to import the 'make dpt' and 'make image prep' functions for
     all known model types. This is a hacky-ish thing to do, but helps avoid
     importing all model code even though we're only loading one model.
-    It also (importantly) prevent XFormers message from triggering multiple
-    times due to repeat imports checking for XFormers!
     '''
     
     if model_type == "swinv2":

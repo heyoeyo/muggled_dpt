@@ -12,13 +12,6 @@ import cv2
 import torch
 import numpy as np
 
-# Make sure XFormers is disabled before importing DPT models
-# - XFormers re-implements the attention calculation more efficiently,
-#   but then the attention softmax result cannot be accessed directly!
-if "NO_XFORMERS" not in os.environ:
-    os.environ["NO_XFORMERS"] = "0"
-    print("", "Disabling XFormers for attention visualization!", sep="\n")
-
 # This is a hack to make this script work from inside the experiments folder!
 try:
     import lib  # NOQA
@@ -104,8 +97,9 @@ if "swin" in model_path:
 # Store history for use on reload
 history.store(image_path=image_path, model_path=model_path)
 
-# Hard-code no-cache usage, since there is no benefit if the model only runs once
+# Hard-code no-cache usage (no benefit) or optimization (needed to access attention results)
 use_cache = False
+use_optimization = False
 
 # Improve cpu utilization
 reduce_overthreading(device_str)
@@ -631,7 +625,7 @@ class AttentionDisplayArrangement:
 
 # Load model & image pre-processor
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
-model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache, strict_load=True)
+model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache, use_optimization)
 if model_base_size is not None:
     dpt_imgproc.set_base_size(model_base_size)
 

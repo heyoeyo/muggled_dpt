@@ -189,11 +189,6 @@ depth_norm = dpt_imgproc.normalize_01(scaled_prediction).float().cpu().numpy().s
 t2 = perf_counter()
 print("  -> Took", round(1000 * (t2 - t1), 1), "ms")
 
-# Provide memory usage feedback, if using cuda GPU
-if device_str == "cuda":
-    peak_vram_mb = torch.cuda.max_memory_allocated() // 1_000_000
-    print("  -> Peak VRAM:", peak_vram_mb, "MB")
-
 
 # ---------------------------------------------------------------------------------------------------------------------
 # %% Display results

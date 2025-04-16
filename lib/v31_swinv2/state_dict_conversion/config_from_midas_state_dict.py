@@ -15,7 +15,7 @@ from collections import defaultdict
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Main function
 
-def get_model_config_from_midas_state_dict(state_dict):
+def get_model_config_from_midas_state_dict(state_dict, enable_cache, enable_optimizations):
     
     # Figure out window sizing separate, since pretrained size depends on it
     window_size_wh = get_transformer_window_size_hw(state_dict)
@@ -31,6 +31,8 @@ def get_model_config_from_midas_state_dict(state_dict):
         "pretrained_window_sizes_per_stage": pretrained_window_sizes_per_stage,
         "fusion_channels": get_num_fusion_channels(state_dict),
         "patch_size_px": get_patch_size_px(state_dict),
+        "enable_cache": enable_cache,
+        "enable_optimizations": enable_optimizations,
     }
     
     return config_dict
@@ -280,4 +282,3 @@ def get_patch_size_px(state_dict):
     return int(patch_size_px)
 
 # .....................................................................................................................
-

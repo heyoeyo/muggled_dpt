@@ -35,6 +35,9 @@ As the table shows, at larger image sizes, VRAM usage with xFormers grows roughl
 > [!Note]
 > All results shown use float16. Using xFormers still improves memory usage with float32, but the inference speed seems to largely match the built-in pytorch implementation when using float32.
 
+> [!Important]
+>Use of xFormers has been removed as of April 2025. It's been replaced with the built-in [scaled-dot-product-attention](https://pytorch.org/docs/stable/generated/torch.nn.functional.scaled_dot_product_attention.html) operation in pytorch which provides a similar benefit without requiring additional dependencies. The documentation above is being left as-is, since it also applies to the built-in SDPA operation.
+
 
 ## Position Encoding
 

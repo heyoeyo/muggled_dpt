@@ -22,7 +22,9 @@ from .v31_beit.state_dict_conversion.convert_midas_state_dict_keys import conver
 
 # .....................................................................................................................
 
-def make_beit_dpt_from_midas_v31_state_dict(midas_v31_state_dict, enable_relpos_cache = False, strict_load = True):
+def make_beit_dpt_from_midas_v31_state_dict(
+        midas_v31_state_dict, enable_cache=False, enable_optimizations=True, strict_load=True
+    ):
     
     '''
     Function used to initialize a BEiT DPT model from a state dictionary (i.e. model weights) file.
@@ -40,11 +42,11 @@ def make_beit_dpt_from_midas_v31_state_dict(midas_v31_state_dict, enable_relpos_
               "  Some weights may be missing or unused!", sep = "\n", flush = True)
     
     # Get model config from weights (i.e. beit_large_512 vs beit_base_384) & convert to new keys/state dict
-    config_dict = get_model_config_from_midas_state_dict(midas_v31_state_dict)
+    config_dict = get_model_config_from_midas_state_dict(midas_v31_state_dict, enable_cache, enable_optimizations)
     new_state_dict = convert_midas_state_dict_keys(config_dict, midas_v31_state_dict)
     
     # Load model & set model weights
-    dpt_model = make_beit_dpt(**config_dict, enable_relpos_cache = enable_relpos_cache)
+    dpt_model = make_beit_dpt(**config_dict)
     dpt_model.patch_embed.load_state_dict(new_state_dict["patch_embed"], strict_load)
     dpt_model.imgencoder.load_state_dict(new_state_dict["imgencoder"], strict_load)
     dpt_model.reassemble.load_state_dict(new_state_dict["reassemble"], strict_load)
@@ -85,7 +87,7 @@ def make_opencv_image_prepost_processor(model_config_dict):
 # .....................................................................................................................
 
 def make_beit_dpt(features_per_token, num_heads, num_blocks, reassembly_features_list, base_patch_grid_hw,
-                  fusion_channels = 256, patch_size_px = 16, enable_relpos_cache = False):
+                  fusion_channels = 256, patch_size_px = 16, enable_cache = False, **unused_kwargs):
     
     '''
     Helper used to build all BEiT DPT components. The arguments for this function are
@@ -125,7 +127,7 @@ def make_beit_dpt(features_per_token, num_heads, num_blocks, reassembly_features
     
     # Construct model components
     patch_embed_model = PatchEmbed(features_per_token, patch_size_px)
-    imgenc_model = BEiTModel4Stage(features_per_token, num_heads, num_blocks, base_patch_grid_hw, enable_relpos_cache)
+    imgenc_model = BEiTModel4Stage(features_per_token, num_heads, num_blocks, base_patch_grid_hw, enable_cache)
     reassembly_model = ReassembleModel(features_per_token, reassembly_features_list, fusion_channels)
     fusion_model = FusionModel(fusion_channels)
     head_model = MonocularDepthHead(fusion_channels)
