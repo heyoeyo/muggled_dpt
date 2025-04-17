@@ -1,8 +1,8 @@
-opencv-python   >=4.5, <4.10
-numpy           >=1, <2
-torch           >=2.0.0, <2.3.0
+opencv-python   >=4.5, <4.12
+numpy           >=1.21, <2.3
+torch           >=2.1, <2.7
 
 # Optional: Needed for onnx exporting
-#onnx 		==1.15.0
-#onnxruntime 	==1.17.1
+#onnx           ==1.15.0
+#onnxruntime    ==1.17.1
 

@@ -31,7 +31,7 @@ class LoopingVideoReader:
     def __init__(self, video_path, display_size_px = 800):
         
         self._video_path = video_path
-        self.vcap = cv2.VideoCapture(self._video_path)
+        self.vcap = create_video_capture(self._video_path)
         self.total_frames = self.vcap.get(cv2.CAP_PROP_FRAME_COUNT)
         
         # Read sample frame & reset video
@@ -82,7 +82,7 @@ class LoopingVideoReader:
     
     def __iter__(self):
         ''' Called when using this object in an iterator (e.g. for loops) '''
-        if not self.vcap.isOpened(): self.vcap = cv2.VideoCapture(self._video_path)
+        if not self.vcap.isOpened(): self.vcap = create_video_capture(self._video_path)
         return self
     
     # .................................................................................................................
@@ -205,3 +205,14 @@ class PlaybackIndicatorCB:
         return np.vstack((frame, bar_img))
     
     # .................................................................................................................
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Functions
+
+def create_video_capture(video_path) -> cv2.VideoCapture:
+    ''' Helper used to set up reading from videos, with fix for OpenCV orientation bug '''
+    vcap = cv2.VideoCapture(video_path)
+    assert vcap.isOpened(), f"Unable to open video: {video_path}"
+    vcap.set(cv2.CAP_PROP_ORIENTATION_AUTO, 1)  # See: https://github.com/opencv/opencv/issues/26795
+    return vcap

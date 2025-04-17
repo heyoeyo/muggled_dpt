@@ -23,6 +23,7 @@ from lib.make_dpt import make_dpt_from_state_dict
 from lib.demo_helpers.history_keeper import HistoryKeeper
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from lib.demo_helpers.misc import get_default_device_string, make_device_config
+from lib.demo_helpers.video import create_video_capture
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -152,8 +153,7 @@ class VideoData:
     def __init__(self, video_path: str):
 
         assert osp.exists(video_path), f"Error, video does not exist: {video_path}"
-        self._vread: cv2.VideoCapture = cv2.VideoCapture(video_path)
-        assert self._vread.isOpened(), f"Unable to open video: {video_path}"
+        self._vread: cv2.VideoCapture = create_video_capture(video_path)
 
         self._curr_idx: int = 0
         self._wh = (int(self._vread.get(cv2.CAP_PROP_FRAME_WIDTH)), int(self._vread.get(cv2.CAP_PROP_FRAME_HEIGHT)))
@@ -244,8 +244,7 @@ class WebcamData(VideoData):
     """Class used to 'fake' a video file when using a webcam, which doesn't have a fixed frame count"""
 
     def __init__(self, video_path: int):
-        self._vread: cv2.VideoCapture = cv2.VideoCapture(video_path)
-        assert self._vread.isOpened(), f"Unable to open video: {video_path}"
+        self._vread: cv2.VideoCapture = create_video_capture(video_path)
         self._wh = (int(self._vread.get(cv2.CAP_PROP_FRAME_WIDTH)), int(self._vread.get(cv2.CAP_PROP_FRAME_HEIGHT)))
 
     def get_total_frames(self):
@@ -391,7 +390,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             depth_prediction = dpt_model.inference(frame_tensor)
             if not IS_METRIC_MODEL:
                 depth_prediction = dpt_imgproc.normalize_01(depth_prediction)
-            depth_tensor_u24 = (torch.round(MAX_UINT24 * depth_prediction)).to(dtype=torch.uint32)
+            depth_tensor_u24 = (torch.round(MAX_UINT24 * depth_prediction)).to(dtype=torch.int32)
             depth_u24 = depth_tensor_u24.squeeze().cpu().numpy()
 
             # Split depth bits into separate bytes to be stored in red-green channels of RGB image
