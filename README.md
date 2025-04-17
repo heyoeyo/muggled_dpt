@@ -59,7 +59,11 @@ Before you can run a model, you'll need to download it's weights.
 
 This repo supports the [BEiT](https://arxiv.org/abs/2106.08254) and [SwinV2](https://arxiv.org/abs/2111.09883) models from [MiDaS v3.1](https://arxiv.org/abs/2307.14460) which can be downloaded from the [isl-org/MiDaS releases page](https://github.com/isl-org/MiDaS/releases/tag/v3_1). Additionally, [DINOv2](https://arxiv.org/abs/2304.07193) models are supported from [Depth-Anything V1](https://arxiv.org/abs/2401.10891) and [Depth-Anything V2](https://arxiv.org/abs/2406.09414), which can be downloaded from the [LiheYoung/Depth-Anything](https://huggingface.co/spaces/LiheYoung/Depth-Anything/tree/main/checkpoints) and [Depth-Anything/Depth-Anything-V2](https://huggingface.co/collections/depth-anything/depth-anything-v2-666b22412f18a6dbfde23a93) repos on Hugging Face, respectively. Note that only the relative depth models are support by this repo (however, Depth-Anything V2 metric models can be loaded in most cases).
 
+> [!Tip]
+> If you're not sure which model to use, pick one of the Depth-Anything V2 models as they consistently outperform BEiT or SwinV2. The [base model](https://github.com/DepthAnything/Depth-Anything-V2?tab=readme-ov-file#pre-trained-models) is a good balance between speed and accuracy.
+
 After downloading a model file, you can place it in the `model_weights` folder of this repo or otherwise just keep note of the file path, since you'll need to provide this when running the demo scripts. If you do place the file in the [model_weights](https://github.com/heyoeyo/muggled_dpt/tree/main/model_weights) folder, then it will auto-load when running the scripts.
+
 
 <details>
 

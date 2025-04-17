@@ -846,6 +846,7 @@
     }
 
     // Update render data/display
+    TEXTUREDATA.allocate(image_wh, depth_wh);
     update_main_canvas_sizing();
     update_mesh();
     update_gl_program();
@@ -872,8 +873,8 @@
 
     // Connect texture & mesh data to program
     const gl_program = GLDATA.create_new_program(SOURCEINFO.is_metric_depth, depth_toggle.value);
-    TEXTUREDATA.allocate(gl_program, [IMAGEINFO.width,IMAGEINFO.height], [DEPTHINFO.width, DEPTHINFO.height]);
-    MESHDATA.allocate(gl_program);
+    TEXTUREDATA.bind_gl_program(gl_program);
+    MESHDATA.bind_gl_program(gl_program);
 
     return;
   }
