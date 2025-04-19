@@ -417,6 +417,7 @@
   // Holds info about the source of image & depth data
   const SOURCEINFO = {
     name: "unknown",
+    has_mask: false,
     is_static_image: true,
     is_video_file: false,
     is_webcam: false,
@@ -429,8 +430,10 @@
   const ENCODEINFO = {
     rgb: "image/jpg",
     depth: "image/png",
+    mask: "image/png",
     size_header_rgb: "X-rgb-size",
     size_header_depth: "X-depth-size",
+    size_header_mask: "X-mask-size",
     header_frame_index: "X-frame-idx",
   }
 
@@ -503,7 +506,8 @@
   
   const density_ctrl = make_01_slider(DOM.sidebar, "Mesh Density", 0.5, 0.01);
   const jitter_ctrl = make_01_slider(DOM.sidebar, "Mesh Jitter", 1, 0.1);
-  [density_ctrl, jitter_ctrl].forEach(elem => elem.set_color(...UICOLORS[2]));
+  const maskthresh_ctrl = make_01_slider(DOM.sidebar, "Mask Threshold", 0, 0.001).apply_css(GCSS.hidden);
+  [density_ctrl, jitter_ctrl, maskthresh_ctrl].forEach(elem => elem.set_color(...UICOLORS[2]));
   append_spacer(DOM.sidebar);
   
   const dispres_ctrl = make_01_slider(DOM.sidebar, "Display Resolution", DISPLAYINFO.res_scale, 0.05, min=0.05);
@@ -517,8 +521,8 @@
   );
   append_spacer(DOM.sidebar);
 
+  // Add button used to save mesh/texture data
   const saveobj_btn = new ButtonUI(DOM.sidebar, "Save 3D Model").set_color(...UICOLORS[4]);
-
   saveobj_btn.add_listener(() => {
 
     // Block interaction with screen while generating save data
@@ -571,7 +575,7 @@
   });
 
   // Add re-mesh listeners
-  [tri_toggle, density_ctrl, jitter_ctrl].forEach(elem => {
+  [tri_toggle, density_ctrl, jitter_ctrl, maskthresh_ctrl].forEach(elem => {
     elem.add_listener(() => {
       update_mesh();
       rerender();
@@ -799,6 +803,7 @@
     SOURCEINFO.name = resp_json["source_name"];
     SOURCEINFO.total_frame_count = resp_json["total_frames"];
     SOURCEINFO.max_frame_idx = SOURCEINFO.total_frame_count - 1;
+    SOURCEINFO.has_mask = resp_json["has_mask"];
     SOURCEINFO.is_metric_depth = resp_json["is_metric_depth"];
     SOURCEINFO.is_static_image = resp_json["is_static_image"];
     SOURCEINFO.is_video_file = resp_json["is_video_file"];
@@ -808,6 +813,7 @@
     // Get data encoding settings (for parsing images sent by the server)
     ENCODEINFO.rgb = resp_json["encode_type_rgb"];
     ENCODEINFO.depth = resp_json["encode_type_depth"];
+    ENCODEINFO.mask = resp_json["encode_type_mask"];
     
     // Record texture sizing
     const [img_w, img_h] = image_wh;
@@ -823,6 +829,11 @@
     DOM.playback_ctrl.min = 0;
     DOM.playback_ctrl.max = SOURCEINFO.max_frame_idx;
     DOM.playback_ctrl.value = initial_frame_index;
+
+    // Show/hide mask threshold
+    maskthresh_ctrl.set_value(0);
+    maskthresh_ctrl.apply_css(GCSS.hidden, add_style=!SOURCEINFO.has_mask);
+    if (!SOURCEINFO.has_mask) MESHDATA.store_mask_image(null);
 
     // Change default control values for metric depth predictions
     if (SOURCEINFO.is_metric_depth) {
@@ -915,8 +926,9 @@
     const mesh_wh = [IMAGEINFO.width, IMAGEINFO.height];
     const num_faces_pct = density_ctrl.value;
     const vertex_jitter = jitter_ctrl.value;
+    const mask_threshold = maskthresh_ctrl.value;
     const target_num_faces = Math.pow(Math.min(1.0, num_faces_pct), 4) * CTRLS.max_faces;
-    MESHDATA.update(mesh_wh, target_num_faces, vertex_jitter, draw_mode);
+    MESHDATA.update(mesh_wh, target_num_faces, vertex_jitter, mask_threshold, draw_mode);
   }
 
   // ..................................................................................................................
@@ -931,9 +943,15 @@
 
     // Get image data and write to the GPU
     let curr_idx = parseInt(DOM.playback_ctrl.value);
-    const [rgb_bmp, depth_bmp] = await fetchImages(curr_idx);
+    const [rgb_bmp, depth_bmp, mask_bmp] = await fetch_images(curr_idx);
     TEXTUREDATA.update(rgb_bmp, depth_bmp);
     
+    // Apply masking
+    if (mask_bmp != null) {
+      const mask_image_data = create_mask_image_data(mask_bmp);
+      MESHDATA.store_mask_image(mask_image_data);
+    }
+
     // Render new image data!
     render_3d();
     
@@ -949,7 +967,25 @@
 
   // ..................................................................................................................
 
-  async function fetchImages(frame_index) {
+  function create_mask_image_data(mask_bitmap) {
+
+    // Create temporary canvas so we can 'draw' image to access pixel data
+    const temp_canvas = document.createElement("canvas");
+    temp_canvas.width = mask_bitmap.width;
+    temp_canvas.height = mask_bitmap.height;
+
+    const temp_ctx = temp_canvas.getContext("2d");
+    temp_ctx.drawImage(mask_bitmap, 0, 0);
+    const image_data = temp_ctx.getImageData(0, 0, mask_bitmap.width, mask_bitmap.height);
+
+    // Clean up
+    temp_canvas.remove();
+    return image_data;
+  }
+
+  // ..................................................................................................................
+
+  async function fetch_images(frame_index) {
     
     /*
     Function used to request RGB & depth image data from the server
@@ -971,6 +1007,7 @@
     // Figure out data sizing info, so we can properly split binary array
     const rgb_img_size = parseInt(resp.headers.get(ENCODEINFO.size_header_rgb));
     const depth_img_size = parseInt(resp.headers.get(ENCODEINFO.size_header_depth));
+    const mask_img_size = parseInt(resp.headers.get(ENCODEINFO.size_header_mask));
     const video_idx =  parseInt(resp.headers.get(ENCODEINFO.header_frame_index));
     if (video_idx != frame_index) {
       console.log("DEBUG - VIDX DOES NOT MATCH FIDX", frame_index, video_idx);
@@ -978,15 +1015,20 @@
     }
     
     // Separate response (binary) data into two images
-    const arrayBuffer = await resp.arrayBuffer();
-    const rawData = new Uint8Array(arrayBuffer);
-    const rgb_img_data = rawData.slice(0, rgb_img_size);
-    const depth_img_data = rawData.slice(rgb_img_size, rgb_img_size + depth_img_size);
+    const pt0 = rgb_img_size;
+    const pt1 = pt0 + depth_img_size;
+    const pt2 = pt1 + mask_img_size;
+    const buffer_data = await resp.arrayBuffer();
+    const raw_binary_array = new Uint8Array(buffer_data);
+    const rgb_img_data = raw_binary_array.slice(0, pt0);
+    const depth_img_data = raw_binary_array.slice(pt0, pt1);
+    const mask_img_data = raw_binary_array.slice(pt1, pt2);
 
     return await Promise.all(
       [
         get_image_bitmap(rgb_img_data, ENCODEINFO.rgb),
         get_image_bitmap(depth_img_data, ENCODEINFO.depth),
+        mask_img_size > 0 ? get_image_bitmap(mask_img_data, ENCODEINFO.mask) : null,
       ]
     );
   }

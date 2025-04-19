@@ -44,6 +44,13 @@ parser = argparse.ArgumentParser(description="Launches a server for a web-based 
 parser.add_argument("-i", "--input_path", default=default_image_path, help="Path to input image or video")
 parser.add_argument("-m", "--model_path", default=default_model_path, type=str, help="Path to model weights")
 parser.add_argument(
+    "-k",
+    "--mask_path",
+    default=None,
+    type=str,
+    help="Path to a binary mask image, which can be used to eliminate sections outside of masked areas",
+)
+parser.add_argument(
     "-d",
     "--device",
     default=default_device,
@@ -65,7 +72,7 @@ parser.add_argument(
     "--no_optimization",
     default=False,
     action="store_true",
-    help="Disable attention optimizations (only effects DepthAnything models)"
+    help="Disable attention optimizations (only effects DepthAnything models)",
 )
 parser.add_argument(
     "-ar",
@@ -126,6 +133,7 @@ use_webcam = args.use_webcam
 launch_browser = args.launch
 arg_image_encoding = str(args.encode_image).lower()
 arg_depth_encoding = str(args.encode_depth).lower()
+arg_mask_path = args.mask_path
 
 # Create history to re-use selected inputs
 history = HistoryKeeper()
@@ -325,6 +333,49 @@ class InputState:
         return self
 
 
+class MaskData:
+
+    def __init__(self, mask_path, mask_encoding_type):
+
+        self.path = mask_path
+        self.image = None
+        self.encoded_image = None
+        self.nbytes = 0
+        self.encode_type = None
+        self.has_mask = self._load_mask_image(mask_path, mask_encoding_type)
+
+    def clear(self):
+        self.path = None
+        self.image = None
+        self.encoded_image = None
+        self.nbytes = 0
+        self.encode_type = None
+        self.has_mask = False
+
+    def _load_mask_image(self, mask_path, encoding_type):
+
+        has_mask = mask_path is not None
+        if not has_mask:
+            return has_mask
+
+        # Try to read mask image
+        mask_image = cv2.imread(mask_path)
+        assert mask_image is not None, f"Unable to read mask image: {arg_mask_path}"
+
+        # Make sure mask image is grayscale, 1 channel
+        mask_image = cv2.cvtColor(mask_image, cv2.COLOR_BGR2GRAY)
+        ok_encode, encoded_mask = cv2.imencode(encoding_type, mask_image)
+        assert ok_encode, f"Unable to encode mask image as {self._encoding_type}"
+
+        # Store mask results
+        self.image = mask_image
+        self.encoded_image = encoded_mask
+        self.encode_type = encoding_type
+        self.nbytes = encoded_mask.nbytes
+
+        return has_mask
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 # %% Setup
 
@@ -350,6 +401,9 @@ DEPTH_IS_LOSSY = ENCODE_TYPE_DEPTH in {".jpg", "jpeg"}
 BASE_FILES_PATH = osp.join(osp.dirname(__file__), "lib", "demo_helpers", "3dviewer")
 VALID_FILES = set(os.listdir(BASE_FILES_PATH))
 IS_METRIC_MODEL = model_config_dict.get("is_metric", False)
+
+# Load mask if given
+MASKDATA = MaskData(arg_mask_path, ENCODE_TYPE_DEPTH)
 
 # Figure out image/depth sizing
 INDATA.update_sizing(dpt_imgproc, dpt_model, device_config_dict, force_square_resolution)
@@ -393,7 +447,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             depth_tensor_u24 = (torch.round(MAX_UINT24 * depth_prediction)).to(dtype=torch.int32)
             depth_u24 = depth_tensor_u24.squeeze().cpu().numpy()
 
-            # Split depth bits into separate bytes to be stored in red-green channels of RGB image
+            # Split depth bits into separate bytes to be stored in channels of RGB image
             # -> Have to do this because the browser does not directly support >8 bit images!
             # -> 24bit reconstruction is expected to take place on client end!
             # -> Only use upper-most bits if using lossy encoding (e.g. jpg), to reduce distortion
@@ -408,11 +462,13 @@ class RequestHandler(BaseHTTPRequestHandler):
             if not ok_encode:
                 raise ValueError(f"Error! Unable to encode frame as {ENCODE_TYPE_RGB}!")
             ok_encode, encoded_depth_img = cv2.imencode(ENCODE_TYPE_DEPTH, depth_bgr)
-            self._set_image_headers(frame_idx, encoded_rgb_img.nbytes, encoded_depth_img.nbytes)
+            self._set_image_headers(frame_idx, encoded_rgb_img.nbytes, encoded_depth_img.nbytes, MASKDATA.nbytes)
 
             try:
                 self.wfile.write(encoded_rgb_img)
                 self.wfile.write(encoded_depth_img)
+                if MASKDATA.has_mask:
+                    self.wfile.write(MASKDATA.encoded_image)
             except BrokenPipeError:
                 # Lost connection to client before we finished building our response
                 # - Happens when frames are requested too quickly
@@ -428,12 +484,14 @@ class RequestHandler(BaseHTTPRequestHandler):
                 "depth_wh": INDATA.depth_wh,
                 "encode_type_rgb": ENCODE_TYPE_RGB,
                 "encode_type_depth": ENCODE_TYPE_DEPTH,
+                "encode_type_mask": MASKDATA.encode_type,
                 "total_frames": INDATA.vreader.get_total_frames(),
                 "frame_index": INDATA.vreader.get_frame_index(),
                 "is_static_image": INDATA.is_image,
                 "is_webcam": INDATA.is_webcam,
                 "is_video_file": INDATA.is_video,
                 "is_metric_depth": IS_METRIC_MODEL,
+                "has_mask": MASKDATA.has_mask,
                 "source_name": INDATA.source_name,
             }
 
@@ -490,6 +548,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             INDATA.source_name = self.headers.get("X-filename", "unknown")
             INDATA.update_sizing(dpt_imgproc, dpt_model, device_config_dict, force_square_resolution)
 
+            # Reset masking
+            MASKDATA.clear()
+
             # Return ok response
             self._set_simple_headers("text/plain", 201)
             self.wfile.write("ok".encode("utf-8"))
@@ -503,12 +564,13 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         return
 
-    def _set_image_headers(self, frame_index: int, rgb_image_size_bytes: int, depth_image_size_bytes: int):
+    def _set_image_headers(self, frame_index: int, rgb_size_bytes: int, depth_size_bytes: int, mask_size_bytes: int):
         """Helper used to set up headers for image responses, which involve encoding binary sizing info"""
         self.send_response(200)
         self.send_header("Content-Type", "application/octet-stream")
-        self.send_header("X-rgb-size", str(rgb_image_size_bytes))
-        self.send_header("X-depth-size", str(depth_image_size_bytes))
+        self.send_header("X-rgb-size", str(rgb_size_bytes))
+        self.send_header("X-depth-size", str(depth_size_bytes))
+        self.send_header("X-mask-size", str(mask_size_bytes))
         self.send_header("X-frame-idx", frame_index)
         self.end_headers()
         return
@@ -544,6 +606,7 @@ def get_server_ip() -> str:
 
 
 # ---------------------------------------------------------------------------------------------------------------------
+
 # %% Run server
 
 # Build server & provide feedback to user
