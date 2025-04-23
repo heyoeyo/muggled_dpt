@@ -17,6 +17,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import cv2
 import numpy as np
 import torch
+import torch.nn as nn
 
 from lib.make_dpt import make_dpt_from_state_dict
 
@@ -333,52 +334,110 @@ class InputState:
         return self
 
 
-class MaskData:
+class MaskData(nn.Module):
+    """
+    Helper class used to manage loaded mask data or otherwise
+    fall back to generating masks that target edges in depth
+    predictions.
+    This class is implemented as a pytorch 'model' to take
+    advantage of device/dtype settings when generating edge
+    detection images (i.e. we can use the gpu!).
+    """
 
-    def __init__(self, mask_path, mask_encoding_type):
+    def __init__(self, mask_path, mask_wh=None, blur_kernel_size=5, blur_weight=1):
 
+        # Inherit from parent
+        super().__init__()
+
+        # Load mask image, if given
         self.path = mask_path
-        self.image = None
-        self.encoded_image = None
-        self.nbytes = 0
-        self.encode_type = None
-        self.has_mask = self._load_mask_image(mask_path, mask_encoding_type)
+        ok_mask, mask_image = self._load_mask_image(mask_path, mask_wh)
+        self.has_loaded_mask = ok_mask
+        self.image = mask_image
+
+        # Set up edge detection operations, for use if we don't have a mask
+        self._blur = self._make_blur_filter(blur_kernel_size, blur_weight)
+        self._derivative = self._make_derivative_filter()
+
+        # Sanity check, make sure we're not tracking gradients
+        self.requires_grad_(False)
+        self.eval()
 
     def clear(self):
         self.path = None
+        self.has_loaded_mask = False
         self.image = None
-        self.encoded_image = None
-        self.nbytes = 0
-        self.encode_type = None
-        self.has_mask = False
 
-    def _load_mask_image(self, mask_path, encoding_type):
+    def get_mask_uint8(self, depth_prediction):
+        return self.image if self.has_loaded_mask else self.compute_edges_uint8(depth_prediction)
 
-        has_mask = mask_path is not None
-        if not has_mask:
-            return has_mask
+    def _load_mask_image(self, mask_path, mask_wh) -> tuple[bool, np.ndarray]:
+
+        mask_image = None
+        ok_path = mask_path is not None
+        if not ok_path:
+            return ok_path, mask_image
 
         # Try to read mask image
         mask_image = cv2.imread(mask_path)
         assert mask_image is not None, f"Unable to read mask image: {arg_mask_path}"
 
-        # Make sure mask image is grayscale, 1 channel
+        # Convert to 1 channel (grayscale) mask
         mask_image = cv2.cvtColor(mask_image, cv2.COLOR_BGR2GRAY)
-        ok_encode, encoded_mask = cv2.imencode(encoding_type, mask_image)
-        assert ok_encode, f"Unable to encode mask image as {self._encoding_type}"
+        mask_image = cv2.resize(mask_image, dsize=mask_wh)
 
-        # Store mask results
-        self.image = mask_image
-        self.encoded_image = encoded_mask
-        self.encode_type = encoding_type
-        self.nbytes = encoded_mask.nbytes
+        return ok_path, mask_image
 
-        return has_mask
+    def compute_edges_uint8(self, depth_prediction):
+
+        # Do x/y edge detection
+        blur_pred = self._blur(depth_prediction)
+        dxdy = self._derivative(blur_pred)
+
+        # Combine dx & dy into a 'magnitude image'
+        mag = torch.sqrt(torch.sum(torch.square(dxdy), dim=0))
+        mag_uint8 = torch.bitwise_not(torch.round(255 * mag / mag.max()).byte())
+        mag_uint8 = mag_uint8.squeeze().cpu().numpy()
+
+        return mag_uint8
+
+    @staticmethod
+    def _make_derivative_filter():
+        """Helper used to make a 2D derivative convolution operation (based on Sobel filter)"""
+
+        # Build 2D derivative kernel
+        sobel_kernel_dy = torch.tensor([[[[3, 10, 3], [0, 0, 0], [-3, -10, -3]]]], dtype=torch.float32)
+        sobel_kernel_dx = sobel_kernel_dy.transpose(2, 3)
+        sobel_kernel = torch.cat((sobel_kernel_dx, sobel_kernel_dy), dim=0)
+
+        sobel = nn.Conv2d(1, 2, kernel_size=3, padding=1, padding_mode="reflect", bias=False)
+        sobel.weight = nn.Parameter(sobel_kernel)
+        sobel.requires_grad_(False)
+
+        return sobel
+
+    @staticmethod
+    def _make_blur_filter(blur_kernel_size=5, blur_weight=1):
+        """Helper used to make a gaussian blur convolution operation"""
+
+        # Build 2D gaussian kernel
+        ks_pad = blur_kernel_size // 2
+        ksize = 1 + (2 * ks_pad)
+        idx_1d = torch.linspace(-ks_pad, ks_pad, ksize, dtype=torch.float32)
+        xy_idx = torch.stack(torch.meshgrid(idx_1d, idx_1d, indexing="ij"))
+        gauss_scale = 0.01 / blur_weight
+        gauss_kernel = torch.exp(-torch.sum(torch.square(xy_idx) * gauss_scale, dim=0))
+        gauss_kernel = (gauss_kernel / gauss_kernel.max()).unsqueeze(0).unsqueeze(0)
+
+        blur_conv = nn.Conv2d(1, 1, kernel_size=ksize, padding=ks_pad, padding_mode="reflect", bias=False)
+        blur_conv.weight = nn.Parameter(gauss_kernel)
+        blur_conv.requires_grad_(False)
+
+        return blur_conv
 
 
 # ---------------------------------------------------------------------------------------------------------------------
 # %% Setup
-
 
 # Make sure we can read the input
 INDATA = InputState()
@@ -402,11 +461,11 @@ BASE_FILES_PATH = osp.join(osp.dirname(__file__), "lib", "demo_helpers", "3dview
 VALID_FILES = set(os.listdir(BASE_FILES_PATH))
 IS_METRIC_MODEL = model_config_dict.get("is_metric", False)
 
-# Load mask if given
-MASKDATA = MaskData(arg_mask_path, ENCODE_TYPE_DEPTH)
-
 # Figure out image/depth sizing
 INDATA.update_sizing(dpt_imgproc, dpt_model, device_config_dict, force_square_resolution)
+
+# Load mask if given
+MASKDATA = MaskData(arg_mask_path, INDATA.depth_wh).to(**device_config_dict)
 
 # Some feedback for user
 print(
@@ -451,24 +510,26 @@ class RequestHandler(BaseHTTPRequestHandler):
             # -> Have to do this because the browser does not directly support >8 bit images!
             # -> 24bit reconstruction is expected to take place on client end!
             # -> Only use upper-most bits if using lossy encoding (e.g. jpg), to reduce distortion
-            depth_bgr = np.zeros((*depth_u24.shape[0:2], 3), dtype=np.uint8)
+            depth_bgr = np.zeros((*depth_u24.shape[0:2], 4), dtype=np.uint8)
             depth_bgr[:, :, 2] = np.bitwise_and(np.right_shift(depth_u24, 16).astype(np.uint8), 255)
             if not DEPTH_IS_LOSSY:
                 depth_bgr[:, :, 1] = np.bitwise_and(np.right_shift(depth_u24, 8).astype(np.uint8), 255)
                 depth_bgr[:, :, 0] = np.bitwise_and(np.right_shift(depth_u24, 0).astype(np.uint8), 255)
+
+            # Load mask into alpha channel of depth prediction
+            depth_bgr[:, :, 3] = MASKDATA.get_mask_uint8(depth_prediction)
 
             # Convert images to (encoded) binary format for transfer
             ok_encode, encoded_rgb_img = cv2.imencode(ENCODE_TYPE_RGB, frame)
             if not ok_encode:
                 raise ValueError(f"Error! Unable to encode frame as {ENCODE_TYPE_RGB}!")
             ok_encode, encoded_depth_img = cv2.imencode(ENCODE_TYPE_DEPTH, depth_bgr)
-            self._set_image_headers(frame_idx, encoded_rgb_img.nbytes, encoded_depth_img.nbytes, MASKDATA.nbytes)
+            self._set_image_headers(frame_idx, encoded_rgb_img.nbytes, encoded_depth_img.nbytes)
 
             try:
                 self.wfile.write(encoded_rgb_img)
                 self.wfile.write(encoded_depth_img)
-                if MASKDATA.has_mask:
-                    self.wfile.write(MASKDATA.encoded_image)
+
             except BrokenPipeError:
                 # Lost connection to client before we finished building our response
                 # - Happens when frames are requested too quickly
@@ -484,14 +545,12 @@ class RequestHandler(BaseHTTPRequestHandler):
                 "depth_wh": INDATA.depth_wh,
                 "encode_type_rgb": ENCODE_TYPE_RGB,
                 "encode_type_depth": ENCODE_TYPE_DEPTH,
-                "encode_type_mask": MASKDATA.encode_type,
                 "total_frames": INDATA.vreader.get_total_frames(),
                 "frame_index": INDATA.vreader.get_frame_index(),
                 "is_static_image": INDATA.is_image,
                 "is_webcam": INDATA.is_webcam,
                 "is_video_file": INDATA.is_video,
                 "is_metric_depth": IS_METRIC_MODEL,
-                "has_mask": MASKDATA.has_mask,
                 "source_name": INDATA.source_name,
             }
 
@@ -548,7 +607,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             INDATA.source_name = self.headers.get("X-filename", "unknown")
             INDATA.update_sizing(dpt_imgproc, dpt_model, device_config_dict, force_square_resolution)
 
-            # Reset masking
+            # Reset masking so we don't re-use a loaded mask on a new image
             MASKDATA.clear()
 
             # Return ok response
@@ -564,13 +623,12 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         return
 
-    def _set_image_headers(self, frame_index: int, rgb_size_bytes: int, depth_size_bytes: int, mask_size_bytes: int):
+    def _set_image_headers(self, frame_index: int, rgb_size_bytes: int, depth_size_bytes: int):
         """Helper used to set up headers for image responses, which involve encoding binary sizing info"""
         self.send_response(200)
         self.send_header("Content-Type", "application/octet-stream")
         self.send_header("X-rgb-size", str(rgb_size_bytes))
         self.send_header("X-depth-size", str(depth_size_bytes))
-        self.send_header("X-mask-size", str(mask_size_bytes))
         self.send_header("X-frame-idx", frame_index)
         self.end_headers()
         return

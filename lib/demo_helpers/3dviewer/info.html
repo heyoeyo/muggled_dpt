@@ -82,6 +82,10 @@
     <p>By default, the 3D mesh is generated using a simple grid of points. The jitter value randomizes the positioning of points within the grid, which can reduce the appearance of repetitive patterns.</p>
     <p>It's easiest to see the effect of jitter when using low mesh density values. A jitter value of 0 fully disables the effect.</p>
     
+    <h2>Mask Threshold:</h2>
+    <p>This threshold can be used to exclude regions of the 3D mesh based on a provided mask. By default, an 'edge detection' mask is produced, so this control can be used to remove the often messy data around the edges of objects.</p>
+    <p>Alternatively, a mask image can be provided when running the 3D viewer server (using the -k flag), in which case this threshold will be applied to the provided mask.</p>
+
     <h2>Display Resolution:</h2>
     <p>This control can be used to downscale the displayed image. This can improve rendering speeds as well as help blend together point rendering.</p>
     
@@ -119,6 +123,7 @@
     <p><b>T key:</b> Toggle points vs. triangle rendering</p>
     <p><b>V key:</b> Toggle use of depth image for surface texturing</p>
     <p><b>C key:</b> Toggle top-down image perspective</p>
+    <p><b>M key:</b> Toggle masking</p>
     <p><b>L key:</b> Toggle line rendering</p>
     <p><b>` or ~ key:</b> Enable recording (this can be very demanding!). The background will change color to indicate active recording</p>
     <p><b>+/- keys:</b> Adjust the display resolution</p>

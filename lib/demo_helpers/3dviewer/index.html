@@ -417,7 +417,6 @@
   // Holds info about the source of image & depth data
   const SOURCEINFO = {
     name: "unknown",
-    has_mask: false,
     is_static_image: true,
     is_video_file: false,
     is_webcam: false,
@@ -430,10 +429,8 @@
   const ENCODEINFO = {
     rgb: "image/jpg",
     depth: "image/png",
-    mask: "image/png",
     size_header_rgb: "X-rgb-size",
     size_header_depth: "X-depth-size",
-    size_header_mask: "X-mask-size",
     header_frame_index: "X-frame-idx",
   }
 
@@ -466,8 +463,9 @@
     max_faces: 5_000_000,
     debug_line_render: false,
     wasd_sensitivity: 2.5,
-    save_model_as_glb: true,
-    save_model_depth: true,
+    save_model_as_obj: false,
+    save_model_depth: false,
+    save_model_mask: false,
     save_model_image_as_jpeg: false,
   }
 
@@ -478,6 +476,9 @@
     enable: false,
     rate: 5,
   }
+
+  // Helper for 'toggling' masking
+  let LAST_MASK_THRESHOLD = 0;
 
   // For convenience
   const DEG2RAD = Math.PI / 180.0;
@@ -492,7 +493,7 @@
 
   // -----------------------------------------------------------------------------------------------------------------
   // Define UI
-  
+
   const fov_ctrl = new SliderUI(DOM.sidebar, "FOV", 50.0, 0, 180);
   const nplane_ctrl = make_01_slider(DOM.sidebar, "Near Plane", 0.0, 0.01);
   const zoff_ctrl = make_01_slider(DOM.sidebar, "Z-Offset", 0.05, 0.005);
@@ -506,7 +507,7 @@
   
   const density_ctrl = make_01_slider(DOM.sidebar, "Mesh Density", 0.5, 0.01);
   const jitter_ctrl = make_01_slider(DOM.sidebar, "Mesh Jitter", 1, 0.1);
-  const maskthresh_ctrl = make_01_slider(DOM.sidebar, "Mask Threshold", 0, 0.001).apply_css(GCSS.hidden);
+  const maskthresh_ctrl = make_01_slider(DOM.sidebar, "Mask Threshold", 0, 0.001);
   [density_ctrl, jitter_ctrl, maskthresh_ctrl].forEach(elem => elem.set_color(...UICOLORS[2]));
   append_spacer(DOM.sidebar);
   
@@ -526,7 +527,7 @@
   saveobj_btn.add_listener(() => {
 
     // Block interaction with screen while generating save data
-    const file_type = CTRLS.save_model_as_glb ? ".glb" : ".obj";
+    const file_type = CTRLS.save_model_as_obj ? ".obj" : ".glb";
     DOM.blocker_content.innerText = `...Creating ${file_type} file...`;
     DOM.blocker.showModal();
     setTimeout(async () => {
@@ -536,23 +537,39 @@
       const model_save_name = curr_frame_idx > 0 ? `${base_save_name}_f${curr_frame_idx}` : base_save_name;
       const image_save_name = `${model_save_name}_image`;
       const depth_save_name = `${model_save_name}_depth_24bit`;
+      const mask_save_name = `${model_save_name}_mask`;
       const is_metric_depth = SOURCEINFO.is_metric_depth;
-      const image_mime_type = CTRLS.save_model_image_as_jpeg ? "image/jpeg" : "image/png";
-      const save_ext = CTRLS.save_model_image_as_jpeg ? "jpeg" : "png";
+      const image_save_ext = CTRLS.save_model_image_as_jpeg ? "jpeg" : "png";
+      const depth_save_ext = "png";
 
-      if (CTRLS.save_model_as_glb) {
-        const [glb_bin, image_data, depth_data] = await create_glb_data(
-          GLDATA, TEXTUREDATA, MESHDATA, is_metric_depth, image_mime_type,
-        );
-        save_glb_data(model_save_name, glb_bin);
-        if (CTRLS.save_model_depth) save_image_data(depth_save_name, depth_data);
-      } else {
-        const [obj_save_str, image_data, depth_data] = create_obj_data(
-          GLDATA, TEXTUREDATA, MESHDATA, is_metric_depth,
-        );
+      // Get data for saving
+      const uniform_data = GLDATA.read_current_uniform_data();
+      const [image_data, depth_data] = TEXTUREDATA.read_current_texture_data();
+      const [full_xy_list, full_face_list] = MESHDATA.read_current_mesh_data();
+      const [is_valid_list, full_xyz_list, full_uv_list] = run_vertex_shader_cpu(
+        full_xy_list, uniform_data, depth_data, is_metric_depth
+      );
+
+      // Filter out invalid (e.g. by masking) vertices and correspond faces
+      const [v_xyz, v_uv, face_idx_list] = filter_mesh_vertices(
+        is_valid_list, full_xyz_list, full_uv_list, full_face_list,
+      );
+
+      // Save mesh data in .glb format (default) or use .obj if enabled
+      if (CTRLS.save_model_as_obj) {
+        const obj_save_str = create_obj_string(v_xyz, v_uv, face_idx_list);
         save_obj_data(model_save_name, obj_save_str);
-        save_image_data(image_save_name, image_data, save_ext);
-        if (CTRLS.save_model_depth) save_image_data(depth_save_name, depth_data);
+        save_image_data(image_save_name, image_data, image_save_ext);
+      } else {
+        const binary_data = await create_glb_binary(v_xyz, v_uv, face_idx_list, image_data, image_save_ext);
+        save_glb_data(model_save_name, binary_data);
+      }
+
+      // Save depth/mask image data in 24bit format, if needed
+      if (CTRLS.save_model_depth || CTRLS.save_model_mask) {
+        const [d24_data, mask_data] = split_rgb_and_alpha(depth_data);
+        if (CTRLS.save_model_depth) save_image_data(depth_save_name, d24_data, depth_save_ext);
+        if (CTRLS.save_model_mask) save_image_data(mask_save_name, mask_data, depth_save_ext);
       }
 
       DOM.blocker.close();
@@ -563,6 +580,7 @@
   [
     fov_ctrl, nplane_ctrl, zoff_ctrl,
     dmin_ctrl, dmax_ctrl,
+    maskthresh_ctrl,
     pointsize_ctrl, ortho_toggle, topdown_toggle,
   ].forEach(elem => elem.add_listener(rerender));
 
@@ -575,7 +593,7 @@
   });
 
   // Add re-mesh listeners
-  [tri_toggle, density_ctrl, jitter_ctrl, maskthresh_ctrl].forEach(elem => {
+  [tri_toggle, density_ctrl, jitter_ctrl].forEach(elem => {
     elem.add_listener(() => {
       update_mesh();
       rerender();
@@ -717,6 +735,17 @@
       rerender();
     }
 
+    // Toggle masking settings
+    if (evt.code === "KeyM") {
+      const new_mask_thresh = maskthresh_ctrl.value;
+      if (new_mask_thresh > 0) {
+        LAST_MASK_THRESHOLD = new_mask_thresh;
+        maskthresh_ctrl.set_value(0);
+      } else {
+        maskthresh_ctrl.set_value(LAST_MASK_THRESHOLD);
+      }
+    }
+
     // Hide controls
     if (evt.code === "KeyH") {
       // Toggle control hiding, but always hide 'show controls' button when using keys
@@ -803,7 +832,6 @@
     SOURCEINFO.name = resp_json["source_name"];
     SOURCEINFO.total_frame_count = resp_json["total_frames"];
     SOURCEINFO.max_frame_idx = SOURCEINFO.total_frame_count - 1;
-    SOURCEINFO.has_mask = resp_json["has_mask"];
     SOURCEINFO.is_metric_depth = resp_json["is_metric_depth"];
     SOURCEINFO.is_static_image = resp_json["is_static_image"];
     SOURCEINFO.is_video_file = resp_json["is_video_file"];
@@ -813,7 +841,6 @@
     // Get data encoding settings (for parsing images sent by the server)
     ENCODEINFO.rgb = resp_json["encode_type_rgb"];
     ENCODEINFO.depth = resp_json["encode_type_depth"];
-    ENCODEINFO.mask = resp_json["encode_type_mask"];
     
     // Record texture sizing
     const [img_w, img_h] = image_wh;
@@ -829,11 +856,6 @@
     DOM.playback_ctrl.min = 0;
     DOM.playback_ctrl.max = SOURCEINFO.max_frame_idx;
     DOM.playback_ctrl.value = initial_frame_index;
-
-    // Show/hide mask threshold
-    maskthresh_ctrl.set_value(0);
-    maskthresh_ctrl.apply_css(GCSS.hidden, add_style=!SOURCEINFO.has_mask);
-    if (!SOURCEINFO.has_mask) MESHDATA.store_mask_image(null);
 
     // Change default control values for metric depth predictions
     if (SOURCEINFO.is_metric_depth) {
@@ -926,9 +948,8 @@
     const mesh_wh = [IMAGEINFO.width, IMAGEINFO.height];
     const num_faces_pct = density_ctrl.value;
     const vertex_jitter = jitter_ctrl.value;
-    const mask_threshold = maskthresh_ctrl.value;
     const target_num_faces = Math.pow(Math.min(1.0, num_faces_pct), 4) * CTRLS.max_faces;
-    MESHDATA.update(mesh_wh, target_num_faces, vertex_jitter, mask_threshold, draw_mode);
+    MESHDATA.update(mesh_wh, target_num_faces, vertex_jitter, draw_mode);
   }
 
   // ..................................................................................................................
@@ -943,14 +964,8 @@
 
     // Get image data and write to the GPU
     let curr_idx = parseInt(DOM.playback_ctrl.value);
-    const [rgb_bmp, depth_bmp, mask_bmp] = await fetch_images(curr_idx);
+    const [rgb_bmp, depth_bmp] = await fetch_images(curr_idx);
     TEXTUREDATA.update(rgb_bmp, depth_bmp);
-    
-    // Apply masking
-    if (mask_bmp != null) {
-      const mask_image_data = create_mask_image_data(mask_bmp);
-      MESHDATA.store_mask_image(mask_image_data);
-    }
 
     // Render new image data!
     render_3d();
@@ -963,24 +978,6 @@
     }
     
     return;
-  }
-
-  // ..................................................................................................................
-
-  function create_mask_image_data(mask_bitmap) {
-
-    // Create temporary canvas so we can 'draw' image to access pixel data
-    const temp_canvas = document.createElement("canvas");
-    temp_canvas.width = mask_bitmap.width;
-    temp_canvas.height = mask_bitmap.height;
-
-    const temp_ctx = temp_canvas.getContext("2d");
-    temp_ctx.drawImage(mask_bitmap, 0, 0);
-    const image_data = temp_ctx.getImageData(0, 0, mask_bitmap.width, mask_bitmap.height);
-
-    // Clean up
-    temp_canvas.remove();
-    return image_data;
   }
 
   // ..................................................................................................................
@@ -1007,7 +1004,6 @@
     // Figure out data sizing info, so we can properly split binary array
     const rgb_img_size = parseInt(resp.headers.get(ENCODEINFO.size_header_rgb));
     const depth_img_size = parseInt(resp.headers.get(ENCODEINFO.size_header_depth));
-    const mask_img_size = parseInt(resp.headers.get(ENCODEINFO.size_header_mask));
     const video_idx =  parseInt(resp.headers.get(ENCODEINFO.header_frame_index));
     if (video_idx != frame_index) {
       console.log("DEBUG - VIDX DOES NOT MATCH FIDX", frame_index, video_idx);
@@ -1015,20 +1011,15 @@
     }
     
     // Separate response (binary) data into two images
-    const pt0 = rgb_img_size;
-    const pt1 = pt0 + depth_img_size;
-    const pt2 = pt1 + mask_img_size;
     const buffer_data = await resp.arrayBuffer();
     const raw_binary_array = new Uint8Array(buffer_data);
-    const rgb_img_data = raw_binary_array.slice(0, pt0);
-    const depth_img_data = raw_binary_array.slice(pt0, pt1);
-    const mask_img_data = raw_binary_array.slice(pt1, pt2);
+    const rgb_img_data = raw_binary_array.slice(0, rgb_img_size);
+    const depth_img_data = raw_binary_array.slice(rgb_img_size, rgb_img_size + depth_img_size);
 
     return await Promise.all(
       [
         get_image_bitmap(rgb_img_data, ENCODEINFO.rgb),
         get_image_bitmap(depth_img_data, ENCODEINFO.depth),
-        mask_img_size > 0 ? get_image_bitmap(mask_img_data, ENCODEINFO.mask) : null,
       ]
     );
   }
@@ -1039,8 +1030,53 @@
     /* Helper used to make bitmap datatype needed for sending image data to GPU as a texture */
     return createImageBitmap(
       new Blob([binary_data],
-      { type: mime_type }), {imageOrientation: "flipY"}
+      { type: mime_type }), {imageOrientation: "flipY", premultiplyAlpha: "none"},
     );
+  }
+
+  // ....................................................................................................................
+
+  function split_rgb_and_alpha(image_data) {
+
+    /*
+    Helper used to split an RGBA ImageData instance into separate RGB and
+    alpha ImageData	instances. The main reason to do this is to avoid
+    issues caused by writing ImageData to a canvas, when there is alpha data,
+    which causes a 'lossy' transformation of the RGB values due to use of
+    pre-multiplied alpha.
+    Returns: [rgb_image_data, alpha_image_data]
+    */
+
+    // Split rgb & alpha
+    const pixel_array = image_data.data;
+    const num_bytes = pixel_array.length;
+    const rgb_pixels = new Uint8ClampedArray(num_bytes);
+    const alpha_pixels = new Uint8ClampedArray(num_bytes);
+    for(let i=0; i<num_bytes; i+=4) {
+
+      // Read input image pixel values
+      const red = pixel_array[i+0];
+      const green = pixel_array[i+1];
+      const blue = pixel_array[i+2];
+      const alpha = pixel_array[i+3];
+
+      // Write rgb-only values
+      rgb_pixels[i+0] = red;
+      rgb_pixels[i+1] = green;
+      rgb_pixels[i+2] = blue;
+      rgb_pixels[i+3] = 255;
+
+      // Write alpha-only values (as grayscale image)
+      alpha_pixels[i+0] = alpha;
+      alpha_pixels[i+1] = alpha;
+      alpha_pixels[i+2] = alpha;
+      alpha_pixels[i+3] = 255;
+    }
+
+    const rgb_image_data = new ImageData(rgb_pixels, image_data.width, image_data.height);
+    const alpha_image_data = new ImageData(alpha_pixels, image_data.width, image_data.height);
+
+    return [rgb_image_data, alpha_image_data];
   }
 
   // .................................................................................................................
@@ -1062,6 +1098,7 @@
     const near_plane_dist = nplane_ctrl.value * min_depth;
     const use_ortho_camera = ortho_toggle.value;
     const use_depth_texture = depth_toggle.value;
+    const mask_threshold = maskthresh_ctrl.value;
 
     // Figure out depth scaling factors to get 'true' depth. Assumes inverse relative depth:
     const view_depth_offset = min_depth + zoff_ctrl.value * (max_depth - min_depth);
@@ -1093,6 +1130,7 @@
     gl.uniform4f(GLDATA.uniloc.scaling_factors, x_scale_factor, y_scale_factor, near_plane_dist, point_size);
     gl.uniform4f(GLDATA.uniloc.camera_params, depth_a_value, depth_b_value, half_fov_rad_value, view_depth_offset);
     gl.uniformMatrix4fv(GLDATA.uniloc.matrix, is_transpose_matrix, view_proj_matrix);
+    gl.uniform1f(GLDATA.uniloc.mask_threshold, mask_threshold);
 
     // Render out data!
     MESHDATA.draw_elements(DISPLAYINFO.draw_mode);
