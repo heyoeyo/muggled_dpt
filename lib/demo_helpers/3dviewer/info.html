@@ -111,7 +111,22 @@
     <p>For example, you can change the maximum depth value using: CTRLS.depth_limit = 500</p>
     <p>This will alter the effect of the existing <b>Max Depth</b> control value, though the change won't be visible until the viewport is updated (e.g. by moving the camera)</p>
   </section>
-    
+
+  <section>
+    <h1>Drag-and-Drop</h1>
+
+    <p>Dragging and dropping images into the page will re-run the depth prediction model on the new image, without requiring a restart of the server. This only works for images not video files.</p>
+    <p>It's also possible to upload masks for an existing image, as long as the uploaded image has the word 'mask' in the file name. This can be useful for quickly checking the effect of custom-made masks. Masks should be grayscale (though they don't need to be binary), where darker regions denote areas which should be removed.</p>
+    <p>On the first upload of a file with 'mask' in the name, a confirmation will ask if the image should be interpretted as a mask (or otherwise as a new color image). Whatever answer is given will be re-used for all future uploads.</p>
+  </section>
+
+  <section>
+    <h1>Saving 3D Models</h1>
+
+    <p>The 'Save 3D Model' button can be used to save a .glb file, which contains both mesh and texture data. These files can be imported into 3D modeling software (like Blender) or viewed online using GLTF viewers. It's possible to modify the saving (for example, saving as a .obj file instead) by modifying the CTRLS variable in the browser console.</p>
+    <p>Note that the current settings of controls will directly affect the resulting model file. So if you'd like to save a proper surface mesh (as opposed to a point cloud), then be sure to enable triangle rendering before saving!</p>
+  </section>
+
   <section>
     <h1>Keyboard shortcuts</h1>
     

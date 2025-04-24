@@ -477,8 +477,10 @@
     rate: 5,
   }
 
-  // Helper for 'toggling' masking
+  // Helpers for state-based behaviors
   let LAST_MASK_THRESHOLD = 0;
+  let ASK_FOR_MASK_UPLOAD_CONFIRMATION = true;
+  let DEFAULT_IS_UPLOADED_MASK = true;
 
   // For convenience
   const DEG2RAD = Math.PI / 180.0;
@@ -679,12 +681,34 @@
     const file = uploaded_files[0];
     const is_image_file = file.type.startsWith("image");
     if (is_image_file) {
-      const post_headers = {"Content-Type": file.type, "X-filename": file.name};
-      const buffer_data = await file.arrayBuffer();
-      const resp = await fetch("/upload", {method: "POST", body: buffer_data, headers: post_headers})
-      if (resp.ok && resp.status === 201) {
-        initialize_page();
+
+      // Handle special case, where we ask user (one time) if uploaded 'mask' file is actually a mask
+      // -> We default to treating all future 'mask' files the same way (i.e. always a mask or never a mask)
+      const has_mask_in_name = file.name.toLowerCase().includes("mask");
+      let is_mask_image = has_mask_in_name ? DEFAULT_IS_UPLOADED_MASK : false;
+      if (is_mask_image && ASK_FOR_MASK_UPLOAD_CONFIRMATION) {
+        is_mask_image = window.confirm("Found 'mask' in file name. Would you like to treat this as a mask?");
+        DEFAULT_IS_UPLOADED_MASK = is_mask_image;
+        ASK_FOR_MASK_UPLOAD_CONFIRMATION = false;
       }
+
+      if (is_mask_image) {
+        // Use image as a mask for depth data
+        const [_, depth_wh] = TEXTUREDATA.get_wh();
+        const mask_image_data = await parse_uploaded_image_data(file, depth_wh);
+        TEXTUREDATA.update_mask(mask_image_data);
+        rerender();
+
+      } else {
+        // Send image to server for depth prediction
+        const post_headers = {"Content-Type": file.type, "X-filename": file.name};
+        const buffer_data = await file.arrayBuffer();
+        const resp = await fetch("/upload", {method: "POST", body: buffer_data, headers: post_headers})
+        if (resp.ok && resp.status === 201) {
+          initialize_page();
+        }
+      }
+
 
     } else {
       alert(`Only image files can be uploaded! Got: ${file.type}`);
@@ -1034,7 +1058,45 @@
     );
   }
 
-  // ....................................................................................................................
+  // ...................................................................................................................
+
+  async function parse_uploaded_image_data(file_upload, target_wh=null) {
+
+    /*
+    Function which takes an uploaded image file (e.g. from  event.dataTransfer.files)
+    and returns an ImageData instance, so that pixel data can be accessed. If a
+    [width, height] value is given, then the image data will be resized accordingly.
+    Returns: image_data (instance of ImageData)
+    Note: This can give distorted results if the file has alpha channel data!
+    */
+
+    // Sanity check
+    const is_image_file = file_upload.type.startsWith("image");
+    console.assert(is_image_file, "Error! Cannot parse non-image data");
+
+    // Some indirection, js is weird! Need this for drawing to be able to get to pixel data
+    const image_bytes = await file_upload.arrayBuffer();
+    const image_bitmap = await get_image_bitmap(image_bytes, file_upload.type);
+    const image_wh = [image_bitmap.width, image_bitmap.height];
+
+    // Create canvas for drawing image
+    const [targ_width, targ_height] = target_wh === null ? image_wh : target_wh;
+    const temp_canvas = document.createElement("canvas");
+    temp_canvas.width = targ_width;
+    temp_canvas.height = targ_height;
+
+    // Draw to canvas so we can read out pixel data
+    const temp_ctx = temp_canvas.getContext("2d");
+    temp_ctx.drawImage(image_bitmap, 0, 0, targ_width, targ_height);
+    const image_data = temp_ctx.getImageData(0, 0, targ_width, targ_height);
+
+    // Clean up
+    temp_canvas.remove();
+
+    return image_data;
+  }
+
+  // ...................................................................................................................
 
   function split_rgb_and_alpha(image_data) {
 
