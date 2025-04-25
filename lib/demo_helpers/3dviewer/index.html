@@ -497,9 +497,10 @@
   // Define UI
 
   const fov_ctrl = new SliderUI(DOM.sidebar, "FOV", 50.0, 0, 180);
+  const tilt_ctrl = new SliderUI(DOM.sidebar, "Tilt", 0.0, -90.0, 90.0, step=0.1);
   const nplane_ctrl = make_01_slider(DOM.sidebar, "Near Plane", 0.0, 0.01);
   const zoff_ctrl = make_01_slider(DOM.sidebar, "Z-Offset", 0.05, 0.005);
-  [fov_ctrl, nplane_ctrl, zoff_ctrl].forEach(elem => elem.set_color(...UICOLORS[0]));
+  [fov_ctrl, tilt_ctrl, nplane_ctrl, zoff_ctrl].forEach(elem => elem.set_color(...UICOLORS[0]));
   append_spacer(DOM.sidebar);
   
   const dmax_ctrl = make_01_slider(DOM.sidebar, "Max Depth", 0.30, 0.001, min=0.001);
@@ -518,8 +519,7 @@
   const ortho_toggle = new ToggleUI(DOM.sidebar, "Use Ortho Camera", false);
   const tri_toggle = new ToggleUI(DOM.sidebar, "Use Triangles", false);
   const depth_toggle = new ToggleUI(DOM.sidebar, "Use Depth Image", false);
-  const topdown_toggle = new ToggleUI(DOM.sidebar, "Top-down Image", false);
-  [dispres_ctrl, pointsize_ctrl, ortho_toggle, tri_toggle, depth_toggle, topdown_toggle].forEach(
+  [dispres_ctrl, pointsize_ctrl, ortho_toggle, tri_toggle, depth_toggle].forEach(
     elem => elem.set_color(...UICOLORS[3])
   );
   append_spacer(DOM.sidebar);
@@ -580,19 +580,11 @@
 
   // Add basic render update listeners
   [
-    fov_ctrl, nplane_ctrl, zoff_ctrl,
+    fov_ctrl, tilt_ctrl, nplane_ctrl, zoff_ctrl,
     dmin_ctrl, dmax_ctrl,
     maskthresh_ctrl,
-    pointsize_ctrl, ortho_toggle, topdown_toggle,
+    pointsize_ctrl, ortho_toggle,
   ].forEach(elem => elem.add_listener(rerender));
-
-  // Special camera modifier callback
-  topdown_toggle.add_listener(() => {
-    const new_up_axis = topdown_toggle.value ? [0, 0, 1] : [0, 1, 0];
-    ORBITCAM.set_world_axes(world_up=new_up_axis);
-    ORBITCAM.reset();
-    rerender();
-  });
 
   // Add re-mesh listeners
   [tri_toggle, density_ctrl, jitter_ctrl].forEach(elem => {
@@ -740,11 +732,6 @@
     // Toggle triangle vs. point rendering
     if (evt.code === "KeyT") {
       tri_toggle.toggle();
-    }
-
-    // Toggle camera (top-down vs. side-on)
-    if (evt.code === "KeyC") {
-      topdown_toggle.toggle();
     }
 
     // Switch ortho camera
@@ -1154,6 +1141,7 @@
     const point_size = pointsize_ctrl.value * (CTRLS.scale_points_with_zoom ? 1.0 / ORBITCAM.distance : 0.5);
 
     // Read controls
+    const tilt_rad = tilt_ctrl.value * DEG2RAD;
     const max_depth = dmax_ctrl.value * CTRLS.depth_limit;
     const min_depth = dmin_ctrl.value * max_depth;
     const half_fov_rad_value = fov_ctrl.value * 0.5 * DEG2RAD;
@@ -1176,10 +1164,11 @@
     }
 
     // Figure out view & projection matrix
+    const tilt_matrix = MAT4.rotate_x(-tilt_rad);
     const view_fov_rad = CTRLS.view_fov * DEG2RAD;
     const view_matrix = ORBITCAM.get_world_to_view_mat4()
     const proj_matrix = ORBITCAM.get_view_to_clipspace_mat4(view_fov_rad, DISPLAYINFO.ar, use_ortho_camera);
-    const view_proj_matrix = MAT4.multiply(view_matrix, proj_matrix);
+    const view_proj_matrix = MAT4.multiply(tilt_matrix, MAT4.multiply(view_matrix, proj_matrix));
 
     // Clear the canvas
     const gl = CTX.gl;

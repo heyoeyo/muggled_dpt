@@ -56,9 +56,12 @@
     <h2>FOV:</h2>
     <p>The field of view (fov) setting is meant to be set to match the fov of the camera used to capture the image data that is being visualized. Larger values have the effect of 'spreading out' distant parts of the scene.</p>
     <p>Telephoto lenses tend to have low fov values, while action cameras (e.g. GoPro) have large fov values.</p>
+
+    <h2>Tilt:</h2>
+    <p>Changing this setting will rotate the view of the object around the x-axis. This can be particularly helpful for images that are taken from a top-down perspective, as adjustments to the viewing angle can lead to more intuitive camera orbitting behavior.</p>
     
     <h2>Near Plane:</h2>
-    <p>This value acts as a kind of 'fudge factor' in the mesh generation formula. It is roughly equivalent to something like a focal length but is scaled by the minimum depth mapping.</p>
+    <p>This value acts as a kind of 'fudge factor' in the mesh generation formula. It is roughly equivalent to something like a focal length but is scaled by the minimum depth mapping. If the Min Depth setting is zero, this control will have no effect.</p>
     <p>Changing this value often has a bending effect on the resulting mesh, so can be useful for counter-acting bending (though adjusting the minimum depth is usually a better idea).</p>
     
     <h2>Z-Offset:</h2>
@@ -98,9 +101,6 @@
     
     <h2>Use Depth Image:</h2>
     <p>If enabled, the depth map will be used to texture the 3D surface (as a black-and-white image) instead of the original RGB source image.</p>
-
-    <h2>Top-down Image:</h2>
-    <p>Intended to be used when working with images that are taken from a top-down perspective. When enabled, the camera controls will be altered.</p>
     
   </section>
 
@@ -137,7 +137,6 @@
     <p><b>O key:</b> Toggle orthographic projection</p>
     <p><b>T key:</b> Toggle points vs. triangle rendering</p>
     <p><b>V key:</b> Toggle use of depth image for surface texturing</p>
-    <p><b>C key:</b> Toggle top-down image perspective</p>
     <p><b>M key:</b> Toggle masking</p>
     <p><b>L key:</b> Toggle line rendering</p>
     <p><b>` or ~ key:</b> Enable recording (this can be very demanding!). The background will change color to indicate active recording</p>
