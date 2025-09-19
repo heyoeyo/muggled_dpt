@@ -41,7 +41,7 @@ class DinoV2Model4Stages(nn.Module):
     # .................................................................................................................
     
     def __init__(self, features_per_token=768, num_heads=12, num_blocks=12,
-                 base_patch_grid_hw=(37,37), enable_cache=False, enable_optimizations=True):
+                 base_patch_grid_hw=(37,37), is_giant=False, enable_cache=False, enable_optimizations=True):
         
         # Inherit from parent
         super().__init__()
@@ -58,7 +58,9 @@ class DinoV2Model4Stages(nn.Module):
         layers_per_stage = int(round(num_blocks / num_stages))
         stages_list= []
         for _ in range(num_stages):
-            one_stage = TransformerStage(layers_per_stage, features_per_token, num_heads, enable_optimizations)
+            one_stage = TransformerStage(
+                layers_per_stage, features_per_token, num_heads, is_giant, enable_optimizations
+            )
             stages_list.append(one_stage)
         self.stages = nn.ModuleList(stages_list)
 
@@ -101,14 +103,14 @@ class TransformerStage(nn.Module):
     
     # .................................................................................................................
     
-    def __init__(self, num_blocks, features_per_token, num_heads, enable_optimizations):
+    def __init__(self, num_blocks, features_per_token, num_heads, is_giant, enable_optimizations):
         
         # Inherit from parent
         super().__init__()
         
         # Create list of transformer blocks (note all blocks share the exact same config!)
         self.blocks = nn.ModuleList(
-            TransformerBlock(features_per_token, num_heads, enable_optimizations) for _ in range(num_blocks)
+            TransformerBlock(features_per_token, num_heads, is_giant, enable_optimizations) for _ in range(num_blocks)
         )
     
     # .................................................................................................................

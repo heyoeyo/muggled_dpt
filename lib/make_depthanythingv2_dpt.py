@@ -94,6 +94,7 @@ def make_depthanythingv2_dpt(
         base_patch_grid_hw,
         fusion_channels=256,
         patch_size_px=14,
+        is_giant=False,
         is_metric=False,
         enable_cache=False,
         enable_optimizations=True,
@@ -138,7 +139,7 @@ def make_depthanythingv2_dpt(
     # Construct model components
     patch_embed_model = PatchEmbed(features_per_token, patch_size_px)
     imgenc_model = DinoV2Model4Stages(
-        features_per_token, num_heads, num_blocks, base_patch_grid_hw, enable_cache, enable_optimizations
+        features_per_token, num_heads, num_blocks, base_patch_grid_hw, is_giant, enable_cache, enable_optimizations
     )
     reassembly_model = ReassembleModel(features_per_token, reassembly_features_list, fusion_channels)
     fusion_model = FusionModel(fusion_channels)

@@ -147,14 +147,19 @@ def _convert_imgenc_keys(key, blocks_per_stage):
         new_prefix = "stages.{}.blocks.{}".format(stage_idx, new_block_idx)
         new_key = replace_prefix(key, block_prefix, new_prefix)
         
-        # Remove pretrained prefix
-        # new_key = key.replace("pretrained.", f"stages.{stage_idx}")
-        
         # Update mlp layer naming ('mlp.fc1.weight' -> 'mlp.layers.0.weight')
         mlp_str = "mlp.fc"
         if mlp_str in new_key:
             new_key = new_key.replace("fc1", "layers.0")
             new_key = new_key.replace("fc2", "layers.2")
+        
+        # Update SwiGLU naming (ViT-Giant only!)
+        swiglu_w12_str = "mlp.w12"
+        if swiglu_w12_str:
+            new_key = new_key.replace("w12", "inner_linear_doubled")
+        swiglu_w3_str = "mlp.w3"
+        if swiglu_w3_str:
+            new_key = new_key.replace("w3", "outer_linear")
         
         # Update layer scale naming ('ls1.gamma' -> 'scale_attn')
         gamma_str = "gamma"

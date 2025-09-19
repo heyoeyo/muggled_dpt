@@ -33,6 +33,7 @@ def get_model_config_from_state_dict(state_dict, enable_cache, enable_optimizati
         "fusion_channels": get_num_fusion_channels(state_dict),
         "patch_size_px": get_patch_size_px(state_dict),
         "base_patch_grid_hw": get_base_patch_grid_size(state_dict),
+        "is_giant": check_is_giant_model(state_dict),
         "is_metric": is_metric,
         "enable_cache": enable_cache,
         "enable_optimizations": enable_optimizations,
@@ -232,3 +233,17 @@ def get_base_patch_grid_size(state_dict):
     return (base_grid_size, base_grid_size)
 
 # .....................................................................................................................
+
+def check_is_giant_model(state_dict):
+    
+    '''
+    The vit-giant model has an alternate implementation of the MLP
+    layers within the image encoder, compared to other model sizes.
+    This can be detected by searching for weights like:
+        ...mlp.w12... and ...mlp.w3...
+    Which only appear on the vit-g sized model
+    '''
+    
+    target_key = "pretrained.blocks.0.mlp.w12.weight"
+    is_giant_model = target_key in state_dict.keys()
+    return is_giant_model

@@ -8,7 +8,7 @@
 import torch
 import torch.nn as nn
 
-from .misc_helpers import MLP2Layers, LayerNormEPS6
+from .misc_helpers import MLP2Layers, SwiGLU, LayerNormEPS6
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -18,7 +18,7 @@ class TransformerBlock(nn.Module):
     
     # .................................................................................................................
     
-    def __init__(self, features_per_token, num_heads, enable_optimizations=True, mlp_ratio=4.0):
+    def __init__(self, features_per_token, num_heads, is_giant=False, enable_optimizations=True, mlp_ratio=4.0):
         
         # Inherit from parent
         super().__init__()
@@ -33,7 +33,8 @@ class TransformerBlock(nn.Module):
         
         # Define components for feed-forward transformation of tokens after attention
         self.norm2 = LayerNormEPS6(features_per_token)
-        self.mlp = MLP2Layers(features_per_token, mlp_ratio)
+        MLP_Implementation = MLP2Layers if not is_giant else SwiGLU
+        self.mlp = MLP_Implementation(features_per_token, mlp_ratio)
         self.scale_mlp = nn.Parameter(torch.ones(features_per_token))
 
     # .................................................................................................................

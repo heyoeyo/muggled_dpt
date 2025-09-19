@@ -126,6 +126,72 @@ class MLP2Layers(nn.Module):
     # .................................................................................................................
 
 
+class SwiGLU(nn.Module):
+    
+    '''
+    Simplified implementation of the SwiGLUFFNFused model from Depth-Anythingv2
+        @ https://github.com/DepthAnything/Depth-Anything-V2/blob/e5a2732d3ea2cddc081d7bfd708fc0bf09f812f1/depth_anything_v2/dinov2_layers/swiglu_ffn.py#L45
+    
+    Most of the flexibility (and training-related code) has been removed
+    from the original implementation, for the sake of simplicity.
+    
+    This model implements a 'SwiGLU-FFN' activation function.
+    This is a variation of a Gated-linear unit (GLU), which has the form:
+        GLU(x) = GateFunction(x) * Linear(x)
+               = Sigmoid(Linear(x)) * Linear(x)  <- The original GLU implementation
+
+    SwiGLU is a variant on the GLU, which uses a 'swish' function as the gate,
+    which is basically just the regular GLU multiplied by the input:
+        SwiGLU(x) = Swish(x) * Linear(x)
+                  = x * Sigmoid(Linear(x)) * Linear(x)
+    
+    Finally, the Depth-Anything-v2 version uses an 'FFN' variant of this, which
+    is meant to act like the MLP module that it replaces. In the usual MLP model,
+    a linear layer is used to produce a higher number of hidden features, then an
+    activation function is applied (e.g. GELU), followed by another linear layer to
+    reduce the feature count back to match the input features. The FFN variant of
+    SwiGLU treats the SwiGLU as the first linear layer + activation, and then applies
+    a linear layer to the result of the SwiGLU:
+        SwiGLU_FFN(x) = Linear(SwiGLU(x))
+    
+    For more information about GLU & SwiGLU, see: https://arxiv.org/abs/2002.05202
+    '''
+    
+    # .................................................................................................................
+    
+    def __init__(self, num_features, hidden_feature_ratio = 4, bias = True):
+        
+        # Inherit from parent
+        super().__init__()
+        
+        # Calculate number of hidden features following original sizing logic
+        mlp_hidden_features = int(hidden_feature_ratio * num_features)
+        num_hidden_features = 8 * ((int(mlp_hidden_features * 2 / 3) + 7) // 8)
+        
+        self.inner_linear_doubled = nn.Linear(num_features, 2 * num_hidden_features, bias=bias)
+        self.outer_linear = nn.Linear(num_hidden_features, num_features, bias=bias)
+        self.silu = nn.SiLU(inplace=True)
+    
+    def forward(self, tokens_bnc):
+        '''
+        Computes:
+            SwiGLU_FFN(x) = Linear(SwiGLU(x))
+                          = Linear(x * Sigmoid(Linear(x)) * Linear(x))
+
+        This is computed in a clever way (as per the original implementation),
+        where the two inner Linear(x) terms are computed together, using a
+        single linear layer that uses double the feature count. The result
+        is then split back into separate terms to finish the computation.
+        Presumably this is more efficient than computing them separately.
+        '''
+        inner_result = self.inner_linear_doubled(tokens_bnc)
+        linear_sigmoid_x, linear_x = inner_result.chunk(2, dim=-1)
+        swiglu_x = self.silu(linear_sigmoid_x) * linear_x
+        return self.outer_linear(swiglu_x)
+    
+    # .................................................................................................................
+
+
 class LayerNormEPS6(nn.LayerNorm):
     
     ''' Simple wrapper around the default layer norm module, with eps set to 1e-6 '''
