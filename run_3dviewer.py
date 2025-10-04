@@ -448,7 +448,7 @@ INDATA.read_input_path(input_path)
 
 # Load model
 print("", f"Loading model weights ({osp.basename(model_path)})", sep="\n", flush=True)
-model_config_dict, dpt_model, _ = make_dpt_from_state_dict(model_path, use_cache, use_optimizations)
+model_config_dict, dpt_model = make_dpt_from_state_dict(model_path, use_cache, use_optimizations)
 dpt_model.to(**device_config_dict)
 
 # Set up globals for use in requests

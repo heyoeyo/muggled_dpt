@@ -132,7 +132,7 @@ reduce_overthreading(device_str)
 
 # Load model
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
-model_config_dict, dpt_model, _ = make_dpt_from_state_dict(model_path, use_cache)
+model_config_dict, dpt_model = make_dpt_from_state_dict(model_path, use_cache)
 dpt_model.to(**device_config_dict)
 
 # Load image

@@ -109,7 +109,7 @@ from lib.make_dpt import make_dpt_from_state_dict
 
 # Load image & model
 img_bgr = cv2.imread("/path/to/image.jpg")
-model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict("/path/to/model.pth")
+model_config_dict, dpt_model = make_dpt_from_state_dict("/path/to/model.pth")
 
 # Process image data
 inverse_depth_prediction = dpt_model.inference(img_bgr, max_side_length=512)

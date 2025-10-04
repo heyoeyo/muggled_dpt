@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
-from .dpt_model import DPTModel, DPTImagePrep
+from .dpt_model import DPTModel
 
 from .v31_swinv2.patch_embed import PatchEmbed
 from .v31_swinv2.image_encoder_model import SwinV2Model4Stages
@@ -54,35 +54,6 @@ def make_swinv2_dpt_from_midas_v31_state_dict(
     dpt_model.head.load_state_dict(new_state_dict["head"], strict_load)
     
     return config_dict, dpt_model
-
-# .....................................................................................................................
-
-def make_opencv_image_prepost_processor(model_config_dict):
-    
-    '''
-    Helper used to set up an image pre-processor for the DPT model.
-    The preprocessor is used to make sure input images are sized correctly.
-    
-    The SwinV2 DPT model requires that the width & height of the input image
-    be a multiple of 8 times the patch sizing.
-    This ensures that the input patch grid size can be spatially downscaled
-    three times by a factor of 2 (due to patch merging) and then upscaled
-    back to match the input sizing (due to the fusion model).
-    '''
-    
-    # For convenience
-    base_grid_h, _ = model_config_dict["base_patch_grid_hw"]
-    patch_size_px = model_config_dict["patch_size_px"]
-    
-    # Figure out input image sizing requirements
-    base_image_size = round(base_grid_h * patch_size_px)
-    to_multiples = 8 * patch_size_px
-    
-    # Set hard-coded mean/std normalization
-    rgb_mean = (0.5, 0.5, 0.5)
-    rgb_std = (0.5, 0.5, 0.5)
-    
-    return DPTImagePrep(base_image_size, patch_size_px, to_multiples, rgb_mean, rgb_std)
 
 # .....................................................................................................................
 

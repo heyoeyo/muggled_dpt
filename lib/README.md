@@ -149,13 +149,13 @@ In order for the DPT model to function properly, it must have correctly formatte
 4. The dimension ordering must be: batch, channels, height, width
 5. The size of the image must be compatible with the model processing steps. More specifically, the image must have a width and height which are both some integer multiple of the patch size used by the patch embedding model. The exact multiple depends on the model variant.
 
-Additionally, while not required, all DPT models have some 'base image size' that they target by default. Processing images at other sizes and aspect ratios is sometimes supported (all models in this repo have support for this), but they are expected to work best when the input image is scaled to match this base sizing.
+Additionally, all DPT models have some 'base image size' that they target by default. Processing images at other sizes and aspect ratios is sometimes supported (all models in this repo have support for this), but they are expected to work best when the input image is scaled to match this base sizing.
 
-In order to make sure all of these conditions are met, an 'image prep' class is used, which is also found in the [dpt_model.py](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/dpt_model.py) script. Currently this class includes a single function for preparing images assuming the image is provided through opencv. The class also include many helper functions for post-processing the results, mostly to help with interpretability and display.
+For convenience, the patch embedding model includes functionality (see [Depth-AnythingV2](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/v2_depthanything/patch_embed.py) for example) for helping to pre-process input images into the correct format.
 
 ### Image padding
 
-One important thing to note is that the image pre-processor in this repo **does not** pad images prior to processing by the DPT models. Instead, the image is stretched to fit to whatever size is specified. The other common approach is to scale the image so that the largest side fits inside a target processing resolution and then pad the shorter side to fill in any remaining space. The diagram below shows an example of the two approaches:
+One important thing to note is that the image pre-processing in this repo does **not** pad images prior to processing by the DPT models. Instead, the image is stretched to fit to whatever size is specified. The other common approach is to scale the image so that the largest side fits inside a target processing resolution and then pad the shorter side to fill in any remaining space. The diagram below shows an example of the two approaches:
 
 <p align="center">
   <img src=".readme_assets/stretch_vs_pad.webp" alt="Image showing the difference between stretching an image to fit a target resolution (left) and padding the image (right). When stretching an image to fit a different aspect ratio, the image becomes distorted. Padding avoids distortion but includes additional unused pixel data that must be processed.">

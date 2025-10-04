@@ -30,7 +30,7 @@ if img_bgr is None:
 
 # Load model & prepare input image
 print("Loading model...")
-model_config_dict, dpt_model, _ = make_dpt_from_state_dict(model_path)
+model_config_dict, dpt_model = make_dpt_from_state_dict(model_path)
 
 # Process image using each of the major model components
 # (equivalent to running model.inference(...))

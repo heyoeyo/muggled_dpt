@@ -207,7 +207,7 @@ def add_model_info_header(image_bgr, model_path_or_name, grid_hw, header_height=
 
 # Load model
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
-model_config_dict, dpt_model, _ = make_dpt_from_state_dict(model_path, use_cache, strict_load=True)
+model_config_dict, dpt_model = make_dpt_from_state_dict(model_path, use_cache, strict_load=True)
 dpt_model.to(**device_config_dict)
 
 # Load image

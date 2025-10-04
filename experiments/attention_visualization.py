@@ -628,7 +628,7 @@ class AttentionDisplayArrangement:
 
 # Load model
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
-model_config_dict, dpt_model, _ = make_dpt_from_state_dict(model_path, use_cache, use_optimization)
+model_config_dict, dpt_model = make_dpt_from_state_dict(model_path, use_cache, use_optimization)
 dpt_model.to(**device_config_dict)
 
 # Load image

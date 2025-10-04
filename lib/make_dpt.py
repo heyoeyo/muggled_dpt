@@ -50,11 +50,10 @@ def make_dpt_from_state_dict(
         sleep(1.5)
     
     # Build the model & supporting data
-    make_dpt_func, make_imgprep_func = import_model_functions(model_type)
+    make_dpt_func = import_model_functions(model_type)
     config_dict, dpt_model = make_dpt_func(state_dict, enable_cache, enable_optimizations, strict_load)
-    imgprep = make_imgprep_func(config_dict)
     
-    return config_dict, dpt_model, imgprep
+    return config_dict, dpt_model
 
 # .....................................................................................................................
 
@@ -79,7 +78,7 @@ def determine_model_type_from_state_dict(model_path, state_dict):
     depth_anything_target_key = "pretrained.blocks.0.ls1.gamma"
     if depth_anything_target_key in sd_keys:
         
-        # Guess at depth-anything versino from file name
+        # Guess at depth-anything version from file name
         model_name = osp.basename(model_path).lower()
         is_v2 = "v2" in model_name
         is_v1 = (not is_v2) and (("anything_vit" in model_name) or ("v1" in model_name))
@@ -108,30 +107,18 @@ def import_model_functions(model_type):
     '''
     
     if model_type == "swinv2":
-        from .make_swinv2_dpt import (
-            make_swinv2_dpt_from_midas_v31_state_dict as make_dpt_func,
-            make_opencv_image_prepost_processor as make_imgprep_func,
-        )
+        from .make_swinv2_dpt import make_swinv2_dpt_from_midas_v31_state_dict as make_dpt_func
         
     elif model_type == "beit":
-        from .make_beit_dpt import (
-            make_beit_dpt_from_midas_v31_state_dict as make_dpt_func,
-            make_opencv_image_prepost_processor as make_imgprep_func,
-        )
+        from .make_beit_dpt import make_beit_dpt_from_midas_v31_state_dict as make_dpt_func
         
     elif model_type == "depthanythingv1":
-        from .make_depthanythingv1_dpt import (
-            make_depthanythingv1_dpt_from_original_state_dict as make_dpt_func,
-            make_opencv_image_prepost_processor as make_imgprep_func,
-        )
+        from .make_depthanythingv1_dpt import make_depthanythingv1_dpt_from_original_state_dict as make_dpt_func
         
     elif model_type == "depthanythingv2":
-        from .make_depthanythingv2_dpt import (
-            make_depthanythingv2_dpt_from_original_state_dict as make_dpt_func,
-            make_opencv_image_prepost_processor as make_imgprep_func,
-        )
+        from .make_depthanythingv2_dpt import make_depthanythingv2_dpt_from_original_state_dict as make_dpt_func
         
     else:
         raise TypeError(f"Cannot import model functions, Unknown model type: {model_type}")
     
-    return make_dpt_func, make_imgprep_func
+    return make_dpt_func

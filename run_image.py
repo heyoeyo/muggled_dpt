@@ -94,7 +94,7 @@ device_config_dict = make_device_config(device_str, use_float32)
 
 # Load model
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
-model_config_dict, dpt_model, _ = make_dpt_from_state_dict(model_path, use_cache, use_optimizations)
+model_config_dict, dpt_model = make_dpt_from_state_dict(model_path, use_cache, use_optimizations)
 dpt_model.to(**device_config_dict)
 
 # Load image
