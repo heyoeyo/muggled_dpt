@@ -78,10 +78,6 @@ enable_display = not args.headless
 enable_save = args.save
 colormap_select = None if args.no_colormap else cv2.COLORMAP_VIRIDIS
 
-# Hard-code no-cache usage, since there is no benefit if the model only runs once
-use_float32 = True
-use_cache = False
-
 # Build pathing to repo-root, so we can search model weights properly
 root_path = osp.dirname(osp.dirname(__file__))
 save_folder = osp.join(root_path, "saved_images", "block_norm_images")
@@ -97,6 +93,13 @@ model_path = ask_for_model_path_if_missing(root_path, arg_model_path, history_mo
 
 # Store history for use on reload
 history.store(image_path=image_path, model_path=model_path)
+
+# Hard-code no-cache usage, since there is no benefit if the model only runs once
+use_float32 = True
+use_cache = False
+
+# Set up device config
+device_config_dict = make_device_config(device_str, use_float32)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -202,16 +205,10 @@ def add_model_info_header(image_bgr, model_path_or_name, grid_hw, header_height=
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Load resources
 
-# Load model & image pre-processor
+# Load model
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
-model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache, strict_load=True)
-if model_base_size is not None:
-    dpt_imgproc.set_base_size(model_base_size)
-
-# Move model to selected device
-device_config_dict = make_device_config(device_str, use_float32)
+model_config_dict, dpt_model, _ = make_dpt_from_state_dict(model_path, use_cache, strict_load=True)
 dpt_model.to(**device_config_dict)
-dpt_model.eval()
 
 # Load image
 orig_image_bgr = cv2.imread(image_path)

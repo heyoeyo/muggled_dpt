@@ -104,6 +104,9 @@ use_optimization = False
 # Improve cpu utilization
 reduce_overthreading(device_str)
 
+# Set up device usage & data types
+device_config_dict = make_device_config(device_str, use_float32)
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 # %% Classes
@@ -623,18 +626,12 @@ class AttentionDisplayArrangement:
 # ---------------------------------------------------------------------------------------------------------------------
 # %% Load resources
 
-# Load model & image pre-processor
+# Load model
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
-model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache, use_optimization)
-if model_base_size is not None:
-    dpt_imgproc.set_base_size(model_base_size)
-
-# Move model to selected device
-device_config_dict = make_device_config(device_str, use_float32)
+model_config_dict, dpt_model, _ = make_dpt_from_state_dict(model_path, use_cache, use_optimization)
 dpt_model.to(**device_config_dict)
-dpt_model.eval()
 
-# Load image and apply preprocessing
+# Load image
 orig_image_bgr = cv2.imread(image_path)
 assert orig_image_bgr is not None, f"Error loading image: {image_path}"
 

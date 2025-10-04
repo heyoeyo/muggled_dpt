@@ -26,6 +26,7 @@ except ModuleNotFoundError:
 
 from lib.make_dpt import make_dpt_from_state_dict
 
+from lib.demo_helpers.postprocess import scale_prediction, scale_to_max_side_length, normalize_01
 from lib.demo_helpers.history_keeper import HistoryKeeper
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from lib.demo_helpers.ui import SliderCB, ColormapButtonsCB, ButtonBar, ScaleByKeypress
@@ -34,6 +35,7 @@ from lib.demo_helpers.saving import save_image, save_numpy_array, save_uint16
 from lib.demo_helpers.misc import (
     get_default_device_string, make_device_config, print_config_feedback, reduce_overthreading
 )
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Set up script args
@@ -101,22 +103,17 @@ reduce_overthreading(device_str)
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Load resources
 
-# Load model & image pre-processor
+# Load model
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
-model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache)
-if (model_base_size is not None):
-    dpt_imgproc.set_base_size(model_base_size)
-
-# Move model to selected device
+model_config_dict, dpt_model, _ = make_dpt_from_state_dict(model_path, use_cache)
 dpt_model.to(**device_config_dict)
-dpt_model.eval()
 
-# Load image and apply preprocessing
+# Load image
 orig_image_bgr = cv2.imread(image_path)
 assert orig_image_bgr is not None, f"Error loading image: {image_path}"
 
 # Prepare original image for display (and get sizing info)
-scaled_input_img = dpt_imgproc.scale_to_max_side_length(orig_image_bgr, display_size_px)
+scaled_input_img = scale_to_max_side_length(orig_image_bgr, display_size_px)
 disp_h, disp_w = scaled_input_img.shape[0:2]
 disp_wh = (int(disp_w), int(disp_h))
 
@@ -187,8 +184,8 @@ while True:
         depth_prediction = dpt_model.head(fuse_0).squeeze(dim=1)
     
     # Post-processing for display
-    scaled_prediction = dpt_imgproc.scale_prediction(depth_prediction, disp_wh)
-    depth_norm = dpt_imgproc.normalize_01(scaled_prediction).float().cpu().numpy().squeeze()
+    scaled_prediction = scale_prediction(depth_prediction, disp_wh)
+    depth_norm = normalize_01(scaled_prediction).float().cpu().numpy().squeeze()
     
     # Produce colored depth image for display
     depth_uint8 = np.uint8(np.round(255.0*depth_norm))
@@ -215,7 +212,7 @@ while True:
     if btn_save.read():
         
         # Apply modifications to raw prediction for saving
-        npy_prediction = dpt_imgproc.normalize_01(depth_prediction.clone()).float().cpu().numpy().squeeze()
+        npy_prediction = normalize_01(depth_prediction.clone()).float().cpu().numpy().squeeze()
         if use_reverse_colors:
             npy_prediction = 1.0 - npy_prediction
         

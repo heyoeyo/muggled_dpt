@@ -15,6 +15,7 @@ import numpy as np
 
 from lib.make_dpt import make_dpt_from_state_dict
 
+from lib.demo_helpers.postprocess import scale_prediction, convert_to_uint8
 from lib.demo_helpers.history_keeper import HistoryKeeper
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from lib.demo_helpers.ui import ColormapButtonsCB, ButtonBar, ScaleByKeypress
@@ -83,10 +84,6 @@ model_base_size = args.base_size_px
 use_webcam = args.use_webcam
 allow_recording = args.allow_recording
 
-# Set up device config
-device_config_dict = make_device_config(device_str, use_float32)
-device_stream = DeviceChecker(device_str)
-
 # Create history to re-use selected inputs
 history = HistoryKeeper()
 _, history_vidpath = history.read("video_path")
@@ -103,23 +100,21 @@ if use_webcam:
 else:
     history.store(video_path=video_path, model_path=model_path)
 
-
 # Improve cpu utilization
 reduce_overthreading(device_str)
+
+# Set up device config
+device_config_dict = make_device_config(device_str, use_float32)
+device_stream = DeviceChecker(device_str)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Load resources
 
-# Load model & image pre-processor
+# Load model
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
-model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache, use_optimizations)
-if (model_base_size is not None):
-    dpt_imgproc.set_base_size(model_base_size)
-
-# Move model to selected device
+model_config_dict, dpt_model, _ = make_dpt_from_state_dict(model_path, use_cache, use_optimizations)
 dpt_model.to(**device_config_dict)
-dpt_model.eval()
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -227,8 +222,8 @@ for frame in vreader:
         prediction = dpt_model.inference(frame, model_base_size, force_square_resolution)
         
         # Prepare depth data for display
-        scaled_prediction = dpt_imgproc.scale_prediction(prediction, disp_wh)
-        depth_tensor = dpt_imgproc.convert_to_uint8(scaled_prediction).to("cpu", non_blocking = use_async)
+        scaled_prediction = scale_prediction(prediction, disp_wh)
+        depth_tensor = convert_to_uint8(scaled_prediction).to("cpu", non_blocking = use_async)
         depth_uint8 = depth_tensor.squeeze().numpy()
     
         # Provide more accurate timing when sync'd
@@ -248,7 +243,7 @@ for frame in vreader:
             save_path = os.path.join(save_folder, save_name)
             
             # Create frame for saving (matched to some of the display settings)
-            save_frame = dpt_imgproc.convert_to_uint8(prediction).to("cpu").squeeze().numpy()
+            save_frame = convert_to_uint8(prediction).to("cpu").squeeze().numpy()
             if use_reverse_colors: save_frame = 255 - save_frame
             if use_high_contrast: save_frame = histogram_equalization(save_frame)
             cv2.imwrite(save_path, save_frame)

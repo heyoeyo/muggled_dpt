@@ -29,7 +29,7 @@ if img_bgr is None:
 
 # Process data
 print("Loading model & computing inverse depth...")
-model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path)
+model_config_dict, dpt_model, _ = make_dpt_from_state_dict(model_path)
 inverse_depth_prediction = dpt_model.inference(img_bgr, use_square_sizing=False)
 
 # Feedback

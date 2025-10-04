@@ -14,6 +14,7 @@ import torch
 
 from lib.make_dpt import make_dpt_from_state_dict
 
+from lib.demo_helpers.postprocess import scale_prediction, scale_to_max_side_length, remove_inf_tensor, normalize_01
 from lib.demo_helpers.history_keeper import HistoryKeeper
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from lib.demo_helpers.ui import SliderCB, ColormapButtonsCB, ButtonBar, ScaleByKeypress
@@ -66,12 +67,6 @@ use_optimizations = not args.no_optimization
 force_square_resolution = not args.use_aspect_ratio
 model_base_size = args.base_size_px
 
-# Hard-code no-cache usage, since there is no benefit if the model only runs once
-use_cache = False
-
-# Set up device config
-device_config_dict = make_device_config(device_str, use_float32)
-
 # Create history to re-use selected inputs
 history = HistoryKeeper()
 _, history_imgpath = history.read("image_path")
@@ -87,26 +82,27 @@ history.store(image_path=image_path, model_path=model_path)
 # Improve cpu utilization
 reduce_overthreading(device_str)
 
+# Hard-code no-cache usage, since there is no benefit if the model only runs once
+use_cache = False
+
+# Set up device config
+device_config_dict = make_device_config(device_str, use_float32)
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Load resources
 
-# Load model & image pre-processor
+# Load model
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
-model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache, use_optimizations)
-if (model_base_size is not None):
-    dpt_imgproc.set_base_size(model_base_size)
-
-# Move model to selected device
+model_config_dict, dpt_model, _ = make_dpt_from_state_dict(model_path, use_cache, use_optimizations)
 dpt_model.to(**device_config_dict)
-dpt_model.eval()
 
-# Load image and apply preprocessing
+# Load image
 orig_image_bgr = cv2.imread(image_path)
 assert orig_image_bgr is not None, f"Error loading image: {image_path}"
 
 # Prepare original image for display (and get sizing info)
-scaled_input_img = dpt_imgproc.scale_to_max_side_length(orig_image_bgr, display_size_px)
+scaled_input_img = scale_to_max_side_length(orig_image_bgr, display_size_px)
 disp_h, disp_w = scaled_input_img.shape[0:2]
 disp_wh = (int(disp_w), int(disp_h))
 
@@ -121,9 +117,9 @@ print("", "Computing inverse depth...", sep="\n", flush=True)
 prediction = dpt_model.inference(orig_image_bgr, model_base_size, force_square_resolution)
 
 # Perform some post-processing to prepare for display
-scaled_prediction = dpt_imgproc.scale_prediction(prediction, disp_wh)
-depth_norm = dpt_imgproc.remove_infinities(scaled_prediction)
-depth_norm = dpt_imgproc.normalize_01(scaled_prediction).float().cpu().numpy().squeeze()
+scaled_prediction = scale_prediction(prediction, disp_wh)
+depth_norm = remove_inf_tensor(scaled_prediction)
+depth_norm = normalize_01(scaled_prediction).float().cpu().numpy().squeeze()
 
 t2 = perf_counter()
 print("  -> Took", round(1000*(t2-t1), 1), "ms")
@@ -187,7 +183,7 @@ while True:
     removal_factor_changed = (plane_removal_factor != prev_plane_removal_factor)
     if removal_factor_changed:
         depth_1ch = depth_norm - (plane_depth * plane_removal_factor)
-        depth_1ch = dpt_imgproc.normalize_01(depth_1ch)
+        depth_1ch = normalize_01(depth_1ch)
         prev_plane_removal_factor = plane_removal_factor
     
     # Make sure we actually get min < max thresholds & non-zero delta to avoid divide-by-zero
@@ -225,10 +221,10 @@ while True:
     if btn_save.read():
         
         # Apply modifications to raw prediction for saving
-        npy_prediction = dpt_imgproc.remove_infinities(prediction.clone())
-        npy_prediction = dpt_imgproc.normalize_01(npy_prediction).float().cpu().numpy().squeeze()
+        npy_prediction = remove_inf_tensor(prediction.clone())
+        npy_prediction = normalize_01(npy_prediction).float().cpu().numpy().squeeze()
         npy_prediction = npy_prediction - (plane_removal_factor * estimate_plane_of_best_fit(npy_prediction))
-        npy_prediction = dpt_imgproc.normalize_01(npy_prediction)
+        npy_prediction = normalize_01(npy_prediction)
         npy_prediction = np.clip((npy_prediction - thresh_min) / thresh_delta, 0.0, 1.0)
         if use_reverse_colors:
             npy_prediction = 1.0 - npy_prediction

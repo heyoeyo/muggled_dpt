@@ -91,15 +91,10 @@ model_path = ask_for_model_path_if_missing(root_path, arg_model_path, history_mo
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Load resources
 
-# Load model & image pre-processor
+# Load model
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
-model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache)
-if (model_base_size is not None):
-    dpt_imgproc.set_base_size(model_base_size)
-
-# Move model to selected device
+model_config_dict, dpt_model, _ = make_dpt_from_state_dict(model_path, use_cache)
 dpt_model.to(**device_config_dict)
-dpt_model.eval()
 
 # Load image and apply preprocessing
 orig_image_bgr = cv2.imread(image_path)

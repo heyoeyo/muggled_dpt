@@ -21,6 +21,7 @@ import torch.nn as nn
 
 from lib.make_dpt import make_dpt_from_state_dict
 
+from lib.demo_helpers.postprocess import normalize_01
 from lib.demo_helpers.history_keeper import HistoryKeeper
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from lib.demo_helpers.misc import get_default_device_string, make_device_config
@@ -150,6 +151,9 @@ if use_webcam:
     history.store(model_path=model_path)
 else:
     history.store(input3d_path=input_path, model_path=model_path)
+
+# Set up device usage & data types
+device_config_dict = make_device_config(device_str, use_float32)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -442,14 +446,10 @@ class MaskData(nn.Module):
 INDATA = InputState()
 INDATA.read_input_path(input_path)
 
-# Load model & image pre-processor
+# Load model
 print("", f"Loading model weights ({osp.basename(model_path)})", sep="\n", flush=True)
-model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path, use_cache, use_optimizations)
-if model_base_size is not None:
-    dpt_imgproc.set_base_size(model_base_size)
-device_config_dict = make_device_config(device_str, use_float32)
+model_config_dict, dpt_model, _ = make_dpt_from_state_dict(model_path, use_cache, use_optimizations)
 dpt_model.to(**device_config_dict)
-dpt_model.eval()
 
 # Set up globals for use in requests
 MAX_UINT24 = (2**24) - 1
@@ -499,7 +499,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             # Run depth estimation
             depth_prediction = dpt_model.inference(frame, model_base_size, force_square_resolution)
             if not IS_METRIC_MODEL:
-                depth_prediction = dpt_imgproc.normalize_01(depth_prediction)
+                depth_prediction = normalize_01(depth_prediction)
             depth_tensor_u24 = (torch.round(MAX_UINT24 * depth_prediction)).to(dtype=torch.int32)
             depth_u24 = depth_tensor_u24.squeeze().cpu().numpy()
 
