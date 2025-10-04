@@ -26,7 +26,7 @@ except ImportError:
           "Error, missing onnx dependencies!",
           "Onnx export requires installing onnx and the onnx runtime (for testing)",
           "To install, use:",
-          "pip install onnx==1.15.* onnxruntime==1.17.*",
+          "pip install onnx==1.* onnxruntime==1.*",
           "",
           sep = "\n")
     raise SystemExit("Please install missing dependencies")
@@ -42,6 +42,7 @@ except ModuleNotFoundError:
 
 from lib.make_dpt import make_dpt_from_state_dict
 
+from lib.demo_helpers.history_keeper import HistoryKeeper
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from lib.demo_helpers.misc import print_config_feedback
 
@@ -78,10 +79,13 @@ use_cache = False
 
 # Build pathing to repo-root, so we can search model weights properly
 root_path = osp.dirname(osp.dirname(__file__))
+history = HistoryKeeper(root_path)
+_, history_imgpath = history.read("image_path")
+_, history_modelpath = history.read("model_path")
 
 # Get pathing to resources, if not provided already
-image_path = ask_for_path_if_missing(arg_image_path, "image")
-model_path = ask_for_model_path_if_missing(root_path, arg_model_path)
+image_path = ask_for_path_if_missing(arg_image_path, "image", history_imgpath)
+model_path = ask_for_model_path_if_missing(root_path, arg_model_path, history_modelpath)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -93,15 +97,14 @@ model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path,
 if (model_base_size is not None):
     dpt_imgproc.set_base_size(model_base_size)
 
+# Move model to selected device
+dpt_model.to(**device_config_dict)
+dpt_model.eval()
+
 # Load image and apply preprocessing
 orig_image_bgr = cv2.imread(image_path)
-img_tensor = dpt_imgproc.prepare_image_bgr(orig_image_bgr, force_square_resolution)
+img_tensor = dpt_model.prepare_image_bgr(orig_image_bgr, model_base_size, force_square_resolution)
 print_config_feedback(model_path, device_config_dict, use_cache, img_tensor)
-
-# Move model & image to selected device
-dpt_model.eval()
-dpt_model.to(**device_config_dict)
-img_tensor = img_tensor.to(**device_config_dict)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -118,7 +121,7 @@ io_config = {
 
 misc_config = {
     "export_params": True,
-    "opset_version": 13,
+    "opset_version": 14,
     "do_constant_folding": True,
 }
 
@@ -165,7 +168,7 @@ print("  -> Success!")
 
 # Try onnx on different aspect ratio
 orig_image_bgr_diff_ar = cv2.resize(orig_image_bgr, dsize=None, fx=1.0, fy=0.75)
-img_tensor_diff_ar = dpt_imgproc.prepare_image_bgr(orig_image_bgr_diff_ar, force_square=False)
+img_tensor_diff_ar = dpt_model.prepare_image_bgr(orig_image_bgr_diff_ar, model_base_size, False)
 _, _, alt_h, alt_w = img_tensor_diff_ar.shape
 print("", f"Running on different image size... ({alt_h}x{alt_w})", sep = "\n")
 try:
@@ -179,7 +182,7 @@ enable_display = True
 if enable_display:
     
     # Run pytorch-based model for comparison
-    depth_pytorch = dpt_model.inference(img_tensor).cpu().numpy()
+    depth_pytorch = dpt_model.inference(orig_image_bgr, model_base_size, force_square_resolution).cpu().numpy()
     
     # Create uint8 images from pytorch/onnx results for display
     to_uint8 = lambda x: np.uint8(255 * (x - x.min()) / (x.max() - x.min())).squeeze()    

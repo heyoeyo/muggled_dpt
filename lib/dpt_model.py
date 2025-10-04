@@ -84,14 +84,47 @@ class DPTModel(nn.Module):
     
     # .................................................................................................................
     
-    def inference(self, image_rgb_normalized_bchw: Tensor) -> Tensor:
+    def inference(self,
+                  image_bgr: NDArray,
+                  max_side_length: int | None = None,
+                  use_square_sizing: bool = True) -> Tensor:
         
-        ''' Helper function used to call model without recording gradients '''
+        '''
+        Helper function used to run the model with built-in image preprocessing and without recording gradients.
+        Expects images loaded from opencv:
+            image_bgr = cv2.imread(image_path)
+        
+        To process an image tensor directly (e.g. for batching), use the forward method of this model.
+        This is accessible by 'calling' the model directly, for example: model(image_tensor)
+        
+        Returns:
+            inverse_depth_tensor (shape 1xHxW)
+        '''
         
         with torch.inference_mode():
-            inverse_depth_tensor = self(image_rgb_normalized_bchw)
+            img_tensor_bchw = self.patch_embed.prepare_image(image_bgr, max_side_length, use_square_sizing)
+            inverse_depth_tensor = self(img_tensor_bchw)
         
         return inverse_depth_tensor
+    
+    # .................................................................................................................
+    
+    def prepare_image_bgr(self,
+                          image_bgr: NDArray,
+                          max_side_length: int | None = None,
+                          use_square_sizing: bool = True,
+                          interpolation_mode="bilinear") -> Tensor:
+        
+        '''
+        Helper function which performs image pre-processing needed to convert an
+        image loaded from opencv (in bgr order) into a tensor that is properly
+        sized and normalized for use with the DPT model.
+        Note that this is automatically called when using the 'inference(...)' function!
+        
+        Returns:
+            image_tensor_bchw
+        '''
+        return self.patch_embed.prepare_image(image_bgr, max_side_length, use_square_sizing, interpolation_mode)
     
     # .................................................................................................................
     
@@ -161,7 +194,6 @@ class DPTImagePrep:
         
         # Store image sizing info
         self._to_multiples = int(round(to_multiples))
-        self.base_size_px = self.set_base_size(base_size_px)
         
         # Store mean & standard deviation normalization values
         self._image_rgb_mean = np.float32(rgb_mean)
@@ -178,37 +210,6 @@ class DPTImagePrep:
         
         self.base_size_px = round(override_size_px / self._to_multiples) * self._to_multiples
         return self.base_size_px
-    
-    # .................................................................................................................
-    
-    def prepare_image_bgr(self, image_bgr: NDArray, force_square = False) -> Tensor:
-        
-        '''
-        Function used to pre-process input (BGR, the opencv default) images for use in DPT model.
-        Assumes input images of shape: HxWxC, with BGR ordering (the default when using opencv).
-        
-        This function performs the necessary scaling/normalizing/dimension ordering needed
-        to convert an input (opencv) image into the format needed by the DPT model.
-        The output of this function has the following properties:
-            - is a torch tensor
-            - has dimension ordering: BxCxHxW
-            - has mean near 0, standard deviation near 1
-            - height & width are scaled to match model requirements
-        '''
-        
-        # Scale image to size acceptable by the dpt model
-        image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-        if force_square:
-            scaled_img = self.scale_to_square_side_length(image_rgb, self.base_size_px)
-        else:
-            scaled_img = self.scale_to_max_side_length(image_rgb, self.base_size_px, self._to_multiples)
-        
-        # Normalize image values, between -1 and +1 and switch dimension ordering: HxWxC -> CxHxW
-        img_norm = (np.float32(scaled_img / 255.0) - self._image_rgb_mean) / self._image_rgb_std
-        img_norm = np.transpose(img_norm, (2, 0, 1))
-        
-        # Convert to tensor with unit batch dimension. Shape goes from: CxHxW -> 1xCxHxW
-        return torch.from_numpy(img_norm).unsqueeze(0)
 
     # .................................................................................................................
     

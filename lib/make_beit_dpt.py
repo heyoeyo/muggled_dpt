@@ -126,7 +126,8 @@ def make_beit_dpt(features_per_token, num_heads, num_blocks, reassembly_features
     '''
     
     # Construct model components
-    patch_embed_model = PatchEmbed(features_per_token, patch_size_px)
+    img_training_size = base_patch_grid_hw[0] * patch_size_px
+    patch_embed_model = PatchEmbed(features_per_token, patch_size_px, img_training_size)
     imgenc_model = BEiTModel4Stage(features_per_token, num_heads, num_blocks, base_patch_grid_hw, enable_cache)
     reassembly_model = ReassembleModel(features_per_token, reassembly_features_list, fusion_channels)
     fusion_model = FusionModel(fusion_channels)

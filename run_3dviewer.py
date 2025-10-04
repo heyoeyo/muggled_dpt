@@ -315,17 +315,16 @@ class InputState:
 
         return self
 
-    def update_sizing(self, dpt_image_preproc, dpt_model, device_config_dict, force_square_resolution=True):
+    def update_sizing(self, dpt_model, model_base_size, force_square_resolution=True):
         """Helper used to update internal record of image/depth sizing"""
 
         # Create example image to run through model
         image_wh = self.vreader.get_wh()
         ex_frame = np.random.randint(0, 255, [image_wh[1], image_wh[0], 3], dtype=np.uint8)
-        ex_tensor = dpt_image_preproc.prepare_image_bgr(ex_frame, force_square_resolution).to(**device_config_dict)
 
-        # Run model on example fraame to get output sizing
-        ex_prediction = dpt_model.inference(ex_tensor)
-        depth_wh = (ex_prediction.shape[2], ex_prediction.shape[1])
+        # Run image prep on example fraame to get output sizing
+        ex_tensor = dpt_model.prepare_image_bgr(ex_frame, model_base_size, force_square_resolution)
+        depth_wh = (ex_tensor.shape[-1], ex_tensor.shape[-2])
 
         # Store sizing
         self.image_wh = image_wh
@@ -462,7 +461,7 @@ VALID_FILES = set(os.listdir(BASE_FILES_PATH))
 IS_METRIC_MODEL = model_config_dict.get("is_metric", False)
 
 # Figure out image/depth sizing
-INDATA.update_sizing(dpt_imgproc, dpt_model, device_config_dict, force_square_resolution)
+INDATA.update_sizing(dpt_model, model_base_size, force_square_resolution)
 
 # Load mask if given
 MASKDATA = MaskData(arg_mask_path, INDATA.depth_wh).to(**device_config_dict)
@@ -498,9 +497,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             frame = INDATA.vreader.read_frame(frame_idx)
 
             # Run depth estimation
-            frame_tensor = dpt_imgproc.prepare_image_bgr(frame, force_square_resolution)
-            frame_tensor = frame_tensor.to(**device_config_dict)
-            depth_prediction = dpt_model.inference(frame_tensor)
+            depth_prediction = dpt_model.inference(frame, model_base_size, force_square_resolution)
             if not IS_METRIC_MODEL:
                 depth_prediction = dpt_imgproc.normalize_01(depth_prediction)
             depth_tensor_u24 = (torch.round(MAX_UINT24 * depth_prediction)).to(dtype=torch.int32)
@@ -605,7 +602,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             INDATA.is_video = False
             INDATA.is_webcam = False
             INDATA.source_name = self.headers.get("X-filename", "unknown")
-            INDATA.update_sizing(dpt_imgproc, dpt_model, device_config_dict, force_square_resolution)
+            INDATA.update_sizing(dpt_model, model_base_size, force_square_resolution)
 
             # Reset masking so we don't re-use a loaded mask on a new image
             MASKDATA.clear()

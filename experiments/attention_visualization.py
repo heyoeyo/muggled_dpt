@@ -636,8 +636,7 @@ dpt_model.eval()
 
 # Load image and apply preprocessing
 orig_image_bgr = cv2.imread(image_path)
-img_tensor = dpt_imgproc.prepare_image_bgr(orig_image_bgr, force_square=force_square_resolution)
-print_config_feedback(model_path, device_config_dict, use_cache, img_tensor)
+assert orig_image_bgr is not None, f"Error loading image: {image_path}"
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -649,7 +648,7 @@ captures = ModelOutputCapture(dpt_model, torch.nn.Softmax)
 # Run model (only up to image encoder, so we can get attention matrices)
 try:
     with torch.inference_mode():
-        img_tensor = img_tensor.to(**device_config_dict)
+        img_tensor = dpt_model.prepare_image_bgr(orig_image_bgr, model_base_size, force_square_resolution)
         tokens, patch_grid_hw = dpt_model.patch_embed(img_tensor)
         dpt_model.imgencoder(tokens, patch_grid_hw)
 
@@ -684,6 +683,9 @@ has_cls_token = num_global_tokens > 0
 if not has_cls_token:
     raise NotImplementedError("UI does not support models without cls tokens (yet), cannot display results")
 cls_token_index = num_global_tokens - 1
+
+# Feedback on success
+print_config_feedback(model_path, device_config_dict, use_cache, img_tensor)
 
 
 # ---------------------------------------------------------------------------------------------------------------------

@@ -30,13 +30,11 @@ if img_bgr is None:
 # Process data
 print("Loading model & computing inverse depth...")
 model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path)
-img_tensor = dpt_imgproc.prepare_image_bgr(img_bgr)
-inverse_depth_prediction = dpt_model.inference(img_tensor)
+inverse_depth_prediction = dpt_model.inference(img_bgr, use_square_sizing=False)
 
 # Feedback
 print("")
 print("Input image shape:", tuple(img_bgr.shape))
-print("Pre-encoded image shape:", tuple(img_tensor.shape))
 print("Result shape:", tuple(inverse_depth_prediction.shape))
 print("Result min:", float(inverse_depth_prediction.min()))
 print("Result max:", float(inverse_depth_prediction.max()))

@@ -71,7 +71,7 @@ def make_device_config(device_str, use_float32, use_channels_last = True, prefer
 
 # .....................................................................................................................
 
-def print_config_feedback(model_path, device_config_dict, using_cache, preproc_tensor):
+def print_config_feedback(model_path, device_config_dict, using_cache, prediction_tensor):
     
     ''' Simple helper used to print info about model execution '''
     
@@ -81,12 +81,11 @@ def print_config_feedback(model_path, device_config_dict, using_cache, preproc_t
     nice_dtype_str = device_config_dict.get("dtype", "unknown data type")
     nice_dtype_str = str(nice_dtype_str).split(".")[-1]
     
-    # Read shape of preprocessed tensor
+    # Read shape of tensor
     try:
-        _, _, model_img_h, model_img_w = preproc_tensor.shape
-    except AttributeError:
-        model_img_h = "?"
-        model_img_w = "?"
+        model_img_h, model_img_w = prediction_tensor.shape[-2:]
+    except (ValueError, AttributeError):
+        model_img_h, model_img_w = "?", "?"
     
     # Provide some feedback about how the model is running
     print("",

@@ -142,8 +142,6 @@ dpt_model.eval()
 # Load image and apply preprocessing
 orig_image_bgr = cv2.imread(image_path)
 assert orig_image_bgr is not None, f"Error loading image: {image_path}"
-img_tensor = dpt_imgproc.prepare_image_bgr(orig_image_bgr, force_square_resolution)
-print_config_feedback(model_path, device_config_dict, use_cache, img_tensor)
 
 # Prepare original image for display (and get sizing info)
 scaled_input_img = dpt_imgproc.scale_to_max_side_length(orig_image_bgr, display_size_px)
@@ -178,8 +176,7 @@ t1 = perf_counter()
 
 # Run the model and move the result to the cpu (in case it was on GPU)
 print("", "Computing inverse depth...", sep="\n", flush=True)
-img_tensor = img_tensor.to(**device_config_dict)
-prediction = dpt_model.inference(img_tensor)
+prediction = dpt_model.inference(orig_image_bgr, model_base_size, force_square_resolution)
 
 # Perform some post-processing to prepare for display
 scaled_prediction = dpt_imgproc.scale_prediction(prediction, disp_wh)
@@ -188,6 +185,7 @@ depth_norm = dpt_imgproc.normalize_01(scaled_prediction).float().cpu().numpy().s
 
 t2 = perf_counter()
 print("  -> Took", round(1000 * (t2 - t1), 1), "ms")
+print_config_feedback(model_path, device_config_dict, use_cache, prediction)
 
 
 # ---------------------------------------------------------------------------------------------------------------------

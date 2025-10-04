@@ -31,16 +31,17 @@ if img_bgr is None:
 # Load model & prepare input image
 print("Loading model...")
 model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict(model_path)
-img_tensor = dpt_imgproc.prepare_image_bgr(img_bgr)
 
 # Process image using each of the major model components
+# (equivalent to running model.inference(...))
 print("Processing image data...")
 with torch.inference_mode():
+    img_tensor = dpt_model.prepare_image_bgr(img_bgr, max_side_length=None, use_square_sizing=False)
     patch_tokens, patch_grid_hw = dpt_model.patch_embed(img_tensor)
     imgenc_1, imgenc_2, imgenc_3, imgenc_4 = dpt_model.imgencoder(patch_tokens, patch_grid_hw)
     reasm_1, reasm_2, reasm_3, reasm_4 = dpt_model.reassemble(imgenc_1, imgenc_2, imgenc_3, imgenc_4, patch_grid_hw)
     fused_feature_map = dpt_model.fusion(reasm_1, reasm_2, reasm_3, reasm_4)
-    inverse_depth_tensor = dpt_model.inference(img_tensor)
+    inverse_depth_tensor = dpt_model.head(fused_feature_map)
 
 # Feedback
 print("")

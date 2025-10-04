@@ -213,10 +213,9 @@ device_config_dict = make_device_config(device_str, use_float32)
 dpt_model.to(**device_config_dict)
 dpt_model.eval()
 
-# Load image and apply preprocessing
+# Load image
 orig_image_bgr = cv2.imread(image_path)
-img_tensor = dpt_imgproc.prepare_image_bgr(orig_image_bgr, force_square = force_square_resolution)
-print_config_feedback(model_path, device_config_dict, use_cache, img_tensor)
+assert orig_image_bgr is not None, f"Error reading image: {image_path}"
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -242,7 +241,7 @@ captures = ModelOutputCapture(dpt_model, TargetBlock)
 
 # Run model (only up to image encoder)
 with torch.inference_mode():
-    img_tensor = img_tensor.to(**device_config_dict)
+    img_tensor = dpt_model.prepare_image_bgr(orig_image_bgr)
     tokens, grid_hw = dpt_model.patch_embed(img_tensor)
     dpt_model.imgencoder(tokens, grid_hw)
 
@@ -252,6 +251,7 @@ if num_blocks == 0:
     module_name = TargetBlock.__name__
     raise AttributeError(f"No data captured! Model doesn't contain '{module_name}' module?")
 
+print_config_feedback(model_path, device_config_dict, use_cache, img_tensor)
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Figure out display sizing

@@ -86,7 +86,7 @@ def make_opencv_image_prepost_processor(model_config_dict):
 
 # .....................................................................................................................
 
-def make_swinv2_dpt(features_per_stage, heads_per_stage, layers_per_stage, window_size_hw,
+def make_swinv2_dpt(features_per_stage, heads_per_stage, layers_per_stage, base_patch_grid_hw, window_size_hw,
                     pretrained_window_sizes_per_stage, fusion_channels = 256, patch_size_px = 4,
                     enable_cache = True, **unused_kwargs):
     
@@ -130,7 +130,8 @@ def make_swinv2_dpt(features_per_stage, heads_per_stage, layers_per_stage, windo
     features_per_patch = features_per_stage[0]
     
     # Construct model components
-    patch_embed_model = PatchEmbed(features_per_patch, patch_size_px)
+    img_training_size = base_patch_grid_hw[0] * patch_size_px
+    patch_embed_model = PatchEmbed(features_per_patch, patch_size_px, img_training_size)
     imgenc_model = SwinV2Model4Stages(features_per_stage, heads_per_stage, layers_per_stage, window_size_hw, pretrained_window_sizes_per_stage, enable_cache)
     reassembly_model = ReassembleModel(features_per_stage, fusion_channels)
     fusion_model = FusionModel(fusion_channels)

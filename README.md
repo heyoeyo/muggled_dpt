@@ -101,7 +101,7 @@ The table below includes direct download links to all of the supported models. *
 
 ### Simple example
 
-Here is an [example](https://github.com/heyoeyo/muggled_dpt/blob/main/simple_examples/depth_prediction.py) of using the model to generate an inverse depth map from an image:
+Here's an [example](https://github.com/heyoeyo/muggled_dpt/blob/main/simple_examples/depth_prediction.py) of using the model to generate an inverse depth map from an image:
 
 ```python
 import cv2
@@ -111,9 +111,8 @@ from lib.make_dpt import make_dpt_from_state_dict
 img_bgr = cv2.imread("/path/to/image.jpg")
 model_config_dict, dpt_model, dpt_imgproc = make_dpt_from_state_dict("/path/to/model.pth")
 
-# Process data
-img_tensor = dpt_imgproc.prepare_image_bgr(img_bgr)
-inverse_depth_prediction = dpt_model.inference(img_tensor)
+# Process image data
+inverse_depth_prediction = dpt_model.inference(img_bgr, max_side_length=512)
 ```
 
 ## Run Image

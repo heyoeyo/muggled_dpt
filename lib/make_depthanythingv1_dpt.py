@@ -135,7 +135,8 @@ def make_depthanythingv1_dpt(
     '''
     
     # Construct model components
-    patch_embed_model = PatchEmbed(features_per_token, patch_size_px)
+    img_training_size = base_patch_grid_hw[0] * patch_size_px
+    patch_embed_model = PatchEmbed(features_per_token, patch_size_px, img_training_size)
     imgenc_model = DinoV2Model4Stages(
         features_per_token, num_heads, num_blocks, base_patch_grid_hw, enable_cache, enable_optimizations
     )

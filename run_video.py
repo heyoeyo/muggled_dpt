@@ -133,8 +133,13 @@ disp_w, disp_h = disp_wh
 
 # Get example frame so we can provide sizing info feedback
 example_frame = np.zeros(vreader.shape, dtype = np.uint8)
-example_tensor = dpt_imgproc.prepare_image_bgr(example_frame, force_square_resolution)
-print_config_feedback(model_path, device_config_dict, use_cache, example_tensor)
+example_prediction = dpt_model.inference(example_frame, model_base_size, force_square_resolution)
+print_config_feedback(model_path, device_config_dict, use_cache, example_prediction)
+
+# Provide memory usage feedback, if using cuda GPU
+if device_str == "cuda":
+    total_vram_mb = get_total_cuda_vram_usage_mb()
+    print("  VRAM:", total_vram_mb, "MB")
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -218,12 +223,8 @@ for frame in vreader:
         time_ms_model = 1000 * (perf_counter() - t_ready_last)
         t_ready_last = perf_counter()
         
-        # Prepare image for model
-        frame_tensor = dpt_imgproc.prepare_image_bgr(frame, force_square_resolution)
-        frame_tensor = frame_tensor.to(**device_config_dict)
-        
         # Run model and get prediction for display
-        prediction = dpt_model.inference(frame_tensor)
+        prediction = dpt_model.inference(frame, model_base_size, force_square_resolution)
         
         # Prepare depth data for display
         scaled_prediction = dpt_imgproc.scale_prediction(prediction, disp_wh)
@@ -280,8 +281,3 @@ for frame in vreader:
 # Clean up resources
 vreader.release()
 cv2.destroyAllWindows()
-
-# Provide memory usage feedback, if using cuda GPU
-if device_str == "cuda":
-    total_vram_mb = get_total_cuda_vram_usage_mb()
-    print("  VRAM:", total_vram_mb, "MB")
