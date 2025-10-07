@@ -393,7 +393,7 @@
   // Set up webgl data
   
   // Set up camera orbitting
-  const ORBITCAM = new Orbit_Camera(initial_distance=5);
+  const ORBITCAM = new Orbit_Camera(initial_distance=13.25);
   ORBITCAM.bind_to_canvas(DOM.canvas_3d, render_3d);
   
   // Set up webgl rendering
@@ -496,16 +496,16 @@
   // -----------------------------------------------------------------------------------------------------------------
   // Define UI
 
-  const fov_ctrl = new SliderUI(DOM.sidebar, "FOV", 50.0, 0, 180);
+  const fov_ctrl = new SliderUI(DOM.sidebar, "FOV", 50.0, 1, 179);
   const tilt_ctrl = new SliderUI(DOM.sidebar, "Tilt", 0.0, -90.0, 90.0, step=0.1);
-  const nplane_ctrl = make_01_slider(DOM.sidebar, "Near Plane", 0.0, 0.01);
   const zoff_ctrl = make_01_slider(DOM.sidebar, "Z-Offset", 0.05, 0.005);
-  [fov_ctrl, tilt_ctrl, nplane_ctrl, zoff_ctrl].forEach(elem => elem.set_color(...UICOLORS[0]));
+  [fov_ctrl, tilt_ctrl, zoff_ctrl].forEach(elem => elem.set_color(...UICOLORS[0]));
   append_spacer(DOM.sidebar);
   
-  const dmax_ctrl = make_01_slider(DOM.sidebar, "Max Depth", 0.30, 0.001, min=0.001);
-  const dmin_ctrl = make_01_slider(DOM.sidebar, "Min Depth (%)", 0.05, 0.001);
-  [dmax_ctrl, dmin_ctrl].forEach(elem => elem.set_color(...UICOLORS[1]));
+  const dmin_ctrl = make_01_slider(DOM.sidebar, "Min Depth (%)", 0.5, 0.001, min=0.001);
+  const dmax_ctrl = make_01_slider(DOM.sidebar, "Max Depth", 0.25, 0.001, min=0.001);
+  const adjfactor_ctrl = new SliderUI(DOM.sidebar, "Adjustment Factor", 0.0, -1.0, 1, step=0.01);
+  [dmax_ctrl, dmin_ctrl, adjfactor_ctrl].forEach(elem => elem.set_color(...UICOLORS[1]));
   append_spacer(DOM.sidebar);
   
   const density_ctrl = make_01_slider(DOM.sidebar, "Mesh Density", 0.5, 0.01);
@@ -515,7 +515,7 @@
   append_spacer(DOM.sidebar);
   
   const dispres_ctrl = make_01_slider(DOM.sidebar, "Display Resolution", DISPLAYINFO.res_scale, 0.05, min=0.05);
-  const pointsize_ctrl = new SliderUI(DOM.sidebar, "Point Size", 12, 0.5, 50, 0.5);
+  const pointsize_ctrl = new SliderUI(DOM.sidebar, "Point Size", 2, 0.1, 25, 0.1);
   const ortho_toggle = new ToggleUI(DOM.sidebar, "Use Ortho Camera", false);
   const tri_toggle = new ToggleUI(DOM.sidebar, "Use Triangles", false);
   const depth_toggle = new ToggleUI(DOM.sidebar, "Use Depth Image", false);
@@ -580,8 +580,8 @@
 
   // Add basic render update listeners
   [
-    fov_ctrl, tilt_ctrl, nplane_ctrl, zoff_ctrl,
-    dmin_ctrl, dmax_ctrl,
+    fov_ctrl, tilt_ctrl, zoff_ctrl,
+    dmin_ctrl, dmax_ctrl, adjfactor_ctrl,
     maskthresh_ctrl,
     pointsize_ctrl, ortho_toggle,
   ].forEach(elem => elem.add_listener(rerender));
@@ -870,9 +870,9 @@
 
     // Change default control values for metric depth predictions
     if (SOURCEINFO.is_metric_depth) {
-      nplane_ctrl.set_value(0);
       dmax_ctrl.set_value(0.20);
       dmin_ctrl.set_value(0);
+      adjfactor_ctrl.set_value(0);
     }
 
     // If we have a video source, show the play button and (if it's not a webcam) show the playback bar as well
@@ -915,8 +915,12 @@
 
     /* Helper used to set (or swap) the current webgl program */
 
+    // Controls
+    const is_metric_depth = SOURCEINFO.is_metric_depth;
+    const use_depth_texture = depth_toggle.value;
+
     // Connect texture & mesh data to program
-    const gl_program = GLDATA.create_new_program(SOURCEINFO.is_metric_depth, depth_toggle.value);
+    const gl_program = GLDATA.create_new_program(is_metric_depth, use_depth_texture);
     TEXTUREDATA.bind_gl_program(gl_program);
     MESHDATA.bind_gl_program(gl_program);
 
@@ -1138,19 +1142,19 @@
     const is_wide_img = IMAGEINFO.width > IMAGEINFO.height;
     const x_scale_factor = is_wide_img ? 1.0 : (IMAGEINFO.width / IMAGEINFO.height);
     const y_scale_factor = is_wide_img ? (IMAGEINFO.height / IMAGEINFO.width) : 1.0;
-    const point_size = pointsize_ctrl.value * (CTRLS.scale_points_with_zoom ? 1.0 / ORBITCAM.distance : 0.5);
+    const point_size = pointsize_ctrl.value * DISPLAYINFO.res_scale;
 
     // Read controls
     const tilt_rad = tilt_ctrl.value * DEG2RAD;
     const max_depth = dmax_ctrl.value * CTRLS.depth_limit;
     const min_depth = dmin_ctrl.value * max_depth;
     const half_fov_rad_value = fov_ctrl.value * 0.5 * DEG2RAD;
-    const near_plane_dist = nplane_ctrl.value * min_depth;
+    const adjustment_value = adjfactor_ctrl.value * min_depth;
     const use_ortho_camera = ortho_toggle.value;
     const use_depth_texture = depth_toggle.value;
     const mask_threshold = maskthresh_ctrl.value;
 
-    // Figure out depth scaling factors to get 'true' depth. Assumes inverse relative depth:
+    // Figure out depth scaling factors to get 'true' depth
     const view_depth_offset = min_depth + zoff_ctrl.value * (max_depth - min_depth);
     let depth_a_value, depth_b_value;
     if (SOURCEINFO.is_metric_depth) {
@@ -1178,7 +1182,7 @@
 
     // Set uniforms
     const is_transpose_matrix = false;
-    gl.uniform4f(GLDATA.uniloc.scaling_factors, x_scale_factor, y_scale_factor, near_plane_dist, point_size);
+    gl.uniform4f(GLDATA.uniloc.scaling_factors, x_scale_factor, y_scale_factor, adjustment_value, point_size);
     gl.uniform4f(GLDATA.uniloc.camera_params, depth_a_value, depth_b_value, half_fov_rad_value, view_depth_offset);
     gl.uniformMatrix4fv(GLDATA.uniloc.matrix, is_transpose_matrix, view_proj_matrix);
     gl.uniform1f(GLDATA.uniloc.mask_threshold, mask_threshold);

@@ -583,7 +583,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             pass
 
         else:
-            self.send_error(404, f"Error! Unknown recognized request: {self.path}")
+            self.send_error(404, f"Error! Unknown request: {self.path}")
             return
 
         return
