@@ -52,45 +52,49 @@
   <section>
 
     <h1>3D Viewer Controls</h1>
+
+    <p>Note: All sliders can be reset by double-clicking on the slider label or numeric indicator. The camera positioning can be reset by double clicking anywhere in the main viewport.</p>
     
+    <h2>Min Depth:</h2>
+    <p>This value determines the distance (depth) to the closest object in the image. It's specified as a percentage of the maximum depth. For example, a <b>Min Depth</b> of 100 would imply that the closest object is the same distance from the camera as the farthest object, resulting in a flat 3D surface. A <b>Min Depth</b> of 0 would imply the closest part of the scene is 'touching' the camera.</p>
+    <p>This is the single most important value to set correctly for obtaining an accurate depth mapping!</p>
+    
+    <h2>Max Depth:</h2>
+    <p>This value represents how far away the farthest part of the scene is from the camera. Changes to this value aren't very important within this 3Dviewer, but it will affect the size of the model when exported (i.e. how big the model is when imported into other 3D software). The upper limit value can be adjusted using the <b>CTRLS</b> variable in the console.</p>
+    
+
     <h2>FOV:</h2>
     <p>The field of view (fov) setting is meant to be set to match the fov of the camera used to capture the image data that is being visualized. Larger values have the effect of 'spreading out' distant parts of the scene.</p>
     <p>Telephoto lenses tend to have low fov values, while action cameras (e.g. GoPro) have large fov values.</p>
 
-    <h2>Tilt:</h2>
-    <p>Changing this setting will rotate the view of the object around the x-axis. This can be particularly helpful for images that are taken from a top-down perspective, as adjustments to the viewing angle can lead to more intuitive camera orbitting behavior.</p>
+    <h2>View Tilt:</h2>
+    <p>This control can adjust the viewing angle used within the 3D viewer. This can be helpful for images taken from a top-down perspective, as it can lead to more intuitive camera orbitting behavior. Note that this does not affect the model geometry itself (it won't be rotated if saved and imported into other 3D software).</p>
     
-    <h2>Near Plane:</h2>
-    <p>This value acts as a kind of 'fudge factor' in the mesh generation formula. It is roughly equivalent to something like a focal length but is scaled by the minimum depth mapping. If the Min Depth setting is zero, this control will have no effect.</p>
-    <p>Changing this value often has a bending effect on the resulting mesh, so can be useful for counter-acting bending (though adjusting the minimum depth is usually a better idea).</p>
+    <h2>View Offset:</h2>
+    <p>The view offset provides a convenient way to anchor the camera. When set to 0, the 'viewer camera' (i.e. the camera that is viewing the 3D model) will orbit the position of the 'image camera' (i.e. the camera that took the image that is being visualized). When set to 100, the camera will orbit the farthest point/plane of the 3D model. When set to 50, it will orbit the 'minimum depth' plane of the scene.</p>
+    <p>Note the camera can still be freely moved, but will do so in addition to the view offset.</p>
     
-    <h2>Z-Offset:</h2>
-    <p>This value controls a baseline depth positioning of the viewing camera. When set to 0, the camera will orbit the closest part of the 3D scene, if set to 100 the camera will orbit the farthest point of the scene.</p>
-    <p>The camera can still be freely moved/panned in ways that also adjust the depth positioning. This value just provides a baseline that takes effect without needing to move the camera manually.</p>
-    
-    <h2>Max Depth:</h2>
-    <p>This value represents the distance to the farthest part of the scene (or at least, distance of the farthest predicted depth from the DPT model). This value does not represent a specific unit (e.g. meters) but is instead proportional to the x/y sizing of the image.</p>
-    <p>A good way to set this value is to switch to using orthographic projection and then adjust this value until the scene 'looks correct', that is, objects appear to have the correct relative proportions and sizings.</p>
-    
-    <h2>Min Depth:</h2>
-    <p>This value is meant to determine the distance (depth) to the closest object in the image. It is specified as a percentage of the maximum depth. For example, a <b>Min Depth</b> of 100 would imply that the closest object is the same distance from the camera as the farthest object, resulting in a flat 3D surface.</p>
-    <p>A good way to set this value is to first guess at a reasonable <b>Max Depth</b>, then adjust the <b>Min Depth</b> until the shape/proportions of the 3D mesh look correct. For example for scenes containing distant objects, changes to the <b>Min Depth</b> can often alter the curvature of the ground itself. If you know that the ground is flat in your image, then the <b>Min Depth</b> can be adjusted until the ground is flat in the 3D surface.</p>
-    
+
     <h2>Mesh Density:</h2>
-    <p>This value controls the number of triangles used to create the 3D mesh for display. Higher values will improve the detail of the mesh, but can be slower to render.</p>
+    <p>This value controls the number of points/triangles used to create the 3D mesh for display. Higher values will improve the detail of the mesh, but can be slower to render.</p>
     <p>The number of faces will be given by: max_faces * (density/100)<sup>4</sup></p>
-    <p>(where max_faces defaults to 5 million)</p>
+    <p>(where max_faces defaults to 5 million but can be changed using the <b>CTRLS</b> variable in the console)</p>
     
     <h2>Mesh Jitter:</h2>
     <p>By default, the 3D mesh is generated using a simple grid of points. The jitter value randomizes the positioning of points within the grid, which can reduce the appearance of repetitive patterns.</p>
     <p>It's easiest to see the effect of jitter when using low mesh density values. A jitter value of 0 fully disables the effect.</p>
     
-    <h2>Mask Threshold:</h2>
-    <p>This threshold can be used to exclude regions of the 3D mesh based on a provided mask. By default, an 'edge detection' mask is produced, so this control can be used to remove the often messy data around the edges of objects.</p>
+    <h2>Edge Threshold:</h2>
+    <p>This threshold can be used to exclude regions of the 3D mesh based on the steepness of regions of the depth prediction.</p>
     <p>Alternatively, a mask image can be provided when running the 3D viewer server (using the -k flag), in which case this threshold will be applied to the provided mask.</p>
 
+
     <h2>Display Resolution:</h2>
-    <p>This control can be used to downscale the displayed image. This can improve rendering speeds as well as help blend together point rendering.</p>
+    <p>This control can be used to downscale the displayed image. This can improve rendering speeds as well as help blend together point rendering, at the cost of reduced image quality.</p>
+
+    <h2>Point size:</h2>
+    <p>This controls the size of points when displaying as a point cloud. It does nothing when rendering with triangles.</p>
+
     
     <h2>Use Ortho Camera:</h2>
     <p>If enabled, the viewing camera (e.g. your view point) will use orthographic projection instead of perspective projection. With orthographic projections, objects will appear the same size no matter how far away they are from the camera.</p>
@@ -101,6 +105,9 @@
     
     <h2>Use Depth Image:</h2>
     <p>If enabled, the depth map will be used to texture the 3D surface (as a black-and-white image) instead of the original RGB source image.</p>
+
+    <h2>Show Frustrum:</h2>
+    <p>If enabled, a visual indicator will be drawn showing the location of the minimum/maximum depth planes as well as the 'image camera' position. This can be useful for understanding how the 3D model is constructed from the prediction and minimum/maximum controls.</p>
     
   </section>
 

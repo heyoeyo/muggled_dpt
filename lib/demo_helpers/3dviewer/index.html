@@ -340,6 +340,7 @@
 <script src="orbitcam.js"></script>
 <script src="textures.js"></script>
 <script src="mesh.js"></script>
+<script src="frustrum.js"></script>
 <script src="gldata.js"></script>
 <script src="save_gltf.js"></script>
 <script src="save_obj.js"></script>
@@ -393,13 +394,15 @@
   // Set up webgl data
   
   // Set up camera orbitting
-  const ORBITCAM = new Orbit_Camera(initial_distance=13.25);
+  const ORBITCAM = new Orbit_Camera(initial_distance=50);
   ORBITCAM.bind_to_canvas(DOM.canvas_3d, render_3d);
   
   // Set up webgl rendering
-  const GLDATA = new GLData(CTX.gl, SHADERDEFS);
+  const MESH_GLDATA = new GLData(CTX.gl, SHADERDEFS);
+  const FRUSTRUM_GLDATA = new GLData(CTX.gl, SHADERDEFS);
   const TEXTUREDATA = new TextureData(CTX.gl, SHADERDEFS.textures);
   const MESHDATA = new MeshData(CTX.gl, SHADERDEFS.attrs);
+  const FRUSTRUMDATA = new FrustrumData(CTX.gl);
 
 
   // -----------------------------------------------------------------------------------------------------------------
@@ -410,7 +413,7 @@
     width: DOM.canvas_3d.clientWidth,
     height: DOM.canvas_3d.clientHeight,
     ar: DOM.canvas_3d.clientWidth / DOM.canvas_3d.clientHeight,
-    res_scale: 0.75,
+    res_scale: 1.0,
     draw_mode: WebGL2RenderingContext.POINTS,
   }
 
@@ -459,14 +462,14 @@
   const CTRLS = {
     view_fov: 60.0,
     depth_limit: 100.0,
-    scale_points_with_zoom: true,
     max_faces: 5_000_000,
     debug_line_render: false,
     wasd_sensitivity: 2.5,
+    frustrum_linewidth: 2,
     save_model_as_obj: false,
     save_model_depth: false,
-    save_model_mask: false,
-    save_model_image_as_jpeg: false,
+    save_model_edge_mask: false,
+    save_model_image_as_png: false,
   }
 
   // For saving frame data!
@@ -478,7 +481,7 @@
   }
 
   // Helpers for state-based behaviors
-  let LAST_MASK_THRESHOLD = 0;
+  let LAST_EDGE_THRESHOLD = 0;
   let ASK_FOR_MASK_UPLOAD_CONFIRMATION = true;
   let DEFAULT_IS_UPLOADED_MASK = true;
 
@@ -496,22 +499,21 @@
   // -----------------------------------------------------------------------------------------------------------------
   // Define UI
 
-  const fov_ctrl = new SliderUI(DOM.sidebar, "FOV", 50.0, 1, 179);
-  const tilt_ctrl = new SliderUI(DOM.sidebar, "Tilt", 0.0, -90.0, 90.0, step=0.1);
-  const zoff_ctrl = make_01_slider(DOM.sidebar, "Z-Offset", 0.05, 0.005);
-  [fov_ctrl, tilt_ctrl, zoff_ctrl].forEach(elem => elem.set_color(...UICOLORS[0]));
-  append_spacer(DOM.sidebar);
-  
   const dmin_ctrl = make_01_slider(DOM.sidebar, "Min Depth (%)", 0.5, 0.001, min=0.001);
-  const dmax_ctrl = make_01_slider(DOM.sidebar, "Max Depth", 0.25, 0.001, min=0.001);
-  const adjfactor_ctrl = new SliderUI(DOM.sidebar, "Adjustment Factor", 0.0, -1.0, 1, step=0.01);
-  [dmax_ctrl, dmin_ctrl, adjfactor_ctrl].forEach(elem => elem.set_color(...UICOLORS[1]));
+  const dmax_ctrl = make_01_slider(DOM.sidebar, "Max Depth", 1.0, 0.001, min=0.001);
+  [dmax_ctrl, dmin_ctrl].forEach(elem => elem.set_color(...UICOLORS[1]));
+  append_spacer(DOM.sidebar);
+
+  const fov_ctrl = new SliderUI(DOM.sidebar, "FOV", 50.0, 10, 179);
+  const viewtilt_ctrl = new SliderUI(DOM.sidebar, "View Tilt", 0.0, -90.0, 90.0, step=0.1);
+  const viewoffset_ctrl = make_01_slider(DOM.sidebar, "View Offset", 0.5, 0.005);
+  [fov_ctrl, viewtilt_ctrl, viewoffset_ctrl].forEach(elem => elem.set_color(...UICOLORS[0]));
   append_spacer(DOM.sidebar);
   
   const density_ctrl = make_01_slider(DOM.sidebar, "Mesh Density", 0.5, 0.01);
   const jitter_ctrl = make_01_slider(DOM.sidebar, "Mesh Jitter", 1, 0.1);
-  const maskthresh_ctrl = make_01_slider(DOM.sidebar, "Mask Threshold", 0, 0.001);
-  [density_ctrl, jitter_ctrl, maskthresh_ctrl].forEach(elem => elem.set_color(...UICOLORS[2]));
+  const edgethresh_ctrl = make_01_slider(DOM.sidebar, "Edge Threshold", 0, 0.001);
+  [density_ctrl, jitter_ctrl, edgethresh_ctrl].forEach(elem => elem.set_color(...UICOLORS[2]));
   append_spacer(DOM.sidebar);
   
   const dispres_ctrl = make_01_slider(DOM.sidebar, "Display Resolution", DISPLAYINFO.res_scale, 0.05, min=0.05);
@@ -519,7 +521,8 @@
   const ortho_toggle = new ToggleUI(DOM.sidebar, "Use Ortho Camera", false);
   const tri_toggle = new ToggleUI(DOM.sidebar, "Use Triangles", false);
   const depth_toggle = new ToggleUI(DOM.sidebar, "Use Depth Image", false);
-  [dispres_ctrl, pointsize_ctrl, ortho_toggle, tri_toggle, depth_toggle].forEach(
+  const frustrum_toggle = new ToggleUI(DOM.sidebar, "Show Frustrum", true);
+  [dispres_ctrl, pointsize_ctrl, ortho_toggle, tri_toggle, depth_toggle, frustrum_toggle].forEach(
     elem => elem.set_color(...UICOLORS[3])
   );
   append_spacer(DOM.sidebar);
@@ -541,11 +544,11 @@
       const depth_save_name = `${model_save_name}_depth_24bit`;
       const mask_save_name = `${model_save_name}_mask`;
       const is_metric_depth = SOURCEINFO.is_metric_depth;
-      const image_save_ext = CTRLS.save_model_image_as_jpeg ? "jpeg" : "png";
+      const image_save_ext = CTRLS.save_model_image_as_png ? "png" : "jpeg";
       const depth_save_ext = "png";
 
       // Get data for saving
-      const uniform_data = GLDATA.read_current_uniform_data();
+      const uniform_data = MESH_GLDATA.read_current_uniform_data();
       const [image_data, depth_data] = TEXTUREDATA.read_current_texture_data();
       const [full_xy_list, full_face_list] = MESHDATA.read_current_mesh_data();
       const [is_valid_list, full_xyz_list, full_uv_list] = run_vertex_shader_cpu(
@@ -568,10 +571,10 @@
       }
 
       // Save depth/mask image data in 24bit format, if needed
-      if (CTRLS.save_model_depth || CTRLS.save_model_mask) {
-        const [d24_data, mask_data] = split_rgb_and_alpha(depth_data);
+      if (CTRLS.save_model_depth || CTRLS.save_model_edge_mask) {
+        const [d24_data, edge_mask_data] = split_rgb_and_alpha(depth_data);
         if (CTRLS.save_model_depth) save_image_data(depth_save_name, d24_data, depth_save_ext);
-        if (CTRLS.save_model_mask) save_image_data(mask_save_name, mask_data, depth_save_ext);
+        if (CTRLS.save_model_edge_mask) save_image_data(mask_save_name, edge_mask_data, depth_save_ext);
       }
 
       DOM.blocker.close();
@@ -580,10 +583,10 @@
 
   // Add basic render update listeners
   [
-    fov_ctrl, tilt_ctrl, zoff_ctrl,
-    dmin_ctrl, dmax_ctrl, adjfactor_ctrl,
-    maskthresh_ctrl,
-    pointsize_ctrl, ortho_toggle,
+    fov_ctrl, viewtilt_ctrl, viewoffset_ctrl,
+    dmin_ctrl, dmax_ctrl,
+    edgethresh_ctrl,
+    pointsize_ctrl, ortho_toggle, frustrum_toggle,
   ].forEach(elem => elem.add_listener(rerender));
 
   // Add re-mesh listeners
@@ -724,6 +727,11 @@
 
   document.addEventListener("keydown", evt => {
 
+    // Toggle view frustrum
+    if (evt.code === "KeyF") {
+      frustrum_toggle.toggle();
+    }
+
     // Toggle image vs. depth coloring
     if (evt.code === "KeyV") {
       depth_toggle.toggle();
@@ -748,12 +756,12 @@
 
     // Toggle masking settings
     if (evt.code === "KeyM") {
-      const new_mask_thresh = maskthresh_ctrl.value;
+      const new_mask_thresh = edgethresh_ctrl.value;
       if (new_mask_thresh > 0) {
-        LAST_MASK_THRESHOLD = new_mask_thresh;
-        maskthresh_ctrl.set_value(0);
+        LAST_EDGE_THRESHOLD = new_mask_thresh;
+        edgethresh_ctrl.set_value(0);
       } else {
-        maskthresh_ctrl.set_value(LAST_MASK_THRESHOLD);
+        edgethresh_ctrl.set_value(LAST_EDGE_THRESHOLD);
       }
     }
 
@@ -833,8 +841,8 @@
     // Retrieve setup info from server
     const resp = await fetch("/get-source-info");
     const resp_json = await resp.json();
-    console.log("Showing:", resp_json["source_name"]);
-    console.log(resp_json);
+    console.log("Showing:", resp_json["source_name"], resp_json);
+    console.log("Additional controls: (CTRLS)", CTRLS);
 
     // Get image sizing info
     const {image_wh, depth_wh} = resp_json;
@@ -870,9 +878,10 @@
 
     // Change default control values for metric depth predictions
     if (SOURCEINFO.is_metric_depth) {
+      ORBITCAM.distance = 10;
+      dmin_ctrl.update_min_max(0, 1);
+      dmin_ctrl.set_value(0.5);
       dmax_ctrl.set_value(0.20);
-      dmin_ctrl.set_value(0);
-      adjfactor_ctrl.set_value(0);
     }
 
     // If we have a video source, show the play button and (if it's not a webcam) show the playback bar as well
@@ -913,16 +922,24 @@
 
   function update_gl_program() {
 
-    /* Helper used to set (or swap) the current webgl program */
+    /* Helper used to set which shaders to use for rendering */
 
     // Controls
     const is_metric_depth = SOURCEINFO.is_metric_depth;
     const use_depth_texture = depth_toggle.value;
 
     // Connect texture & mesh data to program
-    const gl_program = GLDATA.create_new_program(is_metric_depth, use_depth_texture);
-    TEXTUREDATA.bind_gl_program(gl_program);
-    MESHDATA.bind_gl_program(gl_program);
+    const mesh_vshader = make_mesh_vertex_shader(is_metric_depth);
+    const mesh_fshader = make_mesh_fragment_shader(use_depth_texture);
+    const mesh_program = MESH_GLDATA.create_new_program(mesh_vshader, mesh_fshader);
+    TEXTUREDATA.bind_gl_program(mesh_program);
+    MESHDATA.bind_gl_program(mesh_program);
+
+    // Connect frustrum (e.g. camera bounds) data to program
+    const frustrum_vshader = make_frustrum_vertex_shader(is_metric_depth);
+    const frustrum_fshader = make_frustrum_fragment_shader();
+    const frustrum_program = FRUSTRUM_GLDATA.create_new_program(frustrum_vshader, frustrum_fshader);
+    FRUSTRUMDATA.bind_gl_program(frustrum_program);
 
     return;
   }
@@ -1145,17 +1162,16 @@
     const point_size = pointsize_ctrl.value * DISPLAYINFO.res_scale;
 
     // Read controls
-    const tilt_rad = tilt_ctrl.value * DEG2RAD;
+    const tilt_rad = viewtilt_ctrl.value * DEG2RAD;
     const max_depth = dmax_ctrl.value * CTRLS.depth_limit;
     const min_depth = dmin_ctrl.value * max_depth;
-    const half_fov_rad_value = fov_ctrl.value * 0.5 * DEG2RAD;
-    const adjustment_value = adjfactor_ctrl.value * min_depth;
+    const tan_half_fov = Math.tan(fov_ctrl.value * 0.5 * DEG2RAD);
+    const edge_threshold = edgethresh_ctrl.value;
     const use_ortho_camera = ortho_toggle.value;
     const use_depth_texture = depth_toggle.value;
-    const mask_threshold = maskthresh_ctrl.value;
+    const show_frustrum = frustrum_toggle.value;
 
     // Figure out depth scaling factors to get 'true' depth
-    const view_depth_offset = min_depth + zoff_ctrl.value * (max_depth - min_depth);
     let depth_a_value, depth_b_value;
     if (SOURCEINFO.is_metric_depth) {
       // MetricDepth = A + B*depth_pred
@@ -1166,6 +1182,13 @@
       depth_a_value = 1.0 / max_depth;
       depth_b_value = (1.0 / min_depth) - (1.0 / max_depth);
     }
+
+    // Offset camera origin for more convenient camera control
+    const viewoffset = viewoffset_ctrl.value;
+    const near_offset = min_depth * (viewoffset * 2.0);
+    const far_offset = min_depth + ((max_depth - min_depth) * (viewoffset * 2 - 1));
+    const camera_offset = viewoffset > 0.5 ? far_offset : near_offset;
+    ORBITCAM.set_origin_offset(camera_offset, tilt_rad);
 
     // Figure out view & projection matrix
     const tilt_matrix = MAT4.rotate_x(-tilt_rad);
@@ -1180,15 +1203,25 @@
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    // Set uniforms
-    const is_transpose_matrix = false;
-    gl.uniform4f(GLDATA.uniloc.scaling_factors, x_scale_factor, y_scale_factor, adjustment_value, point_size);
-    gl.uniform4f(GLDATA.uniloc.camera_params, depth_a_value, depth_b_value, half_fov_rad_value, view_depth_offset);
-    gl.uniformMatrix4fv(GLDATA.uniloc.matrix, is_transpose_matrix, view_proj_matrix);
-    gl.uniform1f(GLDATA.uniloc.mask_threshold, mask_threshold);
-
-    // Render out data!
+    // Render out mesh data
+    MESH_GLDATA.use_program();
+    MESH_GLDATA.set_uniforms(
+      [x_scale_factor, y_scale_factor, point_size],
+      [depth_a_value, depth_b_value, tan_half_fov, edge_threshold],
+      view_proj_matrix,
+    );
     MESHDATA.draw_elements(DISPLAYINFO.draw_mode);
+
+    // Render out the frustrum
+    if (show_frustrum) {
+      FRUSTRUM_GLDATA.use_program();
+      FRUSTRUM_GLDATA.set_uniforms(
+        [x_scale_factor, y_scale_factor, 0],
+        [min_depth, max_depth, tan_half_fov, 0],
+        view_proj_matrix,
+      );
+      FRUSTRUMDATA.draw_arrays(CTRLS.frustrum_linewidth);
+    }
 
     // Save every N frames, if enabled!
     if (SAVECONFIG.enable) {
