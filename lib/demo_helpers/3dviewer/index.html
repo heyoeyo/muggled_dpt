@@ -632,13 +632,12 @@
     return
   });
 
-  // Listener for adjusting playback slider
+  // Force render of frame if playback position changes while paused
   const playback_event_handler = new UIRateLimiter(DOM.playback_ctrl, 2);
   playback_event_handler.addEventListener("input", () => {
-    if (ANIMSTATE.is_playing) {
-      playpause_btn.click();
+    if (!ANIMSTATE.is_playing) {
+      ANIMSTATE.idx = requestAnimationFrame(request_current_frame);
     }
-    ANIMSTATE.idx = requestAnimationFrame(request_current_frame);
   });
 
   // Listeners for hiding/showing controls
@@ -841,8 +840,11 @@
     // Retrieve setup info from server
     const resp = await fetch("/get-source-info");
     const resp_json = await resp.json();
-    console.log("Showing:", resp_json["source_name"], resp_json);
+    console.group(resp_json["source_name"]);
+    console.log("Source info:", resp_json);
+    console.log("Camera config: (ORBITCAM.CONFIG)", ORBITCAM.CONFIG);
     console.log("Additional controls: (CTRLS)", CTRLS);
+    console.groupEnd();
 
     // Get image sizing info
     const {image_wh, depth_wh} = resp_json;
@@ -996,6 +998,9 @@
 
     // Get image data and write to the GPU
     let curr_idx = parseInt(DOM.playback_ctrl.value);
+    const next_idx = (curr_idx + 1) % SOURCEINFO.max_frame_idx;
+    DOM.playback_ctrl.value = next_idx;
+
     const [rgb_bmp, depth_bmp] = await fetch_images(curr_idx);
     TEXTUREDATA.update(rgb_bmp, depth_bmp);
 
@@ -1004,8 +1009,7 @@
     
     // Request the next frame for rendering, if needed
     if (ANIMSTATE.is_playing) {
-      curr_idx = (curr_idx + 1) % SOURCEINFO.max_frame_idx;
-      DOM.playback_ctrl.value = curr_idx;
+      cancelAnimationFrame(ANIMSTATE.idx);
       ANIMSTATE.idx = requestAnimationFrame(request_current_frame);
     }
     
@@ -1038,7 +1042,7 @@
     const depth_img_size = parseInt(resp.headers.get(ENCODEINFO.size_header_depth));
     const video_idx =  parseInt(resp.headers.get(ENCODEINFO.header_frame_index));
     if (video_idx != frame_index) {
-      console.log("DEBUG - VIDX DOES NOT MATCH FIDX", frame_index, video_idx);
+      console.log(`DEBUG - Server index (${video_idx}) doesn't match playback position (${frame_index})`);
       DOM.playback_ctrl.value = video_idx;
     }
     

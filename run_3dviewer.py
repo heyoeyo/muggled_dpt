@@ -168,7 +168,7 @@ class VideoData:
         assert osp.exists(video_path), f"Error, video does not exist: {video_path}"
         self._vread: cv2.VideoCapture = create_video_capture(video_path)
 
-        self._curr_idx: int = 0
+        self._next_fidx: int = 0
         self._wh = (int(self._vread.get(cv2.CAP_PROP_FRAME_WIDTH)), int(self._vread.get(cv2.CAP_PROP_FRAME_HEIGHT)))
         self._total_frames = int(self._vread.get(cv2.CAP_PROP_FRAME_COUNT))
 
@@ -180,18 +180,18 @@ class VideoData:
 
     def set_frame_index(self, frame_index: int) -> None:
         self._vread.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
-        self._curr_idx = frame_index
+        self._next_fidx = frame_index
         return
 
     def get_frame_index(self) -> int:
-        return self._curr_idx
+        return max(self._next_fidx - 1, 0)
 
     def read_frame(self, frame_index: int = 0) -> np.ndarray:
 
         # Jump to frame, if it's not just the next frame
-        if frame_index != self._curr_idx:
+        if frame_index != self._next_fidx:
             if frame_index > 0:
-                print("FRAME INDEX MISMATCH! Current:", self._curr_idx, "New:", frame_index)
+                print(f"Jumping playback index: {self._next_fidx} -> {frame_index}")
             self.set_frame_index(frame_index)
 
         # Read frame, with 'wrap-around' if there's is no frame (which happens at the end of videos)
@@ -202,7 +202,7 @@ class VideoData:
             assert re_ok_frame, f"Error, cannot read frame {frame_index} from video!"
 
         # Update record of which frame we're on
-        self._curr_idx += 1
+        self._next_fidx += 1
 
         return frame
 
