@@ -47,7 +47,7 @@ However, if you don't care about getting exactly correct results and just want t
 
 $$\text{True Depth} = \frac{1}{A \times V_{norm} + B}$$
 
-With this form you can manually adjust the A and B values until the mapping looks plausible.
+With this form you can manually adjust the A and B values until the mapping looks plausible (this is how the [3D viewer](https://github.com/heyoeyo/muggled_dpt?tab=readme-ov-file#run-3d-viewer) works).
 
 ## Results are scene-specific!
 
@@ -59,8 +59,66 @@ It's important to note that the mapping between the DPT result and the true dept
 
 In particular, notice that the purple ball is now mapped to the closest normalized inverse value (i.e. 1.0) and the floor is mapped to a small inverse value (0.167), suggesting it's now far away. If we used the same minimum and maximum depth values as before, we would incorrectly estimate the ball to be 3 meters away, since that was the previous value of d<sub>min</sub> and the floor would be estimated as being 4.5 meters away. In general, you can only reliably re-use the mapping if you know that the closest and farthest points are not changing between images.
 
-## Infinite Depths
+## Field-of-view (FOV)
 
-Images can contain sections which could be considered infinitely far away or otherwise ambiguous, for example the sky, which doesn't have a distinct location. These sections tend to get mapped to normalized inverse values of zero. This presents a problem when handling the inverse mapping, because d<sub>max</sub> would need to be infinity and then the resulting equation maps zero values to infinity. While this sort of looks correct mathematically, it's a problem for representing the data on a computer!
+The examples above only consider a 2D depth-wise slice of a scene to make sense of depth values. However in 3D we also need to account for the field-of-view (FOV) of the camera that captures the scene in order to make sense of the x and y coordinates. The DPT models do not estimate the FOV, so it needs to be known in advance (or again, determined by experimenting with values that 'look right').
 
-A simple-ish fix for these cases would be to re-normalize the DPT result so that it is zero at a point with a known non-infinite depth (and still equal to 1 at the closest known point) and then use the formula described above with the now zeroed point interpretted as the maximum depth. This should produce non-infinite true depth estimates for the sky (or other ambiguous segments).
+<p align="center">
+  <img src="fov_frustrum_example.webp" alt="Image showing 3D rendering of ball scene, with camera frustrum">
+</p>
+
+To figure out the world coordinate mappings, we can start by imagining the scene from a birds-eye-view:
+
+<p align="center">
+  <img src="fov_birds_eye_view.svg" alt="Birds-eye-view diagram of ball scene, indicating camera field-of-view">
+</p>
+
+At the bottom of this diagram is the hypothetical camera position (i.e. position of the camera capturing the image). Moving upwards from the camera, we see a sort of 'nearest floor' marker, which corresponds to the bottom-most part of the original image (i.e. the closest visible part of the floor). Then we see the ball, and then eventually the far wall. From this diagram, we also see a kind of triangular shape enclosing the scene, and this corresponds to the **FOV** of the camera.
+
+### Object world angle
+
+To determine the world coordinates of an object, we need to figure out the angle to it (θ<sub>world</sub>), which we derive from it's position _in the image_. We make the assumption that the image is formed as though the scene is projected onto an image plane that exists in 3D space between the 'viewing position' and the scene:
+
+<p align="center">
+  <img src="fov_image_plane_diagram.svg" alt="Image relating object world angle to a position on the image plane">
+</p>
+
+This tells us that the middle of the image is at an angle of zero, while the farthest edge of the image must be at an angle of +/- `FOV/2`. From this, it's tempting to think that a point, x<sub>image</sub>, which is 50% between the image center and edge would correspond to a world angle of `0.5 * FOV/2`, but this is not quite correct. Instead, we have the following relationships:
+
+$$ \tan \left ( \theta_{world} \right ) = \frac{x_{image}}{z_{image}}  $$
+
+$$ \tan \left ( \frac{FOV_X}{2} \right ) = \frac{x_{max}}{z_{image}}  $$
+
+$$ \therefore z_{image} = \left. {x_{max}} \middle/ \tan \left ( \frac{FOV_X}{2} \right ) \right. $$
+
+Substituing z<sub>image</sub> into the first equation gives us the result we're looking for:
+
+$$ \tan \left ( \theta_{world} \right ) = \frac{x_{image}}{x_{max}} \times \tan \left ( \frac{FOV_X}{2} \right )  $$
+
+$$ \therefore \theta_{world} = \arctan \left (\frac{x_{image}}{x_{max}} \times \tan \left( \frac{FOV_X}{2} \right)  \right) $$
+
+For clarity, the value x<sub>image</sub> is the pixel location of some object or point in a scene relative to the image center. The value x<sub>max</sub> corresponds to the farthest possible pixel location (e.g. the edge of the image, or it's half-width) from the image center and the value FOV<sub>x</sub> is the FOV in the x-direction (there could be a different FOV vertically, in y). Notice that this provides a way of determining a world angle purely from pixel coordinates!
+
+### World coordinates
+
+We need to make an assumption about what the depth predictions from a DPT model actually represent in 3D space. There are two obvious choices, one could be called 'planar depth' while the other we'll call 'raycast depth'. The diagram below shows these two distance values:
+
+<p align="center">
+  <img src="fov_depth_interpretation.svg" alt="Image showing planar-depth vs. raycast depth">
+</p>
+
+As the diagram indicates, the raycast depth is the depth we would get by casting a ray from the viewing point directly to the object (note that in 3D, the ray would not generally lie on the x-plane as shown), while the planar depth is the distance to the plane containing the object, equivalent to the z<sub>world</sub> coordinate of the object. Which of these two is correct will depend on what kind of data was used to train the model. For the models supported in [MuggledDPT](https://github.com/heyoeyo/muggled_dpt/tree/main), planar-depth seems to work well. It's what's used in the [3D viewer](https://github.com/heyoeyo/muggled_dpt?tab=readme-ov-file#run-3d-viewer) script and is what's described here. The raycast depth interpretation may work better for wide FOV (e.g. fish-eye) cameras, though again it depends on the model.
+
+From the diagram above we can write out a basic formula relating the viewing angle to an object and it's x<sub>world</sub> and z<sub>world</sub> position:
+
+$$ \tan \left ( \theta_{world} \right ) = \frac{x_{world}}{z_{world}} $$
+
+$$ \therefore x_{world} = z_{world} \times \tan(\theta_{world}) $$
+
+A similar result holds for y<sub>world</sub>. If we look at our earlier expression for θ<sub>world</sub> we can see that we'll get cancellation between `tan` and `arctan`, giving us a simple final result for the world coordinates:
+
+$$ z_{world} = \text{Depth prediction} $$
+
+$$ x_{world} = z_{world} \times \frac{x_{image}}{x_{max}} \times \tan \left( \frac{FOV_X}{2} \right) $$
+
+$$ y_{world} = z_{world} \times \frac{y_{image}}{y_{max}} \times \tan \left( \frac{FOV_Y}{2} \right) $$
