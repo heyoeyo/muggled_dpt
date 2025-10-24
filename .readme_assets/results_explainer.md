@@ -49,6 +49,13 @@ $$\text{True Depth} = \frac{1}{A \times V_{norm} + B}$$
 
 With this form you can manually adjust the A and B values until the mapping looks plausible (this is how the [3D viewer](https://github.com/heyoeyo/muggled_dpt?tab=readme-ov-file#run-3d-viewer) works).
 
+
+### Fitting to (more) known data
+
+The approach described above is error-prone as it depends on only two values. In situations where more ground truth data is available, it's possible to perform a least-squares fit between the DPT prediction and ground truth, to get a better estimate of the `A` and `B` terms. This are a number of discussions about how to do this on the MiDaS (see issue [#171](https://github.com/isl-org/MiDaS/issues/171)) and Depth-Anything (see [#157](https://github.com/DepthAnything/Depth-Anything-V2/issues/157#issuecomment-2691827143) and [#268](https://github.com/isl-org/MiDaS/issues/268#issuecomment-1948867398)) github repos. If a dense ground truth is available, another (simpler) alternative would be to shift and scale the DPT prediction to match the median (or other statistical metric, like mean) and standard-deviation of the known ground truth data (this also mimicks the training procedure of these models).
+
+
+
 ## Results are scene-specific!
 
 It's important to note that the mapping between the DPT result and the true depth varies on a scene-by-scene (or image-by-image) basis! It is not fixed for a given camera and (in general) will not be stable over a video sequence. This can be seen by the fact that the mapping depends on the closest and farthest objects in the image, due to the d<sub>min</sub> and d<sub>max</sub> terms. Consider the example below, where we start with the same red ball scene as before, but then replace the small red ball with a larger (and closer) purple ball:
@@ -75,9 +82,9 @@ To figure out the world coordinate mappings, we can start by imagining the scene
 
 At the bottom of this diagram is the hypothetical camera position (i.e. position of the camera capturing the image). Moving upwards from the camera, we see a sort of 'nearest floor' marker, which corresponds to the bottom-most part of the original image (i.e. the closest visible part of the floor). Then we see the ball, and then eventually the far wall. From this diagram, we also see a kind of triangular shape enclosing the scene, and this corresponds to the **FOV** of the camera.
 
-### Object world angle
+### World angle
 
-To determine the world coordinates of an object, we need to figure out the angle to it (θ<sub>world</sub>), which we derive from it's position _in the image_. We make the assumption that the image is formed as though the scene is projected onto an image plane that exists in 3D space between the 'viewing position' and the scene:
+To determine the world coordinates of a point (or object) in the image, we need to figure out the angle to it (θ<sub>world</sub>), which we derive from it's position _in the image_. We make the assumption that the image is formed as though the scene is projected onto an image plane that exists in 3D space between the 'viewing position' and the scene:
 
 <p align="center">
   <img src="fov_image_plane_diagram.svg" alt="Image relating object world angle to a position on the image plane">
@@ -89,17 +96,17 @@ $$ \tan \left ( \theta_{world} \right ) = \frac{x_{image}}{z_{image}}  $$
 
 $$ \tan \left ( \frac{FOV_X}{2} \right ) = \frac{x_{max}}{z_{image}}  $$
 
-$$ \therefore z_{image} = \left. {x_{max}} \middle/ \tan \left ( \frac{FOV_X}{2} \right ) \right. $$
+$$ \therefore \space z_{image} = \left. {x_{max}} \middle/ \tan \left ( \frac{FOV_X}{2} \right ) \right. $$
 
 Substituing z<sub>image</sub> into the first equation gives us the result we're looking for:
 
-$$ \tan \left ( \theta_{world} \right ) = \frac{x_{image}}{x_{max}} \times \tan \left ( \frac{FOV_X}{2} \right )  $$
+$$ \tan \left ( \theta_{world} \right ) = \frac{x_{image}}{x_{max}} \space \tan \left ( \frac{FOV_X}{2} \right )  $$
 
-$$ \therefore \theta_{world} = \arctan \left (\frac{x_{image}}{x_{max}} \times \tan \left( \frac{FOV_X}{2} \right)  \right) $$
+$$ \therefore \space \theta_{world} = \arctan \left [ \frac{x_{image}}{x_{max}} \space \tan \left( \frac{FOV_X}{2} \right)  \right ] $$
 
-For clarity, the value x<sub>image</sub> is the pixel location of some object or point in a scene relative to the image center. The value x<sub>max</sub> corresponds to the farthest possible pixel location (e.g. the edge of the image, or it's half-width) from the image center and the value FOV<sub>x</sub> is the FOV in the x-direction (there could be a different FOV vertically, in y). Notice that this provides a way of determining a world angle purely from pixel coordinates!
+To reiterate, the value x<sub>image</sub> is the _pixel location_ of some point in the image relative to the image center. The value x<sub>max</sub> corresponds to the farthest possible pixel location (e.g. the edge of the image, or it's half-width) from the image center. So the ratio of x<sub>image</sub> / x<sub>max</sub> is like a normalized image coordinate, it ranges from -1.0 (far-left edge of image) to 0.0 (middle of image) to +1.0 (far-right edge of image). The value FOV<sub>x</sub> in the equation above is just the FOV in the x-direction (there could be a different FOV vertically, in y).
 
-### World coordinates
+### World XY coordinates
 
 We need to make an assumption about what the depth predictions from a DPT model actually represent in 3D space. There are two obvious choices, one could be called 'planar depth' while the other we'll call 'raycast depth'. The diagram below shows these two distance values:
 
@@ -107,18 +114,18 @@ We need to make an assumption about what the depth predictions from a DPT model 
   <img src="fov_depth_interpretation.svg" alt="Image showing planar-depth vs. raycast depth">
 </p>
 
-As the diagram indicates, the raycast depth is the depth we would get by casting a ray from the viewing point directly to the object (note that in 3D, the ray would not generally lie on the x-plane as shown), while the planar depth is the distance to the plane containing the object, equivalent to the z<sub>world</sub> coordinate of the object. Which of these two is correct will depend on what kind of data was used to train the model. For the models supported in [MuggledDPT](https://github.com/heyoeyo/muggled_dpt/tree/main), planar-depth seems to work well. It's what's used in the [3D viewer](https://github.com/heyoeyo/muggled_dpt?tab=readme-ov-file#run-3d-viewer) script and is what's described here. The raycast depth interpretation may work better for wide FOV (e.g. fish-eye) cameras, though again it depends on the model.
+As the diagram indicates, the raycast depth is the depth we would get by casting a ray from the viewing point directly to the object (note that in 3D, the ray would not generally lie on the x-plane as shown), while the planar depth is the distance to the plane (perpendicular to the camera) containing the object, equivalent to the z<sub>world</sub> coordinate of the object. Which of these two is correct will depend on what kind of data was used to train the model. For the models supported in [MuggledDPT](https://github.com/heyoeyo/muggled_dpt/tree/main), planar-depth seems to work well. It's what's used in the [3D viewer](https://github.com/heyoeyo/muggled_dpt?tab=readme-ov-file#run-3d-viewer) script and is what's described here. The raycast depth interpretation may work better for very wide FOV (e.g. fish-eye) cameras, since planar depth can be poorly defined here, though again it depends on the model.
 
 From the diagram above we can write out a basic formula relating the viewing angle to an object and it's x<sub>world</sub> and z<sub>world</sub> position:
 
 $$ \tan \left ( \theta_{world} \right ) = \frac{x_{world}}{z_{world}} $$
 
-$$ \therefore x_{world} = z_{world} \times \tan(\theta_{world}) $$
+$$ \therefore \space x_{world} = z_{world} \space \tan(\theta_{world}) $$
 
 A similar result holds for y<sub>world</sub>. If we look at our earlier expression for θ<sub>world</sub> we can see that we'll get cancellation between `tan` and `arctan`, giving us a simple final result for the world coordinates:
 
 $$ z_{world} = \text{Depth prediction} $$
 
-$$ x_{world} = z_{world} \times \frac{x_{image}}{x_{max}} \times \tan \left( \frac{FOV_X}{2} \right) $$
+$$ x_{world} = z_{world} \space \frac{x_{image}}{x_{max}} \space \tan \left( \frac{FOV_X}{2} \right) $$
 
-$$ y_{world} = z_{world} \times \frac{y_{image}}{y_{max}} \times \tan \left( \frac{FOV_Y}{2} \right) $$
+$$ y_{world} = z_{world} \space \frac{y_{image}}{y_{max}} \space \tan \left( \frac{FOV_Y}{2} \right) $$
