@@ -95,6 +95,11 @@ def print_config_feedback(model_path, device_config_dict, using_cache, predictio
           "  Resolution: {} x {}".format(model_img_w, model_img_h),
           sep = "\n", flush = True)
     
+    # Print GPU usage if possible
+    if device_str == "cuda":
+        total_vram_mb = get_total_cuda_vram_usage_mb()
+        print("  VRAM:", total_vram_mb, "MB")
+
     return
 
 # .....................................................................................................................

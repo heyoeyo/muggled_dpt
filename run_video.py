@@ -23,8 +23,7 @@ from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
 from lib.demo_helpers.text import TextDrawer
 from lib.demo_helpers.video import LoopingVideoReader, PlaybackIndicatorCB
 from lib.demo_helpers.misc import (
-    DeviceChecker, get_default_device_string, make_device_config, print_config_feedback,
-    reduce_overthreading, get_total_cuda_vram_usage_mb,
+    DeviceChecker, get_default_device_string, make_device_config, print_config_feedback, reduce_overthreading,
 )
 
 
@@ -130,11 +129,6 @@ disp_w, disp_h = disp_wh
 example_frame = np.zeros(vreader.shape, dtype = np.uint8)
 example_prediction = dpt_model.inference(example_frame, model_base_size, force_square_resolution)
 print_config_feedback(model_path, device_config_dict, use_cache, example_prediction)
-
-# Provide memory usage feedback, if using cuda GPU
-if device_str == "cuda":
-    total_vram_mb = get_total_cuda_vram_usage_mb()
-    print("  VRAM:", total_vram_mb, "MB")
 
 
 # ---------------------------------------------------------------------------------------------------------------------

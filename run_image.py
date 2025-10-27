@@ -22,8 +22,7 @@ from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
 from lib.demo_helpers.plane_fit import estimate_plane_of_best_fit
 from lib.demo_helpers.saving import save_image, save_numpy_array, save_uint16
 from lib.demo_helpers.misc import (
-    get_default_device_string, make_device_config, print_config_feedback,
-    reduce_overthreading, get_total_cuda_vram_usage_mb,
+    get_default_device_string, make_device_config, print_config_feedback, reduce_overthreading,
 )
 
 
@@ -123,12 +122,7 @@ depth_norm = normalize_01(scaled_prediction).float().cpu().numpy().squeeze()
 
 t2 = perf_counter()
 print("  -> Took", round(1000*(t2-t1), 1), "ms")
-
-# Provide memory usage feedback, if using cuda GPU
 print_config_feedback(model_path, device_config_dict, use_cache, prediction)
-if device_str == "cuda":
-    total_vram_mb = get_total_cuda_vram_usage_mb()
-    print("  VRAM:", total_vram_mb, "MB")
 
 
 # ---------------------------------------------------------------------------------------------------------------------
