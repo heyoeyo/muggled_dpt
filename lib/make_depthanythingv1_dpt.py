@@ -3,7 +3,7 @@
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Imports
+# %% Imports
 
 from .dpt_model import DPTModel
 
@@ -18,33 +18,38 @@ from .v1_depthanything.state_dict_conversion.convert_original_state_dict_keys im
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Functions
+# %% Functions
 
-# .....................................................................................................................
 
 def make_depthanythingv1_dpt_from_original_state_dict(
-        state_dict, enable_cache=False, enable_optimizations=True, strict_load=True
-    ):
-    
-    '''
+    state_dict: dict,
+    enable_cache: bool = False,
+    enable_optimizations: bool = True,
+    strict_load: bool = True,
+) -> tuple[dict, DPTModel]:
+    """
     Function used to initialize a Depth-Anything DPT model from a state dictionary (i.e. model weights) file.
     This function will automatically figure out the model sizing parameters from the state dict,
     assuming it comes from the original Depth-Anything repo.
     Returns:
         model_config_dict, dpt_model
-    '''
-    
+    """
+
     # Feedback on using non-strict loading
     if not strict_load:
-        print("",
-              "WARNING:",
-              "  Loading model weights without 'strict' mode enabled!",
-              "  Some weights may be missing or unused!", sep = "\n", flush = True)
-    
+        print(
+            "",
+            "WARNING:",
+            "  Loading model weights without 'strict' mode enabled!",
+            "  Some weights may be missing or unused!",
+            sep="\n",
+            flush=True,
+        )
+
     # Get model config from weights (i.e. vit-small vs vit-large) & convert to new keys/state dict
     config_dict = get_model_config_from_state_dict(state_dict, enable_cache, enable_optimizations)
     new_state_dict = convert_state_dict_keys(config_dict, state_dict)
-    
+
     # Load model & set model weights
     dpt_model = make_depthanythingv1_dpt(**config_dict)
     dpt_model.patch_embed.load_state_dict(new_state_dict["patch_embed"], strict_load)
@@ -52,31 +57,32 @@ def make_depthanythingv1_dpt_from_original_state_dict(
     dpt_model.reassemble.load_state_dict(new_state_dict["reassemble"], strict_load)
     dpt_model.fusion.load_state_dict(new_state_dict["fusion"], strict_load)
     dpt_model.head.load_state_dict(new_state_dict["head"], strict_load)
-    
+
     return config_dict, dpt_model
+
 
 # .....................................................................................................................
 
+
 def make_depthanythingv1_dpt(
-        features_per_token,
-        num_heads,
-        num_blocks,
-        reassembly_features_list,
-        base_patch_grid_hw,
-        fusion_channels=256,
-        patch_size_px=14,
-        enable_cache=False,
-        enable_optimizations=True,
-    ):
-    
-    '''
+    features_per_token: int,
+    num_heads: int,
+    num_blocks: int,
+    reassembly_features_list: tuple[int, int, int, int],
+    base_patch_grid_hw: tuple[int, int],
+    fusion_channels: int = 256,
+    patch_size_px: int = 14,
+    enable_cache: bool = False,
+    enable_optimizations: bool = True,
+) -> DPTModel:
+    """
     Helper used to build all Depth-Anything DPT components. The arguments for this function are
     expected to come from the 'make_depthanything_dpt_from_original_state_dict' function, which
     will use arguments based on a loaded state dictionary.
-    
+
     However, if you want to make a model without pretrained weights
     here are the following standard configs (from Depth-Anything/DinoV2):
-    
+
     # vit-large:
         features_per_token = 1024
         num_heads = 16
@@ -85,7 +91,7 @@ def make_depthanythingv1_dpt(
         base_patch_grid_hw = (37, 37)
         fusion_channels = 256
         patch_size_px = 14
-    
+
     # vit-base
         features_per_token = 768
         num_heads = 12
@@ -94,7 +100,7 @@ def make_depthanythingv1_dpt(
         base_patch_grid_hw = (37, 37)
         fusion_channels = 128
         patch_size_px = 14
-    
+
     # vit-small
         features_per_token = 384
         num_heads = 6
@@ -103,8 +109,8 @@ def make_depthanythingv1_dpt(
         base_patch_grid_hw = (37, 37)
         fusion_channels = 64
         patch_size_px = 14
-    '''
-    
+    """
+
     # Construct model components
     img_training_size = base_patch_grid_hw[0] * patch_size_px
     patch_embed_model = PatchEmbed(features_per_token, patch_size_px, img_training_size)
@@ -114,10 +120,8 @@ def make_depthanythingv1_dpt(
     reassembly_model = ReassembleModel(features_per_token, reassembly_features_list, fusion_channels)
     fusion_model = FusionModel(fusion_channels)
     head_model = MonocularDepthHead(fusion_channels, patch_size_px)
-    
+
     # Build combined DPT model!
     dpt_model = DPTModel(patch_embed_model, imgenc_model, reassembly_model, fusion_model, head_model)
-    
-    return dpt_model
 
-# .....................................................................................................................
+    return dpt_model

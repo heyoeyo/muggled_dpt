@@ -206,7 +206,7 @@ class VideoData:
 
         return frame
 
-    def close(self):
+    def close(self) -> None:
         self._vread.release()
 
 
@@ -235,7 +235,7 @@ class ImageAsVideoData:
     def read_frame(self, frame_index: int = 0) -> np.ndarray:
         return self._image
 
-    def close(self):
+    def close(self) -> None:
         return
 
     @staticmethod
@@ -260,13 +260,13 @@ class WebcamData(VideoData):
         self._vread: cv2.VideoCapture = create_video_capture(video_path)
         self._wh = (int(self._vread.get(cv2.CAP_PROP_FRAME_WIDTH)), int(self._vread.get(cv2.CAP_PROP_FRAME_HEIGHT)))
 
-    def get_total_frames(self):
+    def get_total_frames(self) -> None:
         return None
 
-    def get_frame_index(self):
+    def get_frame_index(self) -> int:
         return 0
 
-    def set_frame_index(self, frame_index: int):
+    def set_frame_index(self, frame_index: int) -> None:
         # Do nothing, webcam cannot set a frame index
         return
 
@@ -294,7 +294,7 @@ class InputState:
     image_wh = (0, 0)
     depth_wh = (0, 0)
 
-    def read_input_path(self, input_path):
+    def read_input_path(self, input_path: str):
         """Helper used to properly interpret input data as image/video/webcam"""
 
         # Load data as if it is a video
@@ -319,7 +319,7 @@ class InputState:
 
         return self
 
-    def update_sizing(self, dpt_model, model_base_size, force_square_resolution=True):
+    def update_sizing(self, dpt_model, model_base_size: int, force_square_resolution: bool = True):
         """Helper used to update internal record of image/depth sizing"""
 
         # Create example image to run through model
@@ -347,7 +347,13 @@ class MaskData(nn.Module):
     detection images (i.e. we can use the gpu!).
     """
 
-    def __init__(self, mask_path, mask_wh=None, blur_kernel_size=5, blur_weight=1):
+    def __init__(
+        self,
+        mask_path: str | None,
+        mask_wh: tuple[int, int] | None = None,
+        blur_kernel_size: int = 5,
+        blur_weight: float = 1,
+    ):
 
         # Inherit from parent
         super().__init__()
@@ -366,15 +372,15 @@ class MaskData(nn.Module):
         self.requires_grad_(False)
         self.eval()
 
-    def clear(self):
+    def clear(self) -> None:
         self.path = None
         self.has_loaded_mask = False
         self.image = None
 
-    def get_mask_uint8(self, depth_prediction):
+    def get_mask_uint8(self, depth_prediction: torch.tensor) -> np.ndarray:
         return self.image if self.has_loaded_mask else self.compute_edges_uint8(depth_prediction)
 
-    def _load_mask_image(self, mask_path, mask_wh) -> tuple[bool, np.ndarray]:
+    def _load_mask_image(self, mask_path: str | None, mask_wh: tuple[int, int]) -> tuple[bool, np.ndarray]:
 
         mask_image = None
         ok_path = mask_path is not None
@@ -391,7 +397,7 @@ class MaskData(nn.Module):
 
         return ok_path, mask_image
 
-    def compute_edges_uint8(self, depth_prediction):
+    def compute_edges_uint8(self, depth_prediction: torch.tensor) -> np.ndarray:
 
         # Do x/y edge detection
         blur_pred = self._blur(depth_prediction)
@@ -405,7 +411,7 @@ class MaskData(nn.Module):
         return mag_uint8
 
     @staticmethod
-    def _make_derivative_filter():
+    def _make_derivative_filter() -> torch.tensor:
         """Helper used to make a 2D derivative convolution operation (based on Sobel filter)"""
 
         # Build 2D derivative kernel
@@ -420,7 +426,7 @@ class MaskData(nn.Module):
         return sobel
 
     @staticmethod
-    def _make_blur_filter(blur_kernel_size=5, blur_weight=1):
+    def _make_blur_filter(blur_kernel_size: int = 5, blur_weight: float = 1) -> torch.tensor:
         """Helper used to make a gaussian blur convolution operation"""
 
         # Build 2D gaussian kernel
@@ -484,7 +490,7 @@ print(
 
 class RequestHandler(BaseHTTPRequestHandler):
 
-    def do_GET(self):
+    def do_GET(self) -> None:
 
         # Redirect to main page, if no path is given
         if self.path == "/":
@@ -588,7 +594,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         return
 
-    def do_POST(self):
+    def do_POST(self) -> None:
 
         if self.path.startswith("/upload"):
 
@@ -613,14 +619,14 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         return
 
-    def _set_simple_headers(self, content_type: str, response_code: int = 200):
+    def _set_simple_headers(self, content_type: str, response_code: int = 200) -> None:
         """Helper used to set up headers for 'simple' responses"""
         self.send_response(response_code)
         self.send_header("Content-type", content_type)
         self.end_headers()
         return
 
-    def _set_image_headers(self, frame_index: int, rgb_size_bytes: int, depth_size_bytes: int):
+    def _set_image_headers(self, frame_index: int, rgb_size_bytes: int, depth_size_bytes: int) -> None:
         """Helper used to set up headers for image responses, which involve encoding binary sizing info"""
         self.send_response(200)
         self.send_header("Content-Type", "application/octet-stream")
@@ -630,9 +636,9 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         return
 
-    def log_request(self, code):
+    def log_request(self, code) -> None:
         # Override: prevents server from printing out a message for every request
-        pass
+        return
 
 
 # .....................................................................................................................

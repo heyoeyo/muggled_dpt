@@ -3,30 +3,32 @@
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Imports
+# %% Imports
 
 import os
 import os.path as osp
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Functions
+# %% Functions
 
 # .....................................................................................................................
 
-def clean_path_str(path = None):
-    
-    '''
+
+def clean_path_str(path: str | None = None) -> str:
+    """
     Helper used to interpret user-given pathes correctly
     Import for Windows, since 'copy path' on file explorer includes quotations!
-    '''
-    
+    """
+
     path_str = "" if path is None else str(path)
     return osp.expanduser(path_str).strip().replace('"', "").replace("'", "")
 
+
 # .....................................................................................................................
 
-def ask_for_path_if_missing(path = None, file_type = "file", default_path=None):
+
+def ask_for_path_if_missing(path: str | None = None, file_type: str = "file", default_path: str | None = None) -> str:
 
     # Bail if we get a good path
     path = clean_path_str(path)
@@ -67,16 +69,22 @@ def ask_for_path_if_missing(path = None, file_type = "file", default_path=None):
 
     return path
 
+
 # .....................................................................................................................
 
-def ask_for_model_path_if_missing(file_dunder, model_path = None, default_prompt_path=None):
-    
+
+def ask_for_model_path_if_missing(
+    file_dunder: str,
+    model_path: str | None = None,
+    default_prompt_path: str | None = None,
+) -> str:
+
     # Bail if we get a good path
     path_was_given = model_path is not None
     model_path = clean_path_str(model_path)
     if osp.exists(model_path):
         return model_path
-    
+
     # If we're given a path that doesn't exist, use it to match to similarly named model files
     # -> This allows the user to select models using substrings, e.g. 'large_5' to match to 'beit_large_512'
     model_file_paths = get_model_weights_paths(file_dunder)
@@ -86,7 +94,7 @@ def ask_for_model_path_if_missing(file_dunder, model_path = None, default_prompt
         filtered_paths = list(filter(lambda p: model_path in osp.basename(p), model_file_paths))
         if len(filtered_paths) == 1:
             return filtered_paths[0]
-    
+
     # Handle no files vs. 1 file vs. many files
     if len(model_file_paths) == 0:
         # If there are no files in the model weights folder, ask the user to enter a path to load a model
@@ -97,13 +105,14 @@ def ask_for_model_path_if_missing(file_dunder, model_path = None, default_prompt
     else:
         # If more than 1 file is available, provide a menu to select from the models
         model_path = ask_for_model_from_menu(model_file_paths, default_prompt_path)
-    
+
     return model_path
+
 
 # .....................................................................................................................
 
-def ask_for_model_from_menu(model_files_paths, default_path=None):
 
+def ask_for_model_from_menu(model_files_paths: list[str], default_path: str | None = None) -> str:
     """
     Function which provides a simple cli 'menu' for selecting which model to load.
     A 'default' can be provided, which will highlight a matching entry in the menu
@@ -189,19 +198,21 @@ def ask_for_model_from_menu(model_files_paths, default_path=None):
 
     return selected_model_path
 
+
 # .....................................................................................................................
 
-def get_model_weights_paths(file_dunder, model_weights_folder_name = "model_weights"):
-    
+
+def get_model_weights_paths(file_dunder: str, model_weights_folder_name: str = "model_weights") -> list[str]:
+
     # Build path to model weight folder (and create if missing)
     script_caller_folder_path = osp.dirname(file_dunder) if osp.isfile(file_dunder) else file_dunder
     model_weights_path = osp.join(script_caller_folder_path, model_weights_folder_name)
     os.makedirs(model_weights_path, exist_ok=True)
-    
+
     # Get only the paths to files with specific extensions
     valid_exts = {".pt", ".pth"}
     all_files_list = os.listdir(model_weights_path)
     model_files_list = [file for file in all_files_list if osp.splitext(file)[1].lower() in valid_exts]
     model_file_paths = [osp.join(model_weights_path, file) for file in model_files_list]
-    
+
     return model_file_paths

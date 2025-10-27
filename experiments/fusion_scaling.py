@@ -3,7 +3,7 @@
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Imports
+# %% Imports
 
 import os
 import os.path as osp
@@ -17,12 +17,15 @@ import torch
 
 # This is a hack to make this script work from inside the experiments folder!
 try:
-    import lib # NOQA
+    import lib  # NOQA
 except ModuleNotFoundError:
     import sys
+
     parent_folder = osp.dirname(osp.dirname(__file__))
-    if "lib" in os.listdir(parent_folder): sys.path.insert(0, parent_folder)
-    else: raise ImportError("Can't find path to lib folder!")
+    if "lib" in os.listdir(parent_folder):
+        sys.path.insert(0, parent_folder)
+    else:
+        raise ImportError("Can't find path to lib folder!")
 
 from lib.make_dpt import make_dpt_from_state_dict
 
@@ -33,12 +36,15 @@ from lib.demo_helpers.ui import SliderCB, ColormapButtonsCB, ButtonBar, ScaleByK
 from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
 from lib.demo_helpers.saving import save_image, save_numpy_array, save_uint16
 from lib.demo_helpers.misc import (
-    get_default_device_string, make_device_config, print_config_feedback, reduce_overthreading
+    get_default_device_string,
+    make_device_config,
+    print_config_feedback,
+    reduce_overthreading,
 )
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Set up script args
+# %% Set up script args
 
 # Set argparse defaults
 default_device = get_default_device_string()
@@ -49,20 +55,39 @@ default_base_size = None
 
 # Define script arguments
 parser = argparse.ArgumentParser(description="Script used to run MiDaS DPT depth-estimation on a single image")
-parser.add_argument("-i", "--image_path", default=default_image_path,
-                    help="Path to image to run depth estimation on")
-parser.add_argument("-m", "--model_path", default=default_model_path, type=str,
-                    help="Path to DPT model weights")
-parser.add_argument("-s", "--display_size", default=default_display_size, type=int,
-                    help="Controls size of displayed results (default: {})".format(default_display_size))
-parser.add_argument("-d", "--device", default=default_device, type=str,
-                    help="Device to use when running model (ex: 'cpu', 'cuda', 'mps')")
-parser.add_argument("-f32", "--use_float32", default=False, action="store_true",
-                    help="Use 32-bit floating point model weights. Note: this doubles VRAM usage")
-parser.add_argument("-ar", "--use_aspect_ratio", default=False, action="store_true",
-                    help="Process the image at it's original aspect ratio, if the model supports it")
-parser.add_argument("-b", "--base_size_px", default=default_base_size, type=int,
-                    help="Override base (e.g. 384, 512) model size")
+parser.add_argument("-i", "--image_path", default=default_image_path, help="Path to image to run depth estimation on")
+parser.add_argument("-m", "--model_path", default=default_model_path, type=str, help="Path to DPT model weights")
+parser.add_argument(
+    "-s",
+    "--display_size",
+    default=default_display_size,
+    type=int,
+    help="Controls size of displayed results (default: {})".format(default_display_size),
+)
+parser.add_argument(
+    "-d",
+    "--device",
+    default=default_device,
+    type=str,
+    help="Device to use when running model (ex: 'cpu', 'cuda', 'mps')",
+)
+parser.add_argument(
+    "-f32",
+    "--use_float32",
+    default=False,
+    action="store_true",
+    help="Use 32-bit floating point model weights. Note: this doubles VRAM usage",
+)
+parser.add_argument(
+    "-ar",
+    "--use_aspect_ratio",
+    default=False,
+    action="store_true",
+    help="Process the image at it's original aspect ratio, if the model supports it",
+)
+parser.add_argument(
+    "-b", "--base_size_px", default=default_base_size, type=int, help="Override base (e.g. 384, 512) model size"
+)
 
 # For convenience
 args = parser.parse_args()
@@ -101,7 +126,7 @@ reduce_overthreading(device_str)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Load resources
+# %% Load resources
 
 # Load model
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
@@ -119,7 +144,7 @@ disp_wh = (int(disp_w), int(disp_h))
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Run model
+# %% Run model
 
 t1 = perf_counter()
 
@@ -132,12 +157,12 @@ with torch.inference_mode():
     reasm_tokens = dpt_model.reassemble(*imgenc_tokens, patch_grid_hw)
 
 t2 = perf_counter()
-print("  -> Took", round(1000*(t2-t1), 1), "ms")
+print("  -> Took", round(1000 * (t2 - t1), 1), "ms")
 print_config_feedback(model_path, device_config_dict, use_cache, img_tensor)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Display results
+# %% Display results
 
 # Set up button controls
 btnbar = ButtonBar()
@@ -158,64 +183,70 @@ window = DisplayWindow("Fusion Scaling Result - q to quit")
 window.set_callbacks(btnbar, cmap_btns, *sliders)
 
 # Feedback about controls
-print("", "Displaying results",
-      "  - Drag bars to change fusion scaling factors",
-      "  - Right click on bars to reset values",
-      "  - Use up/down arrow keys to adjust display size",
-      "  - Press esc or q to quit",
-      "",
-      sep="\n", flush=True)
+print(
+    "",
+    "Displaying results",
+    "  - Drag bars to change fusion scaling factors",
+    "  - Right click on bars to reset values",
+    "  - Use up/down arrow keys to adjust display size",
+    "  - Press esc or q to quit",
+    "",
+    sep="\n",
+    flush=True,
+)
 
 while True:
-    
+
     # Read controls
     scale_factors = [s.read() for s in sliders]
     use_high_contrast = toggle_high_contrast.read()
     use_reverse_colors = toggle_reverse_color.read()
-    
+
     # Run remaining layers with scaling factors
     with torch.inference_mode():
-        
+
         # Run fusion steps manually, so we can apply scaling factors
         fuse_3 = dpt_model.fusion.blocks[3](reasm_tokens[3] * scale_factors[3])
         fuse_2 = dpt_model.fusion.blocks[2](reasm_tokens[2], fuse_3 * scale_factors[2])
         fuse_1 = dpt_model.fusion.blocks[1](reasm_tokens[1], fuse_2 * scale_factors[1])
         fuse_0 = dpt_model.fusion.blocks[0](reasm_tokens[0], fuse_1 * scale_factors[0])
         depth_prediction = dpt_model.head(fuse_0).squeeze(dim=1)
-    
+
     # Post-processing for display
     scaled_prediction = scale_prediction(depth_prediction, disp_wh)
     depth_norm = normalize_01(scaled_prediction).float().cpu().numpy().squeeze()
-    
+
     # Produce colored depth image for display
-    depth_uint8 = np.uint8(np.round(255.0*depth_norm))
-    if use_high_contrast: depth_uint8 = histogram_equalization(depth_uint8)
-    if use_reverse_colors: depth_uint8 = 255 - depth_uint8
+    depth_uint8 = np.uint8(np.round(255.0 * depth_norm))
+    if use_high_contrast:
+        depth_uint8 = histogram_equalization(depth_uint8)
+    if use_reverse_colors:
+        depth_uint8 = 255 - depth_uint8
     depth_color = cmap_btns.apply_colormap(depth_uint8)
-    
+
     # Generate display image: buttons / colormaps / side-by-side images / sliders
     sidebyside_img = display_scaler.resize(np.hstack((scaled_input_img, depth_color)))
     display_frame = btnbar.draw_standalone(sidebyside_img.shape[1])
     display_frame = cmap_btns.append_to_frame(display_frame)
     display_frame = np.vstack((display_frame, sidebyside_img))
     display_frame = SliderCB.append_many_to_frame(display_frame, *sliders)
-    
+
     # Display final image
     window.imshow(display_frame)
     req_break, keypress = window.waitKey(20)
     if req_break:
         break
-    
+
     # Handle keypresses
     display_scaler.on_keypress(keypress)
     btnbar.on_keypress(keypress)
     if btn_save.read():
-        
+
         # Apply modifications to raw prediction for saving
         npy_prediction = normalize_01(depth_prediction.clone()).float().cpu().numpy().squeeze()
         if use_reverse_colors:
             npy_prediction = 1.0 - npy_prediction
-        
+
         # Save data!
         ok_img_save, save_img_path = save_image(depth_color, image_path, save_folder=save_folder)
         ok_npy_save, save_npy_path = save_numpy_array(npy_prediction, save_img_path)
@@ -226,7 +257,7 @@ while True:
                 print(save_npy_path)
             if ok_uint16_save:
                 print(save_uint16_path)
-    
+
     pass
 
 # Clean up windows

@@ -3,7 +3,7 @@
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Imports
+# %% Imports
 
 import argparse
 from time import perf_counter
@@ -22,12 +22,15 @@ from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
 from lib.demo_helpers.plane_fit import estimate_plane_of_best_fit
 from lib.demo_helpers.saving import save_image, save_numpy_array, save_uint16
 from lib.demo_helpers.misc import (
-    get_default_device_string, make_device_config, print_config_feedback, reduce_overthreading,
+    get_default_device_string,
+    make_device_config,
+    print_config_feedback,
+    reduce_overthreading,
 )
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Set up script args
+# %% Set up script args
 
 # Set argparse defaults
 default_device = get_default_device_string()
@@ -38,22 +41,46 @@ default_base_size = None
 
 # Define script arguments
 parser = argparse.ArgumentParser(description="Script used to run MiDaS DPT depth-estimation on a single image")
-parser.add_argument("-i", "--image_path", default=default_image_path,
-                    help="Path to image to run depth estimation on")
-parser.add_argument("-m", "--model_path", default=default_model_path, type=str,
-                    help="Path to DPT model weights")
-parser.add_argument("-s", "--display_size", default=default_display_size, type=int,
-                    help="Controls size of displayed results (default: {})".format(default_display_size))
-parser.add_argument("-d", "--device", default=default_device, type=str,
-                    help="Device to use when running model (ex: 'cpu', 'cuda', 'mps')")
-parser.add_argument("-f32", "--use_float32", default=False, action="store_true",
-                    help="Use 32-bit floating point model weights. Note: this doubles VRAM usage")
-parser.add_argument("-z", "--no_optimization", default=False, action="store_true",
-                    help="Disable attention optimizations (only effects DepthAnything models)")
-parser.add_argument("-ar", "--use_aspect_ratio", default=False, action="store_true",
-                    help="Process the image at it's original aspect ratio, if the model supports it")
-parser.add_argument("-b", "--base_size_px", default=default_base_size, type=int,
-                    help="Override base (e.g. 384, 512) model size")
+parser.add_argument("-i", "--image_path", default=default_image_path, help="Path to image to run depth estimation on")
+parser.add_argument("-m", "--model_path", default=default_model_path, type=str, help="Path to DPT model weights")
+parser.add_argument(
+    "-s",
+    "--display_size",
+    default=default_display_size,
+    type=int,
+    help="Controls size of displayed results (default: {})".format(default_display_size),
+)
+parser.add_argument(
+    "-d",
+    "--device",
+    default=default_device,
+    type=str,
+    help="Device to use when running model (ex: 'cpu', 'cuda', 'mps')",
+)
+parser.add_argument(
+    "-f32",
+    "--use_float32",
+    default=False,
+    action="store_true",
+    help="Use 32-bit floating point model weights. Note: this doubles VRAM usage",
+)
+parser.add_argument(
+    "-z",
+    "--no_optimization",
+    default=False,
+    action="store_true",
+    help="Disable attention optimizations (only effects DepthAnything models)",
+)
+parser.add_argument(
+    "-ar",
+    "--use_aspect_ratio",
+    default=False,
+    action="store_true",
+    help="Process the image at it's original aspect ratio, if the model supports it",
+)
+parser.add_argument(
+    "-b", "--base_size_px", default=default_base_size, type=int, help="Override base (e.g. 384, 512) model size"
+)
 
 # For convenience
 args = parser.parse_args()
@@ -89,7 +116,7 @@ device_config_dict = make_device_config(device_str, use_float32)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Load resources
+# %% Load resources
 
 # Load model
 print("", "Loading model weights...", "  @ {}".format(model_path), sep="\n", flush=True)
@@ -107,7 +134,7 @@ disp_wh = (int(disp_w), int(disp_h))
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Run model
+# %% Run model
 
 t1 = perf_counter()
 
@@ -121,12 +148,12 @@ depth_norm = remove_inf_tensor(scaled_prediction)
 depth_norm = normalize_01(scaled_prediction).float().cpu().numpy().squeeze()
 
 t2 = perf_counter()
-print("  -> Took", round(1000*(t2-t1), 1), "ms")
+print("  -> Took", round(1000 * (t2 - t1), 1), "ms")
 print_config_feedback(model_path, device_config_dict, use_cache, prediction)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Display results
+# %% Display results
 
 # Calculate a plane-of-best-fit, so we can (potentially) remove it during display
 plane_depth = estimate_plane_of_best_fit(depth_norm)
@@ -156,41 +183,47 @@ prev_plane_removal_factor = None
 depth_1ch = depth_norm
 
 # Feedback about controls
-print("", "Displaying results",
-      "  - Click and drag bars to adjust display",
-      "  - Right click on bars to reset values",
-      "  - Use up/down arrow keys to adjust display size",
-      "  - Press esc or q to quit",
-      "",
-      sep="\n", flush=True)
+print(
+    "",
+    "Displaying results",
+    "  - Click and drag bars to adjust display",
+    "  - Right click on bars to reset values",
+    "  - Use up/down arrow keys to adjust display size",
+    "  - Press esc or q to quit",
+    "",
+    sep="\n",
+    flush=True,
+)
 
 while True:
-    
+
     # Read controls
     plane_removal_factor = plane_slider.read()
     thresh_min = min_slider.read()
     thresh_max = max_slider.read()
     use_high_contrast = toggle_high_contrast.read()
     use_reverse_colors = toggle_reverse_color.read()
-    
+
     # Re-calculate depth image if plane removal changes
-    removal_factor_changed = (plane_removal_factor != prev_plane_removal_factor)
+    removal_factor_changed = plane_removal_factor != prev_plane_removal_factor
     if removal_factor_changed:
         depth_1ch = depth_norm - (plane_depth * plane_removal_factor)
         depth_1ch = normalize_01(depth_1ch)
         prev_plane_removal_factor = plane_removal_factor
-    
+
     # Make sure we actually get min < max thresholds & non-zero delta to avoid divide-by-zero
     thresh_min, thresh_max = sorted([thresh_min, thresh_max])
     thresh_delta = max(0.001, thresh_max - thresh_min)
     depth_thresholded = np.clip((depth_1ch - thresh_min) / thresh_delta, 0.0, 1.0)
-    
+
     # Produce colored depth image for display
-    depth_uint8 = np.uint8(np.round(255.0*depth_thresholded))
-    if use_high_contrast: depth_uint8 = histogram_equalization(depth_uint8, thresh_min, thresh_max)
-    if use_reverse_colors: depth_uint8 = 255 - depth_uint8
+    depth_uint8 = np.uint8(np.round(255.0 * depth_thresholded))
+    if use_high_contrast:
+        depth_uint8 = histogram_equalization(depth_uint8, thresh_min, thresh_max)
+    if use_reverse_colors:
+        depth_uint8 = 255 - depth_uint8
     depth_color = cmap_btns.apply_colormap(depth_uint8)
-    
+
     # Generate display image: button controls / colormaps / side-by-side images / sliders
     sidebyside_display = display_scaler.resize(np.hstack((scaled_input_img, depth_color)))
     display_frame = btnbar.draw_standalone(sidebyside_display.shape[1])
@@ -202,18 +235,18 @@ while True:
         min_slider,
         max_slider,
     )
-    
+
     # Update displayed image
     window.imshow(display_frame)
     req_break, keypress = window.waitKey(20)
     if req_break:
         break
-    
+
     # Handle keypresses
     display_scaler.on_keypress(keypress)
     btnbar.on_keypress(keypress)
     if btn_save.read():
-        
+
         # Apply modifications to raw prediction for saving
         npy_prediction = remove_inf_tensor(prediction.clone())
         npy_prediction = normalize_01(npy_prediction).float().cpu().numpy().squeeze()
@@ -222,7 +255,7 @@ while True:
         npy_prediction = np.clip((npy_prediction - thresh_min) / thresh_delta, 0.0, 1.0)
         if use_reverse_colors:
             npy_prediction = 1.0 - npy_prediction
-        
+
         # Save data!
         ok_img_save, save_img_path = save_image(depth_color, image_path)
         ok_npy_save, save_npy_path = save_numpy_array(npy_prediction, save_img_path)
@@ -233,7 +266,7 @@ while True:
                 print(save_npy_path)
             if ok_uint16_save:
                 print(save_uint16_path)
-    
+
     pass
 
 # Clean up windows
