@@ -3,7 +3,7 @@
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Imports
+# %% Imports
 
 import cv2
 import numpy as np
@@ -17,43 +17,46 @@ from torch import Tensor
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Classes
+# %% Classes
+
 
 class PatchEmbed(nn.Module):
-    
-    '''
+    """
     Simplified implementation of the patch embedding step for:
         "Vision Transformers for Dense Prediction"
         By: René Ranftl, Alexey Bochkovskiy, Vladlen Koltun
         @ https://arxiv.org/abs/2103.13413
-    
+
     Based on code from timm library:
         @ https://github.com/huggingface/pytorch-image-models/blob/main/timm/layers/patch_embed.py
-    
+
     Purpose is to take input images and convert them to 'lists' of (1D) tokens,
     one token for each (16x16 default) image patch.
-    '''
-    
+    """
+
     # Set hard-coded mean/std normalization for input images
     rgb_offset = (0.5, 0.5, 0.5)
     rgb_stdev = (0.5, 0.5, 0.5)
-    
+
     # .................................................................................................................
-    
-    def __init__(self, features_per_token, patch_size_px=16, default_image_size=384, num_input_channels=3, bias=True):
-        
+
+    def __init__(
+        self,
+        features_per_token: int,
+        patch_size_px: int = 16,
+        default_image_size: int = 384,
+        num_input_channels: int = 3,
+        bias: bool = True,
+    ):
+
         # Inherit from parent
         super().__init__()
-        
+
         # Both grouping + linear transformation is handled with a single strided convolution step!
         self.proj = nn.Conv2d(
-            num_input_channels,
-            features_per_token,
-            kernel_size=patch_size_px,
-            stride=patch_size_px,
-            bias=bias
+            num_input_channels, features_per_token, kernel_size=patch_size_px, stride=patch_size_px, bias=bias
         )
-        
+
         # Store expected size of input images (e.g. size to scale to when handling images)
         # -> Default size corresponds to the size of images used in training (e.g. 384 vs 512)
         # -> Tiling size is a constraint on the image input sizing, based on the need for
@@ -61,49 +64,48 @@ class PatchEmbed(nn.Module):
         #    the number of patches be divisble by 2, due to downscaling used within the model
         self._default_size_px = round(default_image_size)
         self._tiling_size = round(2 * patch_size_px)
-        
+
         # Store rgb scaling factors, for preparing input images
         self.register_buffer("mean_rgb", torch.tensor(self.rgb_offset).view(-1, 1, 1), persistent=False)
         self.register_buffer("stdev_scale_rgb", 1.0 / torch.tensor(self.rgb_stdev).view(-1, 1, 1), persistent=False)
 
     # .................................................................................................................
-    
-    def forward(self, image_tensor_bchw):
-        
-        '''
+
+    def forward(self, image_tensor_bchw: Tensor) -> tuple[Tensor, tuple[int, int]]:
+        """
         Projects & reshapes image tensor: BxCxHxW -> BxNxF
             -> Where B is batch size
             -> C is image channels (i.e. 3 for RGB image)
             -> H, W are the height & width of the image
             -> N is the number of tokens (equal to number of image patches)
             -> F is the number of features per token
-        '''
-        
+        """
+
         # Convert image width/height to patch grid width/height, and image channels to feature count
         output = self.proj(image_tensor_bchw)
-        
+
         # Convert tensor shape: BxFxHxW -> BxNxF (N tokens, F features per token, H & W are patch grid size)
         patch_grid_hw = output.shape[2:]
         output = output.flatten(2).transpose(1, 2)
-        
+
         return output, patch_grid_hw
-    
+
     # .................................................................................................................
-    
+
     def prepare_image(
         self,
         image_bgr: ndarray,
         max_side_length: int | None = None,
         use_square_sizing: bool = True,
-        interpolation_mode="bilinear",
+        interpolation_mode: str = "bilinear",
     ) -> Tensor:
-        '''
+        """
         Helper used to convert opencv-formatted images (e.g. from loading: cv2.imread(path_to_image))
         into the format needed by the patch embedding model (includes scaling and RGB normalization steps)
         Returns:
             image_as_tensor_bchw
-        '''
-        
+        """
+
         # Fill in missing max side length
         if max_side_length is None:
             max_side_length = self._default_size_px
@@ -132,26 +134,26 @@ class PatchEmbed(nn.Module):
         )
 
         # Perform mean/scale normalization
-        return ((image_tensor_bchw/255.0) - self.mean_rgb) * self.stdev_scale_rgb
-    
+        return ((image_tensor_bchw / 255.0) - self.mean_rgb) * self.stdev_scale_rgb
+
     # .................................................................................................................
-    
-    def verify_input(self, image_tensor_bchw):
-        
+
+    def verify_input(self, image_tensor_bchw: Tensor) -> bool:
+
         # Assume input is tensor with bchw shape
         b, c, h, w = image_tensor_bchw.shape
-        
+
         # Check that the input channel count matches our convolution
         targ_c = self.proj.in_channels
-        assert (c == targ_c), f"Bad channel count! Expected {targ_c} got {c}"
-        
+        assert c == targ_c, f"Bad channel count! Expected {targ_c} got {c}"
+
         # Check input image shape
         # -> Needs to be divisble by 16 for patch embedding
         # -> Patch grid size itself needs to be divisible by 2 for downscaling
         h_stride, w_stride = self.proj.stride
-        assert (h % h_stride == 0), f"Bad height! Image must have height ({h}) divisble by {h_stride}"
-        assert (w % w_stride == 0), f"Bad width! Image must have width ({w}) divisble by {w_stride}"
-        
+        assert h % h_stride == 0, f"Bad height! Image must have height ({h}) divisble by {h_stride}"
+        assert w % w_stride == 0, f"Bad width! Image must have width ({w}) divisble by {w_stride}"
+
         return True
-    
+
     # .................................................................................................................
