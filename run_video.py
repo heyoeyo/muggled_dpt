@@ -9,23 +9,21 @@ import os
 import argparse
 from time import perf_counter, sleep
 
-import torch
 import cv2
 import numpy as np
+import torch
 
 from lib.make_dpt import make_dpt_from_state_dict
 
-from lib.demo_helpers.postprocess import scale_prediction, convert_to_uint8
+import lib.demo_helpers.toadui as ui
 from lib.demo_helpers.history_keeper import HistoryKeeper
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
-from lib.demo_helpers.ui import ColormapButtonsCB, ButtonBar, ScaleByKeypress
-from lib.demo_helpers.visualization import DisplayWindow, histogram_equalization
-from lib.demo_helpers.text import TextDrawer
-from lib.demo_helpers.video import LoopingVideoReader, PlaybackIndicatorCB
+from lib.demo_helpers.postprocess import scale_prediction, convert_to_uint8, histogram_equalization
 from lib.demo_helpers.misc import (
     DeviceChecker,
     get_default_device_string,
     make_device_config,
+    make_header_strings,
     print_config_feedback,
     reduce_overthreading,
 )
@@ -38,7 +36,7 @@ from lib.demo_helpers.misc import (
 default_device = get_default_device_string()
 default_video_path = None
 default_model_path = None
-default_display_size = 800
+default_display_size = 600
 default_display_ms = 1
 default_base_size = None
 
@@ -51,7 +49,7 @@ parser.add_argument(
     "--display_size",
     default=default_display_size,
     type=int,
-    help="Controls size of displayed results (default: {})".format(default_display_size),
+    help="Controls initial size of displayed results (default: {})".format(default_display_size),
 )
 parser.add_argument(
     "-t",
@@ -83,6 +81,13 @@ parser.add_argument(
     default=False,
     action="store_true",
     help="Use 32-bit floating point model weights. Note: this doubles VRAM usage",
+)
+parser.add_argument(
+    "-u",
+    "--prefer_unstable_f16",
+    default=False,
+    action="store_true",
+    help="Prefer 'regular' 16-bit floating point model weights instead of bfloat16",
 )
 parser.add_argument(
     "-z",
@@ -130,6 +135,8 @@ force_sync = args.force_sync
 device_str = args.device
 use_cache = not args.no_cache
 use_float32 = args.use_float32
+prefer_bfloat16 = not args.prefer_unstable_f16
+
 use_optimizations = not args.no_optimization
 force_square_resolution = not args.use_aspect_ratio
 model_base_size = args.base_size_px
@@ -156,7 +163,7 @@ else:
 reduce_overthreading(device_str)
 
 # Set up device config
-device_config_dict = make_device_config(device_str, use_float32)
+device_config_dict = make_device_config(device_str, use_float32, prefer_bfloat16)
 device_stream = DeviceChecker(device_str)
 
 
@@ -173,36 +180,47 @@ dpt_model.to(**device_config_dict)
 # %% Video setup & feedback
 
 # Set up access to video
-vreader = LoopingVideoReader(video_path, display_size_px)
+vreader = ui.LoopingVideoReader(video_path, display_size_px)
 video_frame_delay_ms = vreader.get_frame_delay_ms() if (display_ms_override == 0) else max(1, int(display_ms_override))
-disp_wh = vreader.disp_wh
-disp_w, disp_h = disp_wh
+sample_frame = vreader.get_sample_frame()
 
 # Get example frame so we can provide sizing info feedback
-example_frame = np.zeros(vreader.shape, dtype=np.uint8)
-example_prediction = dpt_model.inference(example_frame, model_base_size, force_square_resolution)
+example_prediction = dpt_model.inference(sample_frame, model_base_size, force_square_resolution)
 print_config_feedback(model_path, device_config_dict, use_cache, example_prediction)
+
+# For feedback
+model_name, devdtype_str, header_color = make_header_strings(model_path, device_config_dict)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
 # %% Run model & Display results
 
-# Set up button controls
-btnbar = ButtonBar()
-toggle_normal_order_colors = btnbar.add_toggle("[r] Normal Order", "[r] Reversed", keypress="r")
-toggle_normal_contrast = btnbar.add_toggle("[h] Normal Contrast", "[h] High Contrast", keypress="h")
+# Control element for adjusting video playback
+playback_slider = ui.VideoPlaybackSlider(vreader)
 
-# Use different UI if video recording is enabled
+# Build image elements
+img_elem = ui.FixedARImage(sample_frame)
+depth_elem = ui.FixedARImage(sample_frame)
+text_olay = ui.TextOverlay(img_elem, (0, 0), scale=0.75, thickness=2, offset_xy_px=(5, 5))
+
+# Build upper control elements
+spectral_cmap = ui.colormaps.make_spectral_colormap()
+cmap_bar = ui.ColormapsBar(cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, spectral_cmap, None)
+reverse_colors_btn = ui.ToggleButton("[r] Reverse Colors", color_on=(110, 80, 95))
+high_contrast_btn = ui.ToggleButton("[h] High Contrast", color_on=(100, 95, 80))
+async_btn = ui.ToggleButton("[n] Async", default_state=not force_sync, color_on=(95, 100, 110))
+record_btn = ui.ToggleButton("[space] Record", default_state=False)
+
+# Controls for adjusting processing size
+initial_size = max(example_prediction.shape)
+min_size, max_size = max(min(64, initial_size), 32), max(1280, initial_size)
+imgsize_slider = ui.Slider("Image Size", initial_size, min_size, max_size, step=16, marker_step=256)
+use_ar_btn = ui.ToggleButton(" AR ", default_state=not force_square_resolution)
+resolution_txt = ui.TextBlock("0000x0000")
+
+# Set up saving location if recording
 save_folder = None
-if not allow_recording:
-    toggle_async = btnbar.add_toggle("[n] Async", "[n] Sync", keypress="n", default=not force_sync)
-    toggle_record = btnbar.make_disabled_button(False)
-
-else:
-    toggle_async = btnbar.make_disabled_button(False)
-    toggle_record = btnbar.add_toggle("[space] Recording", "[space] Not Recording", keypress=" ", default=False)
-
-    # Create recording folder for saving video frames
+if allow_recording:
     video_base_name, _ = os.path.splitext(os.path.basename(video_path))
     save_folder = os.path.join("saved_images", "video", video_base_name)
     os.makedirs(save_folder, exist_ok=True)
@@ -223,25 +241,50 @@ else:
     )
     sleep(3)
 
-# Set up other UI elements
-gray_cmap = ColormapButtonsCB.make_gray_colormap()
-spec_cmap = ColormapButtonsCB.make_spectral_colormap()
-cmap_btns = ColormapButtonsCB(cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_TWILIGHT, spec_cmap, gray_cmap)
-playback_ctrl = PlaybackIndicatorCB(vreader, enabled=(not use_webcam))
-display_scaler = ScaleByKeypress()
 
-# Set up window with controls
-cv2.destroyAllWindows()
-window = DisplayWindow("Inverse Depth Result - q to quit")
-window.set_callbacks(btnbar, cmap_btns, playback_ctrl)
+# Build full UI
+header_bar = ui.MessageBar(model_name, devdtype_str, color=header_color)
+img_swap = ui.Swapper(ui.HStack(text_olay, depth_elem), ui.VStack(text_olay, depth_elem))
+ui_layout = ui.VStack(
+    header_bar,
+    ui.HStack(reverse_colors_btn, high_contrast_btn, record_btn if allow_recording else async_btn),
+    cmap_bar,
+    ui.HStack(imgsize_slider, use_ar_btn, resolution_txt, flex=(1, 0, 0)),
+    img_swap,
+    playback_slider,
+)
+
+# Toggle layout for wide vs. tall images
+if sample_frame.shape[0] * 2 < sample_frame.shape[1]:
+    img_swap.next()
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# %% *** Main loop ***
+
+# Set up display window and attach UI for mouse interactions
+window = ui.DisplayWindow(display_fps=120)
+window.enable_size_control(display_size_px, minimum=ui_layout.get_min_hw().h)
+window.attach_mouse_callbacks(ui_layout)
+window.attach_keypress_callbacks(
+    {
+        "Switch image layout": {"l": img_swap.next},
+        "Play/Pause the video": {"SPACEBAR": vreader.toggle_pause},
+        "Step video backwards/forwards": {"L_ARROW": vreader.prev_frame, "R_ARROW": vreader.next_frame},
+        "Toggle recording": {"p": record_btn.toggle} if allow_recording else None,
+        "Toggle reverse colors": {"r": reverse_colors_btn.toggle},
+        "Toggle high contrast": {"h": high_contrast_btn.toggle},
+        "Toggle async": {"n": async_btn.toggle} if not allow_recording else None,
+        "Toggle processing aspect ratio": {"a": use_ar_btn.toggle},
+        "Cycle colormapping": {"TAB": cmap_bar.next},
+        "Adjust image processing size": {"[": imgsize_slider.decrement, "]": imgsize_slider.increment},
+    }
+).report_keypress_descriptions()
 
 # Pre-define values that appear in async block, to make sure they exist before being used
 depth_uint8 = np.zeros(vreader.shape[0:2], dtype=np.uint8)
 depth_color = cv2.cvtColor(depth_uint8, cv2.COLOR_GRAY2BGR)
-t_ready_last, time_ms_model = perf_counter(), 0
-
-# Helper for drawing text
-text_draw = TextDrawer(scale=0.75, thickness=2, bg_color=(0, 0, 0))
+t_ready_last, time_ms_model, last_frame_idx = perf_counter(), 0, -1
 
 # Feedback about controls
 print(
@@ -254,83 +297,83 @@ print(
     sep="\n",
     flush=True,
 )
-for frame in vreader:
 
-    # Read controls
-    use_high_contrast = not toggle_normal_contrast.read()
-    use_reverse_colors = not toggle_normal_order_colors.read()
-    use_async = toggle_async.read()
-    enable_video_recording = toggle_record.read()
+with window.auto_close(vreader.release):
 
-    # Only process frame data when the device is ready
-    if device_stream.is_ready():
+    for is_paused, frame_idx, frame in vreader:
+        playback_slider.update_state(is_paused, frame_idx)
 
-        # Approximate time needed by the model by the time needed to get to this conditional check
-        # Note: This ends up including frame display time! Can be very inaccurate with slower fps
-        time_ms_model = 1000 * (perf_counter() - t_ready_last)
-        t_ready_last = perf_counter()
+        # Read controls
+        is_hc_changed, use_high_contrast = high_contrast_btn.read()
+        is_rev_changed, use_reverse_colors = reverse_colors_btn.read()
+        is_cmap_changed, _, _ = cmap_bar.read()
+        is_size_changed, img_size = imgsize_slider.read()
+        is_ar_changed, use_aspect_ratio = use_ar_btn.read()
+        _, use_async = async_btn.read()
+        _, enable_video_recording = record_btn.read()
 
-        # Run model and get prediction for display
-        prediction = dpt_model.inference(frame, model_base_size, force_square_resolution)
+        # Only process frame data when the device is ready
+        is_settings_changed = any((is_hc_changed, is_rev_changed, is_cmap_changed, is_size_changed, is_ar_changed))
+        is_new_frame = frame_idx != last_frame_idx
+        if (is_new_frame or is_settings_changed) and device_stream.is_ready():
 
-        # Prepare depth data for display
-        scaled_prediction = scale_prediction(prediction, disp_wh)
-        depth_tensor = convert_to_uint8(scaled_prediction).to("cpu", non_blocking=use_async)
-        depth_uint8 = depth_tensor.squeeze().numpy()
-
-        # Provide more accurate timing when sync'd
-        if not use_async:
+            # Approximate time needed by the model by the time needed to get to this conditional check
+            # Note: This ends up including frame display time! Can be very inaccurate with slower fps
             time_ms_model = 1000 * (perf_counter() - t_ready_last)
+            t_ready_last = perf_counter()
 
-        # Produce colored depth image for display
-        if use_reverse_colors:
-            depth_uint8 = 255 - depth_uint8
-        if use_high_contrast:
-            depth_uint8 = histogram_equalization(depth_uint8)
-        depth_color = cmap_btns.apply_colormap(depth_uint8)
+            # Run model and get prediction for display
+            prediction = dpt_model.inference(frame, img_size, not use_aspect_ratio)
 
-        # Handle video recording
-        if enable_video_recording:
+            # Prepare depth data for display
+            scale_wh = img_elem.get_render_hw()[::-1]
+            scaled_prediction = scale_prediction(prediction, scale_wh)
+            depth_tensor = convert_to_uint8(scaled_prediction).to("cpu", non_blocking=use_async)
+            depth_uint8 = depth_tensor.squeeze().numpy()
 
-            # Build save pathing
-            frame_idx = vreader.get_playback_position(normalized=False)
-            save_name = f"{frame_idx:0>8}.png"
-            save_path = os.path.join(save_folder, save_name)
+            # Provide more accurate timing when sync'd
+            if not use_async:
+                time_ms_model = 1000 * (perf_counter() - t_ready_last)
 
-            # Create frame for saving (matched to some of the display settings)
-            save_frame = convert_to_uint8(prediction).to("cpu").squeeze().numpy()
+            # Produce colored depth image for display
             if use_reverse_colors:
-                save_frame = 255 - save_frame
+                depth_uint8 = 255 - depth_uint8
             if use_high_contrast:
-                save_frame = histogram_equalization(save_frame)
-            cv2.imwrite(save_path, save_frame)
+                depth_uint8 = histogram_equalization(depth_uint8)
+            depth_color = cmap_bar.apply_colormap(depth_uint8)
 
-    # Draw image/depth map with inference time
-    infer_txt = "inference: {:.1f}ms".format(time_ms_model)
-    if not use_async:
-        infer_txt = "{} (sync)".format(infer_txt)
-    sidebyside = display_scaler.resize(np.hstack((frame, depth_color)))
-    sidebyside = text_draw.xy_norm(sidebyside, infer_txt, xy_norm=(0, 0), pad_xy_px=(5, 5))
+            # Handle video recording
+            if enable_video_recording:
 
-    # Generate display image: buttons / colormaps / side-by-side images / playback control
-    display_frame = btnbar.draw_standalone(sidebyside.shape[1])
-    display_frame = cmap_btns.append_to_frame(display_frame)
-    display_frame = np.vstack((display_frame, sidebyside))
-    display_frame = playback_ctrl.append_to_frame(display_frame)
+                # Build save pathing
+                frame_idx = vreader.get_playback_position(normalized=False)
+                save_name = f"{frame_idx:0>8}.png"
+                save_path = os.path.join(save_folder, save_name)
 
-    # Display result
-    window.imshow(display_frame)
-    req_break, keypress = window.waitKey(video_frame_delay_ms)
-    if req_break:
-        break
+                # Create frame for saving (matched to some of the display settings)
+                save_frame = convert_to_uint8(prediction).to("cpu").squeeze().numpy()
+                if use_reverse_colors:
+                    save_frame = 255 - save_frame
+                if use_high_contrast:
+                    save_frame = histogram_equalization(save_frame)
+                cv2.imwrite(save_path, save_frame)
 
-    # Allow user to jump playback on mouse press
-    playback_ctrl.change_playback_position_on_mouse_press()
+            # Report resolution
+            if is_size_changed or is_ar_changed:
+                resolution_txt.set_text(f"{prediction.shape[2]}x{prediction.shape[1]}")
 
-    # Respond to keypresses
-    btnbar.on_keypress(keypress)
-    display_scaler.on_keypress(keypress)
+            # Draw image/depth map with inference time
+            infer_txt = f"{'async' if use_async else 'sync'}: {time_ms_model:.1f}ms"
+            text_olay.set_text(infer_txt)
+            last_frame_idx = frame_idx
 
-# Clean up resources
-vreader.release()
-cv2.destroyAllWindows()
+        # Update displayed image & render
+        img_elem.set_image(frame)
+        depth_elem.set_image(depth_color)
+        display_image = ui_layout.render(h=window.size)
+        req_break, keypress = window.show(display_image, frame_delay_ms=None if is_new_frame else 25)
+        if req_break:
+            break
+
+        pass
+    pass

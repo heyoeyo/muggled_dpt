@@ -28,7 +28,12 @@ def clean_path_str(path: str | None = None) -> str:
 # .....................................................................................................................
 
 
-def ask_for_path_if_missing(path: str | None = None, file_type: str = "file", default_path: str | None = None) -> str:
+def ask_for_path_if_missing(
+    path: str | None = None,
+    file_type: str = "file",
+    default_path: str | None = None,
+    allow_folders: bool = True,
+) -> str:
 
     # Bail if we get a good path
     path = clean_path_str(path)
@@ -58,6 +63,11 @@ def ask_for_path_if_missing(path: str | None = None, file_type: str = "file", de
             path = clean_path_str(input(prompt_txt))
             if path == "" and default_path is not None:
                 path = default_path
+
+            # Special handling for folders
+            if not allow_folders and osp.isdir(path):
+                print("", "", "Folder paths are not allowed!", sep="\n", flush=True)
+                continue
 
             # Stop asking once we get a valid path
             if osp.exists(path):

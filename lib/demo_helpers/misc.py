@@ -80,6 +80,24 @@ def make_device_config(
 # .....................................................................................................................
 
 
+def make_header_strings(model_path: str, device_config_dict: dict) -> tuple[str, str, tuple[int, int, int]]:
+    """
+    Helper used to construct values used in a (standardized) header on UIs
+    Returns: model_name, device_dtype_str, header_bg_color
+    """
+
+    model_name = osp.basename(model_path)
+    model_device = str(device_config_dict.get("device", "unknown device"))
+    model_dtype = str(device_config_dict.get("dtype", "unknown dtype")).split(".")[-1]
+    device_dtype_str = f"{model_device}/{model_dtype}"
+    header_color = (65, 50, 50)
+
+    return model_name, device_dtype_str, header_color
+
+
+# .....................................................................................................................
+
+
 def print_config_feedback(
     model_path: str,
     device_config_dict: dict,
