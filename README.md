@@ -6,8 +6,7 @@ This repo contains a simplified implementation of the very cool 'dense predictio
   <img src=".readme_assets/turtle_anim.gif" style="height:280px">
 </p>
 
-While the focus of this implementation is on readability, there are also some performance improvements with MiDaS v3.1 models (40-60% on my GPU at least) due to caching of positional encodings, at the cost of higher VRAM usage (this can be disabled).
-
+In addition to simplifying the codebase, multiple interactive demos are provided (built with [toadui](https://github.com/heyoeyo/toadui)) to help give an intuitive sense of the behavior of these models.
 ### Purpose
 
 The purpose of this repo is to provide an easy to follow code base to understand how the DPT & image encoder models are structured. The scripts found in the [simple_examples](https://github.com/heyoeyo/muggled_dpt/blob/main/simple_examples) folder are a good starting point if you'd like to better understand how to make use of the DPT models. The [run_image.py](https://github.com/heyoeyo/muggled_dpt/blob/main/run_image.py) demo script is a good example of a more practical use of the models.
@@ -127,7 +126,7 @@ python run_image.py
 ```
 You can also add  `--help` to the end of this command to see a list of additional flags you can set when running this script. One especially interesting flag is `-b`, which allows for processing images at higher resolutions.
 
-If you don't provide an image path (using the `-i` flag), then you will be asked to provide one when you run the script, likewise for a path to the model weights. Afterwards, a window will pop-up, with various sliders that can be used to modify the depth visualization. These let you adjust the contrast of the depth visualization, as well as remove a plane-of-best-fit, which can often remove the 'floor' from the depth prediction. You can press `s` to save the current depth image.
+If you don't provide an image path (using the `-i` flag), then you will be asked to provide one when you run the script, likewise for a path to the model weights. Afterwards, a window will pop-up with various sliders that can be used to modify the depth visualization. These let you adjust the contrast of the depth visualization, as well as remove a plane-of-best-fit, which can often remove the 'floor' from the depth prediction. Additionally, there are a number of keyboard shortcuts that will be printed in the terminal.
 
 ## Run Video (or webcam)
 
@@ -141,9 +140,9 @@ python run_video.py
 ```
 As with the image script, you can add `--help` to the end of this command to see a list of additional modifiers flags you can set. For example, you can use a webcam as input using the flag `--use_webcam`. It's possible to record video results (per-frame) using the `--allow_recording` flag.
 
-When processing video, depth predictions are made _asynchrounously_, (i.e. only when the GPU is ready to do more processing). This leads to faster playback/interaction, but the depth results may appear choppy. You can force synchrounous playback using the `-sync` flag or toggling the option within the UI (this also gives more accurate inference timing results).
+When processing video, depth predictions are made _asynchrounously_, (i.e. only when the GPU is ready to do more processing). This leads to faster playback/interaction, but the depth results may appear choppy. You can force synchrounous playback using the `-sync` flag or toggling the option within the UI (this also gives more accurate inference timing results). There are other toggle options available through keypresses, which will be listed out in the terminal.
 
-**Note:** The original DPT implementation is not designed for consistency across video frames, so the results can be very noisy looking. If you actually need video depth estimation, consider [Consistent Depth of Moving Objects in Video](https://dynamic-video-depth.github.io/) and the listed related works.
+**Note:** The original DPT implementation is not designed for consistency across video frames, so the results can be very noisy looking. If you actually need video depth estimation, consider [Consistent Depth of Moving Objects in Video](https://dynamic-video-depth.github.io/) and the listed related works, or the newer [Video-Depth-Anything](https://github.com/DepthAnything/Video-Depth-Anything).
 
 
 ## Run 3D Viewer
@@ -158,15 +157,15 @@ python run_3dviewer.py -l
 ```
 The `-l` flag will launch a browser window, you can leave this out if you prefer to open the page manually. As with the other scripts, you can add `--help` to the end of this command to see the other modifier flags that are available. For example, you can change the `--host` to `"0.0.0.0"` to make the server available to other devices on your network (including smartphones), though this is only recommended if you're on a trusted network! The server supports images, video files and even webcams (using the `--use_webcam` flag when launching the script).
 
-The web interface provides support for visualizing depth data as a 3D model by displacing a dense plane mesh using depth predictions. There are controls for setting the scaling factors needed to [properly interpret](https://github.com/heyoeyo/muggled_dpt?tab=readme-ov-file#note-on-depth-results) the (inverse relative) depth estimate. There are also some controls bound to keypresses, for example the `~` key, which enables recording. An `info` page is available (via a link on the UI) that explains the controls and other available options in more detail.
+The web interface provides support for visualizing depth data as a 3D model by displacing a dense plane mesh using depth predictions. There are controls for setting the scaling factors needed to [properly interpret](https://github.com/heyoeyo/muggled_dpt?tab=readme-ov-file#note-on-depth-results) the (inverse relative) depth estimate. There are also some controls bound to keypresses, for example the `~` key, which enables recording. An `info` page is available (via a link on the UI) that explains the controls and other available options in more detail. It's possible to save the resulting 3D model and import it into 3D editing software, such as [Blender](https://www.blender.org/).
 
 > [!Note]
-> In an attempt to minimize the dependencies for this repo, the server is very simple and is written in plain python. As a result, it has minimal features, efficiency and security. It's built purely for use as a local-running demo and is not suitable for deployment in a production environment!
+> This server is very basic in order to avoid the need for external dependencies. As a result, it is only meant for local-use and is not suitable for deployment in a production environment!
 
 
 ## Note on depth results
 
-The DPT models output results which are related to the _multiplicative inverse_ (i.e. `1/d`) of the true depth! As a result, the closest part of an image will have the _largest_ reported value from the DPT model and the furthest part will have the _smallest_ reported value. Additionally, the reported values will not be distributed linearly, which will make the results look distorted if interpretted geometrically (e.g. as a 3D model).
+The DPT models output results which are related to the _multiplicative inverse_ (i.e. `1/d`) of the true depth! As a result, the closest part of an image will have the _largest_ reported value from the DPT model and the furthest part will have the _smallest_ reported value. Additionally, the reported values will not be distributed linearly, which will make the results look distorted if interpretted (e.g. as a 3D model) without accounting for the inverse mapping.
 
 If you happen to know what the _true_ minimum and maximum depth values are for a given image, you can compute the true depth from the DPT result using:
 
@@ -249,7 +248,3 @@ The code in this repo is based on code from the following sources.
   year={2023}
 }
 ```
-
-# TODOs
-- Inevitable bugfixes
-
