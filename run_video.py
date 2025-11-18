@@ -209,7 +209,7 @@ cmap_bar = ui.ColormapsBar(cv2.COLORMAP_MAGMA, cv2.COLORMAP_VIRIDIS, cv2.COLORMA
 reverse_colors_btn = ui.ToggleButton("[r] Reverse Colors", color_on=(110, 80, 95))
 high_contrast_btn = ui.ToggleButton("[h] High Contrast", color_on=(100, 95, 80))
 async_btn = ui.ToggleButton("[n] Async", default_state=not force_sync, color_on=(95, 100, 110))
-record_btn = ui.ToggleButton("[space] Record", default_state=False)
+record_btn = ui.ToggleButton("[o] Record", default_state=False)
 
 # Controls for adjusting processing size
 initial_size = max(example_prediction.shape)
@@ -222,7 +222,7 @@ resolution_txt = ui.TextBlock("0000x0000")
 save_folder = None
 if allow_recording:
     video_base_name, _ = os.path.splitext(os.path.basename(video_path))
-    save_folder = os.path.join("saved_images", "video", video_base_name)
+    save_folder = os.path.join("saved_images", "run_video", video_base_name)
     os.makedirs(save_folder, exist_ok=True)
 
     print(
@@ -239,7 +239,7 @@ if allow_recording:
         sep="\n",
         flush=True,
     )
-    sleep(3)
+    sleep(1.5)
 
 
 # Build full UI
@@ -280,7 +280,7 @@ window.attach_keypress_callbacks(
         "Switch display layout": {"l": img_swap.next},
         "Play/Pause the video": {"SPACEBAR": vreader.toggle_pause},
         "Step video backwards/forwards": {"L_ARROW": vreader.prev_frame, "R_ARROW": vreader.next_frame},
-        "Toggle recording": {"p": record_btn.toggle} if allow_recording else None,
+        "Toggle recording": {"o": record_btn.toggle} if allow_recording else None,
         "Toggle reverse colors": {"r": reverse_colors_btn.toggle},
         "Toggle high contrast": {"h": high_contrast_btn.toggle},
         "Toggle async": {"n": async_btn.toggle} if not allow_recording else None,
@@ -343,7 +343,6 @@ with window.auto_close(vreader.release):
             if enable_video_recording:
 
                 # Build save pathing
-                frame_idx = vreader.get_playback_position(normalized=False)
                 save_name = f"{frame_idx:0>8}.png"
                 save_path = os.path.join(save_folder, save_name)
 

@@ -352,6 +352,7 @@ with window.auto_close():
                 npy_prediction = 1.0 - npy_prediction
 
             # Save data!
+            _, _ = save_image(display_frame, image_path, save_folder, append_to_name="_display")
             ok_img_save, save_img_path = save_image(depth_color, image_path, save_folder=save_folder)
             ok_npy_save, save_npy_path = save_numpy_array(npy_prediction, save_img_path)
             ok_uint16_save, save_uint16_path = save_uint16(npy_prediction, save_img_path)

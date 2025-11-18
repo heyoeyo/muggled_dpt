@@ -5,6 +5,7 @@
 # ---------------------------------------------------------------------------------------------------------------------
 # %% Imports
 
+import os.path as osp
 import argparse
 from time import perf_counter
 
@@ -338,7 +339,9 @@ with window.auto_close():
                 npy_prediction = 1.0 - npy_prediction
 
             # Save data!
-            ok_img_save, save_img_path = save_image(depth_color, image_path)
+            save_folder = osp.join("saved_images", "run_image")
+            _, _ = save_image(display_frame, image_path, save_folder, append_to_name="_display")
+            ok_img_save, save_img_path = save_image(depth_color, image_path, save_folder)
             ok_npy_save, save_npy_path = save_numpy_array(npy_prediction, save_img_path)
             ok_uint16_save, save_uint16_path = save_uint16(npy_prediction, save_img_path)
             if any((ok_img_save, ok_npy_save, ok_uint16_save)):

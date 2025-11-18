@@ -342,6 +342,7 @@ with window.auto_close():
             masked_image[:, :, 3] = save_mask_uint8
 
             # Save data!
+            _, _ = save_image(display_frame, image_path, save_folder, append_to_name="_display")
             ok_img_save, save_img_path = save_image(masked_image, image_path, save_folder)
             ok_mask_save, save_mask_path = save_image(save_mask_uint8, image_path, save_folder, append_to_name="_mask")
             if any((ok_img_save, ok_mask_save)):
