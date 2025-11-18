@@ -252,6 +252,15 @@ ui_layout = ui.VStack(
     ui.HStack(imgsize_slider, use_ar_btn, resolution_txt, flex=(1, 0, 0)),
     img_swap,
     playback_slider,
+    ui.MessageBar(
+        "[space] Play/pause",
+        "[-, =] To change resize",
+        "[esc, q] To quit",
+        color=header_color,
+        text_scale=0.35,
+        use_equal_width=True,
+        height=20,
+    ),
 )
 
 # Toggle layout for wide vs. tall images
@@ -268,7 +277,7 @@ window.enable_size_control(display_size_px, minimum=ui_layout.get_min_hw().h)
 window.attach_mouse_callbacks(ui_layout)
 window.attach_keypress_callbacks(
     {
-        "Switch image layout": {"l": img_swap.next},
+        "Switch display layout": {"l": img_swap.next},
         "Play/Pause the video": {"SPACEBAR": vreader.toggle_pause},
         "Step video backwards/forwards": {"L_ARROW": vreader.prev_frame, "R_ARROW": vreader.next_frame},
         "Toggle recording": {"p": record_btn.toggle} if allow_recording else None,
@@ -285,18 +294,6 @@ window.attach_keypress_callbacks(
 depth_uint8 = np.zeros(vreader.shape[0:2], dtype=np.uint8)
 depth_color = cv2.cvtColor(depth_uint8, cv2.COLOR_GRAY2BGR)
 t_ready_last, time_ms_model, last_frame_idx = perf_counter(), 0, -1
-
-# Feedback about controls
-print(
-    "",
-    "Displaying results",
-    "  - Click & drag to move playback",
-    "  - Use up/down arrow keys to adjust display size",
-    "  - Press esc or q to quit",
-    "",
-    sep="\n",
-    flush=True,
-)
 
 with window.auto_close(vreader.release):
 

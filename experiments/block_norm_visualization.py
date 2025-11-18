@@ -423,6 +423,7 @@ print(
     "- Hover the main image to show selected cell norm or channel value",
     "- Hover block tiles to show block index & norm [min, max]",
     "- Click block tiles to view as main image",
+    "- Press escape or q to close window",
     sep="\n",
 )
 

@@ -90,6 +90,12 @@ parser.add_argument(
 parser.add_argument(
     "-b", "--base_size_px", default=default_base_size, type=int, help="Override base (e.g. 384, 512) model size"
 )
+parser.add_argument(
+    "--noselect",
+    default=False,
+    action="store_true",
+    help="Disable file selector UI. This also leads to allocating more display space to the loaded image",
+)
 
 # For convenience
 args = parser.parse_args()
@@ -102,6 +108,7 @@ prefer_bfloat16 = not args.prefer_unstable_f16
 use_optimizations = not args.no_optimization
 force_square_resolution = not args.use_aspect_ratio
 model_base_size = args.base_size_px
+allow_file_selector = not args.noselect
 
 # Hard-code no-cache usage (limited benefit for static images)
 use_cache = False
@@ -139,7 +146,7 @@ dpt_model.to(**device_config_dict)
 # -> *** This is a UI element! We're setting it up here because we need it to resolve initial file loading ***
 is_folder_path = ui.PathCarousel.is_folder_path(image_path)
 img_selector = ui.PathCarousel(image_path, search_parent_folder=True)
-show_file_select = len(img_selector) > 1 or is_folder_path
+show_file_select = (len(img_selector) > 1 or is_folder_path) and allow_file_selector
 if len(img_selector) == 0:
     print("", "No image files available!", f"@ {image_path}", "Quitting...", sep="\n")
     quit()
@@ -218,6 +225,15 @@ ui_layout = ui.VStack(
     img_selector if show_file_select else None,
     plane_slider,
     threshold_slider,
+    ui.MessageBar(
+        "[R-Click] Reset sliders",
+        "[-, =] To change resize",
+        "[esc, q] To quit",
+        color=header_color,
+        text_scale=0.35,
+        use_equal_width=True,
+        height=20,
+    ),
 )
 
 
@@ -240,7 +256,6 @@ window.attach_keypress_callbacks(
         "Save results": {"s": save_btn.click},
     }
 ).report_keypress_descriptions()
-print("Right click sliders to reset values")
 
 # Initialize depth & display data
 img_bgr = init_image_bgr

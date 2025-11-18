@@ -424,12 +424,12 @@ window.attach_keypress_callbacks(
     }
 ).report_keypress_descriptions()
 print(
-    "Displaying attention maps for highlighted token",
-    "  - Hover mouse over image to highlight different patch tokens",
-    "  - Click to lock/unlock patch selection",
-    "  - Hover over the image border to select attention for the global 'cls' token",
-    "  - Use arrow keys to adjust token selection",
-    "Hover over attention maps to display head indexing",
+    "- Hover mouse over image to highlight different patch tokens",
+    "- Click to lock/unlock patch selection",
+    "- Hover over the image border to select attention for the global 'cls' token",
+    "- Use arrow keys to adjust token selection",
+    "- Hover over attention maps to display head indexing",
+    "- Press escape or q to close window",
     sep="\n",
     flush=True,
 )

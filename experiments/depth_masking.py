@@ -110,6 +110,12 @@ parser.add_argument(
 parser.add_argument(
     "-b", "--base_size_px", default=default_base_size, type=int, help="Override base (e.g. 384, 512) model size"
 )
+parser.add_argument(
+    "--noselect",
+    default=False,
+    action="store_true",
+    help="Disable file selector UI. This also leads to allocating more display space to the loaded image",
+)
 
 # For convenience
 args = parser.parse_args()
@@ -121,6 +127,7 @@ use_float32 = args.use_float32
 prefer_bfloat16 = not args.prefer_unstable_f16
 force_square_resolution = not args.use_aspect_ratio
 model_base_size = args.base_size_px
+allow_file_selector = not args.noselect
 
 # Hard-code no-cache usage (limited benefit for static images)
 use_cache = False
@@ -162,7 +169,7 @@ dpt_model.to(**device_config_dict)
 # -> *** This is a UI element! We're setting it up here because we need it to resolve initial file loading ***
 is_folder_path = ui.PathCarousel.is_folder_path(image_path)
 img_selector = ui.PathCarousel(image_path, search_parent_folder=True)
-show_file_select = len(img_selector) > 1 or is_folder_path
+show_file_select = (len(img_selector) > 1 or is_folder_path) and allow_file_selector
 if len(img_selector) == 0:
     print("", "No image files available!", f"@ {image_path}", "Quitting...", sep="\n")
     quit()
@@ -254,7 +261,8 @@ window.attach_keypress_callbacks(
         "Save results": {"s": save_btn.click},
     }
 ).report_keypress_descriptions()
-print("Right click sliders to reset values")
+print("- Right click sliders to reset values", "- Press escape or q to close window", sep="\n", flush=True)
+
 
 # Get initial display sizing
 depth_scaled_hw = get_image_hw_for_max_side_length(init_image_bgr.shape, display_size_px)
