@@ -3,19 +3,19 @@
 
 # This is a hack to make this script work from outside the root project folder (without requiring install)
 try:
-    import lib  # NOQA
+    import muggled_dpt  # NOQA
 except ModuleNotFoundError:
     import os
     import sys
 
     parent_folder = os.path.dirname(os.path.dirname(__file__))
-    if "lib" in os.listdir(parent_folder):
+    if "muggled_dpt" in os.listdir(parent_folder):
         sys.path.insert(0, parent_folder)
     else:
-        raise ImportError("Can't find path to lib folder!")
+        raise ImportError("Can't find path to muggled_dpt folder!")
 
 import cv2
-from lib.make_dpt import make_dpt_from_state_dict
+from muggled_dpt.make_dpt import make_dpt_from_state_dict
 
 
 # Define pathing

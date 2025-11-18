@@ -7,16 +7,16 @@
 
 # This is a hack to make this script work from outside the root project folder (without requiring install)
 try:
-    import lib  # NOQA
+    import muggled_dpt  # NOQA
 except ModuleNotFoundError:
     import os
     import sys
 
     parent_folder = os.path.dirname(os.path.dirname(__file__))
-    if "lib" in os.listdir(parent_folder):
+    if "muggled_dpt" in os.listdir(parent_folder):
         sys.path.insert(0, parent_folder)
     else:
-        raise ImportError("Can't find path to lib folder!")
+        raise ImportError("Can't find path to muggled_dpt folder!")
 
 import os.path as osp
 import argparse
@@ -25,16 +25,17 @@ import cv2
 import torch
 import numpy as np
 
-from lib.make_dpt import make_dpt_from_state_dict
+from muggled_dpt.make_dpt import make_dpt_from_state_dict
 
-import lib.demo_helpers.toadui as ui
-from lib.demo_helpers.toadui.helpers.sizing import get_image_hw_for_max_side_length
-from lib.demo_helpers.toadui.helpers.data_management import ValueChangeTracker
-from lib.demo_helpers.history_keeper import HistoryKeeper
-from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
-from lib.demo_helpers.saving import save_image, save_numpy_array
-from lib.demo_helpers.model_capture import ModelOutputCapture
-from lib.demo_helpers.misc import (
+import muggled_dpt.demo_helpers.toadui as ui
+from muggled_dpt.demo_helpers.toadui.helpers.sizing import get_image_hw_for_max_side_length
+from muggled_dpt.demo_helpers.toadui.helpers.data_management import ValueChangeTracker
+
+from muggled_dpt.demo_helpers.history_keeper import HistoryKeeper
+from muggled_dpt.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
+from muggled_dpt.demo_helpers.saving import save_image, save_numpy_array
+from muggled_dpt.demo_helpers.model_capture import ModelOutputCapture
+from muggled_dpt.demo_helpers.misc import (
     get_default_device_string,
     make_device_config,
     make_header_strings,

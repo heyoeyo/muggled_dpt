@@ -13,13 +13,14 @@ import cv2
 import numpy as np
 import torch
 
-from lib.make_dpt import make_dpt_from_state_dict
+from muggled_dpt.make_dpt import make_dpt_from_state_dict
 
-import lib.demo_helpers.toadui as ui
-from lib.demo_helpers.history_keeper import HistoryKeeper
-from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
-from lib.demo_helpers.postprocess import scale_prediction, convert_to_uint8, histogram_equalization
-from lib.demo_helpers.misc import (
+import muggled_dpt.demo_helpers.toadui as ui
+
+from muggled_dpt.demo_helpers.history_keeper import HistoryKeeper
+from muggled_dpt.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
+from muggled_dpt.demo_helpers.postprocess import scale_prediction, convert_to_uint8, histogram_equalization
+from muggled_dpt.demo_helpers.misc import (
     DeviceChecker,
     get_default_device_string,
     make_device_config,
@@ -136,7 +137,6 @@ device_str = args.device
 use_cache = not args.no_cache
 use_float32 = args.use_float32
 prefer_bfloat16 = not args.prefer_unstable_f16
-
 use_optimizations = not args.no_optimization
 force_square_resolution = not args.use_aspect_ratio
 model_base_size = args.base_size_px

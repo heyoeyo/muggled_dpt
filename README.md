@@ -104,7 +104,7 @@ Here's an [example](https://github.com/heyoeyo/muggled_dpt/blob/main/simple_exam
 
 ```python
 import cv2
-from lib.make_dpt import make_dpt_from_state_dict
+from muggled_dpt.make_dpt import make_dpt_from_state_dict
 
 # Load image & model
 img_bgr = cv2.imread("/path/to/image.jpg")

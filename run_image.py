@@ -12,17 +12,23 @@ import cv2
 import numpy as np
 import torch
 
-from lib.make_dpt import make_dpt_from_state_dict
+from muggled_dpt.make_dpt import make_dpt_from_state_dict
 
-import lib.demo_helpers.toadui as ui
-from lib.demo_helpers.toadui.helpers.images import load_valid_image
-from lib.demo_helpers.toadui.helpers.sizing import get_image_hw_for_max_side_length
-from lib.demo_helpers.history_keeper import HistoryKeeper
-from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
-from lib.demo_helpers.saving import save_image, save_numpy_array, save_uint16
-from lib.demo_helpers.postprocess import scale_prediction, remove_inf_tensor, normalize_01, histogram_equalization
-from lib.demo_helpers.plane_fit import estimate_plane_of_best_fit
-from lib.demo_helpers.misc import (
+import muggled_dpt.demo_helpers.toadui as ui
+from muggled_dpt.demo_helpers.toadui.helpers.images import load_valid_image
+from muggled_dpt.demo_helpers.toadui.helpers.sizing import get_image_hw_for_max_side_length
+
+from muggled_dpt.demo_helpers.history_keeper import HistoryKeeper
+from muggled_dpt.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
+from muggled_dpt.demo_helpers.saving import save_image, save_numpy_array, save_uint16
+from muggled_dpt.demo_helpers.plane_fit import estimate_plane_of_best_fit
+from muggled_dpt.demo_helpers.postprocess import (
+    scale_prediction,
+    remove_inf_tensor,
+    normalize_01,
+    histogram_equalization,
+)
+from muggled_dpt.demo_helpers.misc import (
     get_default_device_string,
     make_device_config,
     make_header_strings,

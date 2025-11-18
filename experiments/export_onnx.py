@@ -35,21 +35,21 @@ except ImportError:
 
 # This is a hack to make this script work from inside the experiments folder!
 try:
-    import lib  # NOQA
+    import muggled_dpt  # NOQA
 except ModuleNotFoundError:
     import sys
 
     parent_folder = osp.dirname(osp.dirname(__file__))
-    if "lib" in os.listdir(parent_folder):
+    if "muggled_dpt" in os.listdir(parent_folder):
         sys.path.insert(0, parent_folder)
     else:
-        raise ImportError("Can't find path to lib folder!")
+        raise ImportError("Can't find path to muggled_dpt folder!")
 
-from lib.make_dpt import make_dpt_from_state_dict
+from muggled_dpt.make_dpt import make_dpt_from_state_dict
 
-from lib.demo_helpers.history_keeper import HistoryKeeper
-from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
-from lib.demo_helpers.misc import print_config_feedback
+from muggled_dpt.demo_helpers.history_keeper import HistoryKeeper
+from muggled_dpt.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
+from muggled_dpt.demo_helpers.misc import print_config_feedback
 
 
 # ---------------------------------------------------------------------------------------------------------------------

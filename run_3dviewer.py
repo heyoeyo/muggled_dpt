@@ -19,13 +19,13 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from lib.make_dpt import make_dpt_from_state_dict
+from muggled_dpt.make_dpt import make_dpt_from_state_dict
 
-from lib.demo_helpers.postprocess import normalize_01
-from lib.demo_helpers.history_keeper import HistoryKeeper
-from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
-from lib.demo_helpers.misc import get_default_device_string, make_device_config
-from lib.demo_helpers.video import create_video_capture
+from muggled_dpt.demo_helpers.postprocess import normalize_01
+from muggled_dpt.demo_helpers.history_keeper import HistoryKeeper
+from muggled_dpt.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
+from muggled_dpt.demo_helpers.misc import get_default_device_string, make_device_config
+from muggled_dpt.demo_helpers.video import create_video_capture
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -462,7 +462,7 @@ MAX_UINT24 = (2**24) - 1
 ENCODE_TYPE_RGB = arg_image_encoding if arg_image_encoding.startswith(".") else f".{arg_image_encoding}"
 ENCODE_TYPE_DEPTH = arg_depth_encoding if arg_depth_encoding.startswith(".") else f".{arg_depth_encoding}"
 DEPTH_IS_LOSSY = ENCODE_TYPE_DEPTH in {".jpg", "jpeg"}
-BASE_FILES_PATH = osp.join(osp.dirname(__file__), "lib", "demo_helpers", "3dviewer")
+BASE_FILES_PATH = osp.join(osp.dirname(__file__), "muggled_dpt", "demo_helpers", "3dviewer")
 VALID_FILES = set(os.listdir(BASE_FILES_PATH))
 IS_METRIC_MODEL = model_config_dict.get("is_metric", False)
 
