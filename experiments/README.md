@@ -10,7 +10,7 @@ Vision transformers (like those used in DPT models) rely heavily on computing 'a
   <img src=".readme_assets/attentionviz_example.gif" alt="Animation showing attention maps for a given input patch token based on mouse position over the input image.">
 </p>
 
-The script takes in the position of your mouse cursor over top of the original image (see the left side of the example animation above) as a method to select an input [patch](https://github.com/heyoeyo/muggled_dpt/tree/main/lib#patch-embedding-model) of the image. From this patch selection, a visualization is created which corresponds to the attention associated with the selected patch (the right side of the animation above), for a given layer of the model.
+The script takes in the position of your mouse cursor over top of the original image (see the left side of the example animation above) as a method to select an input [patch](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt#patch-embedding-model) of the image. From this patch selection, a visualization is created which corresponds to the attention associated with the selected patch (the right side of the animation above), for a given layer of the model.
 
 ### Explanation
 
@@ -65,7 +65,7 @@ Masking based on depth will tend to be limited due to the presence of a ground p
 
 ## Fusion Scaling
 
-This script originally started as a test to see what would happen if some of the [4 fusion layers](https://github.com/heyoeyo/muggled_dpt/tree/main/lib#fusion-model) of the DPT model were disabled. Based on the DPT structure and the fact that the upper fusion layers are downscaled, it stands to reason that the upper layers should encode large scale patterns, while lower layers encode finer details. In practice something more complicated seems to be happening, and it varies (significantly) by model.
+This script originally started as a test to see what would happen if some of the [4 fusion layers](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt#fusion-model) of the DPT model were disabled. Based on the DPT structure and the fact that the upper fusion layers are downscaled, it stands to reason that the upper layers should encode large scale patterns, while lower layers encode finer details. In practice something more complicated seems to be happening, and it varies (significantly) by model.
 
 <p align="center">
   <img src=".readme_assets/fusion_scaling_example.webp" alt="Image showing the UI of the fusion scaling script. The UI features 4 sliders which control the scaling of internal 'fusion features' within the DPT model. Adjusting these scaling terms has a noticable, often interesting looking, effect on the predicted depth results.">
@@ -88,12 +88,11 @@ So far, the script seems to support Depth-Anything & BEiT DPT models and works a
 
 ```bash
 pip install onnx==1.* onnxruntime==1.*
-# Note: The onnx library + Pytorch supports seems somewhat unstable...
-# As of writing, the export script has been verified on linux, using:
-# Python v3.13.9, onnx 1.19.0 & onnxruntime 1.23.0
 ```
 
-If you export an onnx model, you can view the onnx structure using tools like [netron](https://netron.app/).
+The onnx library + Pytorch supports seems somewhat unstable. As of writing, the export script has been verified on linux, using: Python v3.13.9, onnx 1.19.0 & onnxruntime 1.23.0, so trying using these versions if errors occur.
+
+After exporting, the structure of onnx models can be visualized using tools like [netron](https://netron.app/).
 
 > [!Note]
 > This exporting script is mostly included as a way to verify compatibility with external formats (onnx in this case), and to figure out how exporting works. If you actually need onnx formatted depth models, I would recommend the [fabio-sim/Depth-Anything-ONNX](https://github.com/fabio-sim/Depth-Anything-ONNX) repo, which has onnx files directly available for download, and they also seem to include image pre-processing (e.g. scaling) support!

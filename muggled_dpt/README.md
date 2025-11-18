@@ -1,8 +1,8 @@
 # Library scripts
 
-The most important file in this folder is [dpt_model.py](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/dpt_model.py) which is shared by all DPT implementations and is a direct code interpretation of the model architecture described in the original DPT paper: ["Vision Transformers for Dense Prediction"](https://arxiv.org/abs/2103.13413). 
+The most important file in this folder is [dpt_model.py](https://github.com/heyoeyo/muggled_dpt/blob/main/muggled_dpt/dpt_model.py) which is shared by all DPT implementations and is a direct code interpretation of the model architecture described in the original DPT paper: ["Vision Transformers for Dense Prediction"](https://arxiv.org/abs/2103.13413). 
 
-The [make_dpt.py](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/make_dpt.py) script is a helper used to build DPT models given model weights, without having to explicitly say which model variant you're trying to load. Each of the variants have their own dedicated 'make_{variant}_dpt' script which can be used to create models more directly: [make_beit_dpt.py](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/make_beit_dpt.py), [make_swinv2_dpt.py](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/make_swinv2_dpt.py) and [make_depthanything_dpt.py](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/make_depthanything_dpt.py).
+The [make_dpt.py](https://github.com/heyoeyo/muggled_dpt/blob/main/muggled_dpt/make_dpt.py) script is a helper used to build DPT models given model weights, without having to explicitly say which model variant you're trying to load. Each of the variants have their own dedicated 'make_{variant}_dpt' script which can be used to create models more directly: [make_beit_dpt.py](https://github.com/heyoeyo/muggled_dpt/blob/main/muggled_dpt/make_beit_dpt.py), [make_swinv2_dpt.py](https://github.com/heyoeyo/muggled_dpt/blob/main/muggled_dpt/make_swinv2_dpt.py) and [make_depthanything_dpt.py](https://github.com/heyoeyo/muggled_dpt/blob/main/muggled_dpt/make_depthanything_dpt.py).
 
 ### Note on code structure
 
@@ -53,7 +53,7 @@ There are two important data representations used throughout the DPT model (and 
 
 The image encoder model is responsible for 'making sense' of the input image. Alternatively, this model can be thought of as generating a more meaningful representation of the image data compared to the original RGB representation (RGB is optimized for driving displays, it isn't an efficient way to convey meaning about the contents of an image), at least for the purposes of depth estimation.
 
-A vision transformer model is used as the image encoder for DPT. The original vision transformer was introduced in the paper ["An Image is Worth 16x16 Words"](https://arxiv.org/abs/2010.11929) though there are many variations on this architecture (this is the main difference between the [SwinV2](https://github.com/heyoeyo/muggled_dpt/tree/main/lib/v31_swinv2), [BEiT](https://github.com/heyoeyo/muggled_dpt/tree/main/lib/v31_beit) and [Depth-Anything](https://github.com/heyoeyo/muggled_dpt/tree/main/lib/v1_depthanything) models supported by this repo).
+A vision transformer model is used as the image encoder for DPT. The original vision transformer was introduced in the paper ["An Image is Worth 16x16 Words"](https://arxiv.org/abs/2010.11929) though there are many variations on this architecture (this is the main difference between the [SwinV2](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt/v31_swinv2), [BEiT](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt/v31_beit) and [Depth-Anything](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt/v1_depthanything) models supported by this repo).
 
 The image encoder takes in the image patch tokens from the patch embedding step and adds a 'readout' token before passing all the tokens through further processing steps. This added token (often called a 'cls' token) is meant to represent more global (i.e. not pixel/patch specific) information about the image. Following this, a set of positional encodings are added, which are needed in order to convey the spatial relationship between the different tokens.
 
@@ -100,7 +100,7 @@ The diagram below depicts a single reassembly block. There are 4 of these in tot
   <img src=".readme_assets/reassembly_block.svg" alt="Diagram of a single reassembly block, showing major components: readout projection, 1D-to-2D conversion, spatial resizing and projection for use in fusion model. The diagram also shows the shape of the tensors passing through the different components">
 </p>
 
-Prior to re-constructing 2D image-like results, the reassembly model includes a [readout projection](https://github.com/heyoeyo/muggled_dpt/tree/main/lib/v31_beit/components) module. This step incorporates the readout (or 'cls') token information into the image patches, as the original authors found this improved the accuracy of the model results. Once the readout token is combined with the other image tokens, the resulting data has the same sizing as the output from the patch embedding. Therefore, the process of converting from the 1D tokens back into 2D image-like tensors is simply an [unflatten](https://pytorch.org/docs/stable/generated/torch.unflatten.html) operation, as this is the reverse of the [flatten](https://pytorch.org/docs/stable/generated/torch.flatten.html#torch.flatten) operation used by the patch embedding model to form the 1D tokens in the first place.
+Prior to re-constructing 2D image-like results, the reassembly model includes a [readout projection](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt/v31_beit/components) module. This step incorporates the readout (or 'cls') token information into the image patches, as the original authors found this improved the accuracy of the model results. Once the readout token is combined with the other image tokens, the resulting data has the same sizing as the output from the patch embedding. Therefore, the process of converting from the 1D tokens back into 2D image-like tensors is simply an [unflatten](https://pytorch.org/docs/stable/generated/torch.unflatten.html) operation, as this is the reverse of the [flatten](https://pytorch.org/docs/stable/generated/torch.flatten.html#torch.flatten) operation used by the patch embedding model to form the 1D tokens in the first place.
 
 ---
 ### Fusion Model
@@ -151,7 +151,7 @@ In order for the DPT model to function properly, it must have correctly formatte
 
 Additionally, all DPT models have some 'base image size' that they target by default. Processing images at other sizes and aspect ratios is sometimes supported (all models in this repo have support for this), but they are expected to work best when the input image is scaled to match this base sizing.
 
-For convenience, the patch embedding model includes functionality (see [Depth-AnythingV2](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/v2_depthanything/patch_embed.py) for example) for helping to pre-process input images into the correct format.
+For convenience, the patch embedding model includes functionality (see [Depth-AnythingV2](https://github.com/heyoeyo/muggled_dpt/blob/main/muggled_dpt/v2_depthanything/patch_embed.py) for example) for helping to pre-process input images into the correct format.
 
 ### Image padding
 

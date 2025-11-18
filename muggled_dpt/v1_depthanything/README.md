@@ -2,7 +2,7 @@
 
 This folder contains the major pieces of the Depth-Anything DPT model, in correspondence with figure 1 from the preprint: ["Vision Transformers for Dense Prediction"](https://arxiv.org/abs/2103.13413), along with modifications specific to the Depth-Anything implementation, from ["Depth Anything: Unleashing the Power of Large-Scale Unlabeled Data"](https://arxiv.org/abs/2401.10891). This model uses DINOv2 from ["DINOv2: Learning Robust Visual Features without Supervision"](https://arxiv.org/abs/2304.07193) as it's image encoder, which has a few unique differences compared to other DPT models, and seems to produce much higher quality results.
 
-For a more compreshensive description of the DPT model components, please see the existing documentation describing the original [DPT implementation](https://github.com/heyoeyo/muggled_dpt/tree/main/lib). The focus here is on describing the details which are unique to the Depth-Anything models.
+For a more compreshensive description of the DPT model components, please see the existing documentation describing the original [DPT implementation](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt). The focus here is on describing the details which are unique to the Depth-Anything models.
 
 
 ## Differences from Original DPT

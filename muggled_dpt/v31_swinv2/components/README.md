@@ -96,7 +96,7 @@ Note that the offsets (Δx, Δy) are log-scaled before being passed through the 
 
 When computing the attention bias values as described above, there tends to be many repeated offset pairs (Δx, Δy), which means that the bias values themselves are repeated throughout the bias matrix. To avoid storing and/or re-computing these repeated values, the SwinV2 model only computes each unique bias value once and stores the result in a look-up table. A special indexing matrix is then used to select the appropriate bias values for each entry of the bias matrix (matching the size of the attention matrix). This is a fairly elaborate way of handling the position encodings, but it helps to reduce VRAM and computational requirements.
 
-This approach to handling position encodings is very similar to the BEiT model, except that there is no need for handling the readout (or 'cls') token, since the SwinV2 model does not include this extra token. For more details on how the look-up table and indexing matrix are constructed, please see the documentation describing the [BEiT position encodings](https://github.com/heyoeyo/muggled_dpt/tree/main/lib/v31_beit/components#relative-position-encoder).
+This approach to handling position encodings is very similar to the BEiT model, except that there is no need for handling the readout (or 'cls') token, since the SwinV2 model does not include this extra token. For more details on how the look-up table and indexing matrix are constructed, please see the documentation describing the [BEiT position encodings](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt/v31_beit/components#relative-position-encoder).
 
 
 ### Spatial resizing

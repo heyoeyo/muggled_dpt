@@ -4,7 +4,7 @@ This folder contains scripts which help with loading model weights (a.k.a. [stat
 
 ## Config from State Dict
 
-[The config script](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/v1_depthanything/state_dict_conversion/config_from_original_state_dict.py) is responsible for figuring out model hyperparameters, or in other words, how the model is configured. These parameters are what determines whether a 'small' or 'large' size of the model is instantiated. This includes things like how many [transformer blocks](https://github.com/heyoeyo/muggled_dpt/tree/main/lib#image-encoder-model) are there in the image encoder? How many channels do the image-like tokens have going into the [fusion model](https://github.com/heyoeyo/muggled_dpt/tree/main/lib#fusion-model)? Or even, what [patch size](https://github.com/heyoeyo/muggled_dpt/tree/main/lib#patch-embedding-model) does the model use?
+[The config script](https://github.com/heyoeyo/muggled_dpt/blob/main/muggled_dpt/v1_depthanything/state_dict_conversion/config_from_original_state_dict.py) is responsible for figuring out model hyperparameters, or in other words, how the model is configured. These parameters are what determines whether a 'small' or 'large' size of the model is instantiated. This includes things like how many [transformer blocks](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt#image-encoder-model) are there in the image encoder? How many channels do the image-like tokens have going into the [fusion model](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt#fusion-model)? Or even, what [patch size](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt#patch-embedding-model) does the model use?
 
 This functionality is very low-level and almost hacky, it works by searching for very specific model weights and looking at their size/shapes to infer different properties about the model itself. While messy, the advantage of this code is that it allows models of varying sizes to all load in the same way, potentially even including model sizes that haven't been released yet!
 
@@ -21,7 +21,7 @@ Here are examples of some of the original model weight names and the new impleme
 | depth_head.scratch.refinenet1.resConfUnit1.conv1.weight | fusion.blocks.0.conv_reassembly.resconv_seq.1.weight |
 | depth_head.scratch.output_conv1.weight | head.spatial_upsampler.0.weight |
 
-If the weights aren't named to match the new implementation names _exactly_, then the model won't load. Therefore, almost all of the functions inside the [conversion script](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/v1_depthanything/state_dict_conversion/convert_original_state_dict_keys.py) are dedicated solely to handling the renaming properly, and not just changing words, but also updating the numerical indexing! Like the configuration script, this is messy code, but the advantage is that it allows for re-use of existing model weights and potentially supports newer updates to models in the future without any additional code changes.
+If the weights aren't named to match the new implementation names _exactly_, then the model won't load. Therefore, almost all of the functions inside the [conversion script](https://github.com/heyoeyo/muggled_dpt/blob/main/muggled_dpt/v1_depthanything/state_dict_conversion/convert_original_state_dict_keys.py) are dedicated solely to handling the renaming properly, and not just changing words, but also updating the numerical indexing! Like the configuration script, this is messy code, but the advantage is that it allows for re-use of existing model weights and potentially supports newer updates to models in the future without any additional code changes.
 
 #### Positional Encoding Weights
 
@@ -31,4 +31,4 @@ This split is performed by removing the original positional encoding weights, wh
 
 ## Key Regex
 
-The [key_regex.py](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/v1_depthanything/state_dict_conversion/key_regex.py) script contains a collection of helper [regex](https://www.computerhope.com/jargon/r/regex.htm) functions and other string parsing functions. These are used extensively to help identify and update weight labels as described in the conversion script section above.
+The [key_regex.py](https://github.com/heyoeyo/muggled_dpt/blob/main/muggled_dpt/v1_depthanything/state_dict_conversion/key_regex.py) script contains a collection of helper [regex](https://www.computerhope.com/jargon/r/regex.htm) functions and other string parsing functions. These are used extensively to help identify and update weight labels as described in the conversion script section above.

@@ -4,6 +4,6 @@ This folder contains scripts which help with loading model weights (a.k.a. [stat
 
 ## Differences from Depth-Anything V1
 
-Both the V1 and V2 implementations of Depth-Anything are identical, both in terms of model weight naming (and the re-naming need for this repo) as well as most of the model structure. For more information about the behavior of the scripts in this folder, please see the documentation for [Depth-Anything V1](https://github.com/heyoeyo/muggled_dpt/tree/main/lib/v1_depthanything/state_dict_conversion).
+Both the V1 and V2 implementations of Depth-Anything are identical, both in terms of model weight naming (and the re-naming need for this repo) as well as most of the model structure. For more information about the behavior of the scripts in this folder, please see the documentation for [Depth-Anything V1](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt/v1_depthanything/state_dict_conversion).
 
 The only notable difference in these scripts is support for toggling in _metric_ versions of Depth-Anything V2. This is due to an oddity in the design of the V2 metric depth models, which have an almost identical structure to the _relative_ depth models, except for a small difference in the final layer of the final component (depth head) of the model. Support for toggling in the metric versions is done purely by reading the model file name for the word `metric`, as there is no other way to distinguish relative vs. metric Depth-Anything V2 model weights!

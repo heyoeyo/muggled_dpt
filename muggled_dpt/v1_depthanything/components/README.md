@@ -11,7 +11,7 @@ The transformer block is the main component of the Depth-Anything image encoder 
   <img src=".readme_assets/transformer_block_depthanything.svg" alt="Schematic diagram of the transformer block for the Depth-Anything image encoder. It matches the original vision transformer block in every way, except that the layernorm entries use a non-default epsilon value of 1e-6">
 </p>
 
-The only difference between the Depth-Anything transformer block and the [standard block](https://github.com/heyoeyo/muggled_dpt/tree/main/lib#image-encoder-model) is a small change to the layernorms. Within Depth-Anything, layernorms use an epsilon value of 1e-6 instead of the [default](https://pytorch.org/docs/stable/generated/torch.nn.LayerNorm.html) 1e-5. However, this change does not seem to have a significant impact, at least during inference.
+The only difference between the Depth-Anything transformer block and the [standard block](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt#image-encoder-model) is a small change to the layernorms. Within Depth-Anything, layernorms use an epsilon value of 1e-6 instead of the [default](https://pytorch.org/docs/stable/generated/torch.nn.LayerNorm.html) 1e-5. However, this change does not seem to have a significant impact, at least during inference.
 
 #### XFormers
 
@@ -41,7 +41,7 @@ As the table shows, at larger image sizes, VRAM usage with xFormers grows roughl
 
 ## Position Encoding
 
-The position encoding of the Depth-Anything model is identical to the original vision transformer implementation, from "[An Image is Worth 16x16 Words](https://arxiv.org/abs/2010.11929)". The model uses learned positional encodings that are added to the patch embeddings at a single point, just before entering into the transformer model (unlike the [BEiT](https://github.com/heyoeyo/muggled_dpt/tree/main/lib/v31_beit/components#relative-position-encoder) or [SwinV2](https://github.com/heyoeyo/muggled_dpt/tree/main/lib/v31_swinv2/components#relative-position-encoder) which add an encoding at every layer!).
+The position encoding of the Depth-Anything model is identical to the original vision transformer implementation, from "[An Image is Worth 16x16 Words](https://arxiv.org/abs/2010.11929)". The model uses learned positional encodings that are added to the patch embeddings at a single point, just before entering into the transformer model (unlike the [BEiT](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt/v31_beit/components#relative-position-encoder) or [SwinV2](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt/v31_swinv2/components#relative-position-encoder) which add an encoding at every layer!).
 
 Since there is only a single set of position encodings for the entire model, it's fairly easy to access and visualize them. The image below shows various channels of the ViT-small model (there are 384 channels total for this model). Interestingly, many channels have obvious sinusoidal patterns. Curiously, similar 'high frequency' patterns tend to become visible when adjusting the [fusion layer scaling factors](https://github.com/heyoeyo/muggled_dpt/tree/main/experiments#fusion-scaling), particularly when using higher resolution inputs.
 

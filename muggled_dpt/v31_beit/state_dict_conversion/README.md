@@ -4,7 +4,7 @@ This folder contains scripts which help with loading model weights (a.k.a. [stat
 
 ## Config from State Dict
 
-[The config script](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/v31_beit/state_dict_conversion/config_from_midas_state_dict.py) is responsible for figuring out model hyperparameters, or in other words, how the model is configured. These parameters are what determines whether a 'small' or 'large' size of the model is instantiated. This includes things like the number of [features per image patch](https://github.com/heyoeyo/muggled_dpt/tree/main/lib#patch-embedding-model) and the number of channels used on tokens within the [reassembly model](https://github.com/heyoeyo/muggled_dpt/tree/main/lib#reassembly-model), among other things.
+[The config script](https://github.com/heyoeyo/muggled_dpt/blob/main/muggled_dpt/v31_beit/state_dict_conversion/config_from_midas_state_dict.py) is responsible for figuring out model hyperparameters, or in other words, how the model is configured. These parameters are what determines whether a 'small' or 'large' size of the model is instantiated. This includes things like the number of [features per image patch](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt#patch-embedding-model) and the number of channels used on tokens within the [reassembly model](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt#reassembly-model), among other things.
 
 This functionality works by searching for specific model weights and looking at their size/shapes to infer different properties about the model itself. While messy, the advantage of this code is that it allows models of varying sizes to all load in the same way, potentially even including model sizes that haven't been released yet!
 
@@ -21,7 +21,7 @@ Here are examples of some of the original model weight names and the new impleme
 | scratch.refinenet3.resConfUnit1.conv2.bias | fusion.blocks.2.conv_reassembly.conv_seq.3.bias |
 | scratch.output_conv.4.bias | head.proj_1ch.2.bias |
 
-If the weights aren't named to match the new implementation names _exactly_, then the model won't load. Therefore, almost all of the functions inside the [conversion script](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/v31_beit/state_dict_conversion/convert_midas_state_dict_keys.py) are dedicated solely to handling the renaming properly. Like the configuration script, this is messy code, but the advantage is that it allows for re-use of existing model weights and potentially supports newer updates to models in the future without any additional code changes.
+If the weights aren't named to match the new implementation names _exactly_, then the model won't load. Therefore, almost all of the functions inside the [conversion script](https://github.com/heyoeyo/muggled_dpt/blob/main/muggled_dpt/v31_beit/state_dict_conversion/convert_midas_state_dict_keys.py) are dedicated solely to handling the renaming properly. Like the configuration script, this is messy code, but the advantage is that it allows for re-use of existing model weights and potentially supports newer updates to models in the future without any additional code changes.
 
 
 #### Query/Value Bias
@@ -32,4 +32,4 @@ Regenerating this term at runtime is a bit wasteful but also confusing looking i
 
 ## Key Regex
 
-The [key_regex.py](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/v31_beit/state_dict_conversion/key_regex.py) script contains a collection of helper [regex](https://www.computerhope.com/jargon/r/regex.htm) functions and other string parsing functions. These are used to help with updating the model weight labels, as described in the sections above.
+The [key_regex.py](https://github.com/heyoeyo/muggled_dpt/blob/main/muggled_dpt/v31_beit/state_dict_conversion/key_regex.py) script contains a collection of helper [regex](https://www.computerhope.com/jargon/r/regex.htm) functions and other string parsing functions. These are used to help with updating the model weight labels, as described in the sections above.

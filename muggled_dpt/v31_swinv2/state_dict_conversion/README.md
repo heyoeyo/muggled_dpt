@@ -4,7 +4,7 @@ This folder contains scripts which help with loading model weights (a.k.a. [stat
 
 ## Config from State Dict
 
-[The config script](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/v31_swinv2/state_dict_conversion/config_from_midas_state_dict.py) is responsible for figuring out model hyperparameters, or in other words, how the model is configured. These parameters are what determines whether a 'small' or 'large' size of the model is instantiated. This includes things like the [window sizing](https://github.com/heyoeyo/muggled_dpt/tree/main/lib/v31_swinv2/components#shifted-windowed-attention), the number of [transformer layers per stage](https://github.com/heyoeyo/muggled_dpt/tree/main/lib/v31_swinv2#image-encoder-model) and the number of channels on the tokens going into the [fusion model](https://github.com/heyoeyo/muggled_dpt/tree/main/lib#fusion-model).
+[The config script](https://github.com/heyoeyo/muggled_dpt/blob/main/muggled_dpt/v31_swinv2/state_dict_conversion/config_from_midas_state_dict.py) is responsible for figuring out model hyperparameters, or in other words, how the model is configured. These parameters are what determines whether a 'small' or 'large' size of the model is instantiated. This includes things like the [window sizing](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt/v31_swinv2/components#shifted-windowed-attention), the number of [transformer layers per stage](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt/v31_swinv2#image-encoder-model) and the number of channels on the tokens going into the [fusion model](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt#fusion-model).
 
 This functionality works by searching for specific model weights and looking at their size/shapes to infer different properties about the model itself. While messy, the advantage of this code is that it allows models of varying sizes to all load in the same way, potentially even including model sizes that haven't been released yet!
 
@@ -22,12 +22,12 @@ Here are examples of some of the original model weight names and the new impleme
 | scratch.refinenet4.out_conv.weight | fusion.blocks.3.proj_seq.2.weight |
 | scratch.output_conv.2.weight | head.proj_1ch.0.weight |
 
-If the weights aren't named to match the new implementation names _exactly_, then the model won't load. Therefore, almost all of the functions inside the [conversion script](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/v31_swinv2/state_dict_conversion/convert_midas_state_dict_keys.py) are dedicated solely to handling the renaming properly. Like the configuration script, this is messy code, but the advantage is that it allows for re-use of existing model weights and potentially supports newer updates to models in the future without any additional code changes.
+If the weights aren't named to match the new implementation names _exactly_, then the model won't load. Therefore, almost all of the functions inside the [conversion script](https://github.com/heyoeyo/muggled_dpt/blob/main/muggled_dpt/v31_swinv2/state_dict_conversion/convert_midas_state_dict_keys.py) are dedicated solely to handling the renaming properly. Like the configuration script, this is messy code, but the advantage is that it allows for re-use of existing model weights and potentially supports newer updates to models in the future without any additional code changes.
 
 
 #### Logit Scaling
 
-In addition to renaming the weight labeling, there are also some minor modifications to some of the weights themselves. First is the scaling factor used in the [scaled cosine attention](https://github.com/heyoeyo/muggled_dpt/tree/main/lib/v31_swinv2#image-encoder-model) calculation within the SwinV2 image encoder.
+In addition to renaming the weight labeling, there are also some minor modifications to some of the weights themselves. First is the scaling factor used in the [scaled cosine attention](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt/v31_swinv2#image-encoder-model) calculation within the SwinV2 image encoder.
 
 In the [original implementation](https://github.com/huggingface/pytorch-image-models/blob/ce4d3485b690837ba4e1cb4e0e6c4ed415e36cea/timm/models/swin_transformer_v2.py#L221), this scaling factor is clamped to be a value less than the [natural log](https://en.wikipedia.org/wiki/Natural_logarithm) of 100 and then the result is exponentiated to the base [e](https://en.wikipedia.org/wiki/E_(mathematical_constant)). But this is done _within_ the attention calculation on every transformer block, every time inference is run. Since the result is constant, this is a bit of wasted computation, so in this repo the clamping and exponentiation steps are applied when loading the logit scaling weights. This way, the results are computed only once and reused at inference time.
 
@@ -41,4 +41,4 @@ Having the QKV bias term be re-generated at runtime is a bit wasteful, but also 
 
 ## Key Regex
 
-The [key_regex.py](https://github.com/heyoeyo/muggled_dpt/blob/main/lib/v31_swinv2/state_dict_conversion/key_regex.py) script contains a collection of helper [regex](https://www.computerhope.com/jargon/r/regex.htm) functions and other string parsing functions. These are used to help with updating the model weight labels, as described in the sections above.
+The [key_regex.py](https://github.com/heyoeyo/muggled_dpt/blob/main/muggled_dpt/v31_swinv2/state_dict_conversion/key_regex.py) script contains a collection of helper [regex](https://www.computerhope.com/jargon/r/regex.htm) functions and other string parsing functions. These are used to help with updating the model weight labels, as described in the sections above.

@@ -11,7 +11,7 @@ The [BEiT model](https://arxiv.org/abs/2106.08254) is almost identical to the or
 
 The only difference between the BEiT image encoder and the original DPT implementation is in how the positional encodings are generated, and where they are used.
 
-Unlike the original ViT model, BEiT uses learned [relative positional encodings](https://github.com/heyoeyo/muggled_dpt/tree/main/lib/v31_beit/components). It also adds these encodings to the attention matrix at _every_ transformer block, which greatly complicates it's implementation. This changes the attention calculation within each transformer block compared to the original ["Attention is all you need"](https://arxiv.org/abs/1706.03762) implementation, as follows:
+Unlike the original ViT model, BEiT uses learned [relative positional encodings](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt/v31_beit/components). It also adds these encodings to the attention matrix at _every_ transformer block, which greatly complicates it's implementation. This changes the attention calculation within each transformer block compared to the original ["Attention is all you need"](https://arxiv.org/abs/1706.03762) implementation, as follows:
 
 $$\text{Attention}(Q, K, V) = \text{SoftMax} \left (\frac{QK^T}{\sqrt{d_{k}}} + B \right ) \times V$$
 

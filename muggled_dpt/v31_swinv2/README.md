@@ -4,7 +4,7 @@ This folder contains the major pieces of the SwinV2 DPT model, in correspondence
 
 The SwinV2 model, described in "[Swin Transformer V2: Scaling Up Capacity and Resolution](https://arxiv.org/abs/2111.09883)" is as the name suggests, a modification of the earlier Swin (V1) model introduced in "[Swin Transformer: Hierarchical Vision Transformer using Shifted Windows](https://arxiv.org/abs/2103.14030)". The earlier paper is especially helpful for understanding the major structural components of the model. Among the DPT models, the Swin image encoder is certainly the most complex, though this complexity brings improvements in speed (for similar output accuracy) compared to the simpler BEiT model, for example.
 
-For a more compreshensive description of the DPT model components, please see the existing documentation describing the original [DPT implementation](https://github.com/heyoeyo/muggled_dpt/tree/main/lib). The focus here is on describing the details which are unique to the SwinV2 models.
+For a more compreshensive description of the DPT model components, please see the existing documentation describing the original [DPT implementation](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt). The focus here is on describing the details which are unique to the SwinV2 models.
 
 
 ## Differences from Original DPT
@@ -13,7 +13,7 @@ For a more compreshensive description of the DPT model components, please see th
 
 The patch embedding for SwinV2 is notably different from the original MiDaS implementation, in that the patch size is a mere 4px! It also includes a post-patch [LayerNorm](https://pytorch.org/docs/stable/generated/torch.nn.LayerNorm.html). While the patch sizing seems surprisingly small, these patches undergo 4 patch merging steps, each of which quarters the number of patches (while also doubling the number of features per patch), so that the model is not dealing with an unmanagable number of patches. The model also makes extensive use of windowed attention, which further reduces the amount of computation required.
 
-For more details on the merging and windowing functionality, check out the [SwinV2 components](https://github.com/heyoeyo/muggled_dpt/tree/main/lib/v31_swinv2/components).
+For more details on the merging and windowing functionality, check out the [SwinV2 components](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt/v31_swinv2/components).
 
 ### Image Encoder Model
 
@@ -29,7 +29,7 @@ Additionally, the transformer block structure is modified to work on windows (i.
   <img src=".readme_assets/transformer_block_swinv2.svg" alt="Diagram of SwinV2 transformer block">
 </p>
 
-There are more SwinV2-specific modifications within the attention blocks themselves. For one, unlike the original ViT, SwinV2 adds a [relative positional encoding](https://github.com/heyoeyo/muggled_dpt/tree/main/lib/v31_swinv2/components#relative-position-encoder) to the Q-K attention matrix, as if it were a bias term, on every attention block.
+There are more SwinV2-specific modifications within the attention blocks themselves. For one, unlike the original ViT, SwinV2 adds a [relative positional encoding](https://github.com/heyoeyo/muggled_dpt/tree/main/muggled_dpt/v31_swinv2/components#relative-position-encoder) to the Q-K attention matrix, as if it were a bias term, on every attention block.
 
 $$\text{Attention}(Q, K, V) = \text{SoftMax} \left (\frac{1}{\tau}\text{cosine}(Q, K) + B \right )V$$
 
