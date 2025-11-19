@@ -17,6 +17,7 @@ from muggled_dpt.make_dpt import make_dpt_from_state_dict
 
 import muggled_dpt.demo_helpers.toadui as ui
 
+from muggled_dpt.demo_helpers.crop_ui import run_crop_ui
 from muggled_dpt.demo_helpers.history_keeper import HistoryKeeper
 from muggled_dpt.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from muggled_dpt.demo_helpers.postprocess import scale_prediction, convert_to_uint8, histogram_equalization
@@ -125,6 +126,12 @@ parser.add_argument(
     action="store_true",
     help="Enables toggle-able recording of per-frame depth predictions",
 )
+parser.add_argument(
+    "--crop",
+    default=False,
+    action="store_true",
+    help="Crop image (interactively) before depth prediction",
+)
 
 # For convenience
 args = parser.parse_args()
@@ -142,6 +149,7 @@ force_square_resolution = not args.use_aspect_ratio
 model_base_size = args.base_size_px
 use_webcam = args.use_webcam
 allow_recording = args.allow_recording
+enable_crop_step = args.crop
 
 # Create history to re-use selected inputs
 history = HistoryKeeper()
@@ -180,9 +188,18 @@ dpt_model.to(**device_config_dict)
 # %% Video setup & feedback
 
 # Set up access to video
-vreader = ui.LoopingVideoReader(video_path, display_size_px)
+vreader = ui.LoopingVideoReader(video_path)
 video_frame_delay_ms = vreader.get_frame_delay_ms() if (display_ms_override == 0) else max(1, int(display_ms_override))
 sample_frame = vreader.get_sample_frame()
+
+# Apply cropping if needed
+crop_xy1xy2_norm = ((0, 0), (1, 1))
+crop_y_slice, crop_x_slice = None, None
+if enable_crop_step:
+    _, crop_xy1xy2_norm = history.read("crop_xy1xy2_norm")
+    (crop_y_slice, crop_x_slice), crop_xy1xy2_norm = run_crop_ui(sample_frame, crop_xy1xy2_norm)
+    sample_frame = sample_frame[crop_y_slice, crop_x_slice]
+    history.store(crop_xy1xy2_norm=crop_xy1xy2_norm)
 
 # Get example frame so we can provide sizing info feedback
 example_prediction = dpt_model.inference(sample_frame, model_base_size, force_square_resolution)
@@ -299,6 +316,10 @@ with window.auto_close(vreader.release):
 
     for is_paused, frame_idx, frame in vreader:
         playback_slider.update_state(is_paused, frame_idx)
+
+        # Apply cropping if needed
+        if enable_crop_step:
+            frame = frame[crop_y_slice, crop_x_slice]
 
         # Read controls
         is_hc_changed, use_high_contrast = high_contrast_btn.read()

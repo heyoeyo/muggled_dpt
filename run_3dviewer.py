@@ -21,6 +21,7 @@ import torch.nn as nn
 
 from muggled_dpt.make_dpt import make_dpt_from_state_dict
 
+from muggled_dpt.demo_helpers.crop_ui import run_crop_ui, make_crop_slices_from_xy1xy2_norm
 from muggled_dpt.demo_helpers.postprocess import normalize_01
 from muggled_dpt.demo_helpers.history_keeper import HistoryKeeper
 from muggled_dpt.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
@@ -118,6 +119,12 @@ parser.add_argument(
     type=str,
     help=f"Image encoding format for depth data (default: {default_depth_encoding})",
 )
+parser.add_argument(
+    "--crop",
+    default=False,
+    action="store_true",
+    help="Crop image (interactively) before depth prediction",
+)
 
 # For convenience
 args = parser.parse_args()
@@ -136,6 +143,7 @@ launch_browser = args.launch
 arg_image_encoding = str(args.encode_image).lower()
 arg_depth_encoding = str(args.encode_depth).lower()
 arg_mask_path = args.mask_path
+enable_crop_step = args.crop
 
 # Create history to re-use selected inputs
 history = HistoryKeeper()
@@ -282,6 +290,35 @@ class WebcamData(VideoData):
         return isinstance(input_path, int)
 
 
+class CropData:
+
+    xy1xy2_norm: tuple[tuple[float, float], tuple[float, float]] = ((0, 0), (1, 1))
+    y_slice: slice = slice(0, 10)
+    x_slice: slice = slice(0, 10)
+
+    def __init__(self, crop_xy1xy2_norm: tuple[tuple[float, float], tuple[float, float]]):
+        assert len(crop_xy1xy2_norm) == 2, "Crop coords must be in format: ((x1,y1), (x2,y2))"
+        assert len(crop_xy1xy2_norm[0]) == 2, "Crop coords must be in format: ((x1,y1), (x2,y2))"
+        self.xy1xy2_norm = crop_xy1xy2_norm
+
+    def update_slices(self, image_shape: tuple[int, int]):
+        y_slice, x_slice = make_crop_slices_from_xy1xy2_norm(image_shape, self.xy1xy2_norm)
+        self.y_slice = y_slice
+        self.x_slice = x_slice
+        return self
+
+    def crop_image(self, image: np.ndarray) -> np.ndarray:
+        return image[self.y_slice, self.x_slice]
+
+    @staticmethod
+    def is_cropping(crop_xy1xy2_norm: tuple[tuple[float, float], tuple[float, float]]):
+        """Helper used to double check that the crop coords actually do something"""
+        (x1, y1), (x2, y2) = crop_xy1xy2_norm
+        is_crop_x = (x2 - x1) < 0.999
+        is_crop_y = (y2 - y1) < 0.999
+        return is_crop_x or is_crop_y
+
+
 @dataclass
 class InputState:
     """Simple class used to hold global information about the input data source"""
@@ -293,6 +330,7 @@ class InputState:
     is_image = False
     image_wh = (0, 0)
     depth_wh = (0, 0)
+    crop_data: CropData | None = None
 
     def read_input_path(self, input_path: str):
         """Helper used to properly interpret input data as image/video/webcam"""
@@ -319,12 +357,25 @@ class InputState:
 
         return self
 
+    def read_frame(self, frame_index: int) -> np.ndarray:
+        """Helper used to read frames, with potential cropping support"""
+        frame = self.vreader.read_frame(frame_index)
+        if self.crop_data is not None:
+            frame = self.crop_data.crop_image(frame)
+        return frame
+
     def update_sizing(self, dpt_model, model_base_size: int, force_square_resolution: bool = True):
         """Helper used to update internal record of image/depth sizing"""
 
         # Create example image to run through model
         image_wh = self.vreader.get_wh()
         ex_frame = np.random.randint(0, 255, [image_wh[1], image_wh[0], 3], dtype=np.uint8)
+
+        # Apply cropping to get new image sizing
+        if self.crop_data is not None:
+            self.crop_data.update_slices((image_wh[1], image_wh[0]))
+            ex_frame = self.crop_data.crop_image(ex_frame)
+            image_wh = tuple(reversed(ex_frame.shape[0:2]))
 
         # Run image prep on example fraame to get output sizing
         ex_tensor = dpt_model.prepare_image_bgr(ex_frame, model_base_size, force_square_resolution)
@@ -335,6 +386,10 @@ class InputState:
         self.depth_wh = depth_wh
 
         return self
+
+    def enable_cropping(self, crop_xy1xy2_norm: tuple[tuple[float, float], tuple[float, float]]):
+        self.crop_data = CropData(crop_xy1xy2_norm)
+        return
 
 
 class MaskData(nn.Module):
@@ -466,6 +521,20 @@ BASE_FILES_PATH = osp.join(osp.dirname(__file__), "muggled_dpt", "demo_helpers",
 VALID_FILES = set(os.listdir(BASE_FILES_PATH))
 IS_METRIC_MODEL = model_config_dict.get("is_metric", False)
 
+# Set up cropping if needed
+if enable_crop_step:
+    init_image_bgr = INDATA.read_frame(0)
+    _, crop_xy1xy2_norm = history.read("crop_xy1xy2_norm")
+    (crop_y_slice, crop_x_slice), crop_xy1xy2_norm = run_crop_ui(init_image_bgr, crop_xy1xy2_norm)
+    history.store(crop_xy1xy2_norm=crop_xy1xy2_norm)
+
+    # Check that crop is actually needed
+    enable_crop_step = CropData.is_cropping(crop_xy1xy2_norm)
+    if enable_crop_step:
+        INDATA.enable_cropping(crop_xy1xy2_norm)
+    pass
+
+
 # Figure out image/depth sizing
 INDATA.update_sizing(dpt_model, model_base_size, force_square_resolution)
 
@@ -480,6 +549,7 @@ print(
     f"Depth WH: {INDATA.depth_wh[0]} x {INDATA.depth_wh[1]}",
     f"  Device: {device_config_dict.get('device', '...error...')}",
     f"   DType: {device_config_dict.get('dtype', '...error...')}",
+    f"Cropping: {enable_crop_step}",
     sep="\n",
 )
 
@@ -500,7 +570,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
             # Update the current frame index (and jump video forward/backward if needed)
             frame_idx = int(self.path[7:])
-            frame = INDATA.vreader.read_frame(frame_idx)
+            frame = INDATA.read_frame(frame_idx)
 
             # Run depth estimation
             depth_prediction = dpt_model.inference(frame, model_base_size, force_square_resolution)

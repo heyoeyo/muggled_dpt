@@ -19,6 +19,7 @@ import muggled_dpt.demo_helpers.toadui as ui
 from muggled_dpt.demo_helpers.toadui.helpers.images import load_valid_image
 from muggled_dpt.demo_helpers.toadui.helpers.sizing import get_image_hw_for_max_side_length
 
+from muggled_dpt.demo_helpers.crop_ui import run_crop_ui, make_crop_slices_from_xy1xy2_norm
 from muggled_dpt.demo_helpers.history_keeper import HistoryKeeper
 from muggled_dpt.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from muggled_dpt.demo_helpers.saving import save_image, save_numpy_array, save_uint16
@@ -103,6 +104,12 @@ parser.add_argument(
     action="store_true",
     help="Disable file selector UI. This also leads to allocating more display space to the loaded image",
 )
+parser.add_argument(
+    "--crop",
+    default=False,
+    action="store_true",
+    help="Crop image (interactively) before depth prediction",
+)
 
 # For convenience
 args = parser.parse_args()
@@ -116,6 +123,7 @@ use_optimizations = not args.no_optimization
 force_square_resolution = not args.use_aspect_ratio
 model_base_size = args.base_size_px
 allow_file_selector = not args.noselect
+enable_crop_step = args.crop
 
 # Hard-code no-cache usage (limited benefit for static images)
 use_cache = False
@@ -159,7 +167,15 @@ if len(img_selector) == 0:
     quit()
 
 # Load (first) image
-init_image_path, init_image_bgr = img_selector.load_next_valid(load_valid_image)
+loaded_img_path, init_image_bgr = img_selector.load_next_valid(load_valid_image)
+
+# Apply cropping if needed
+crop_xy1xy2_norm = ((0, 0), (1, 1))
+if enable_crop_step:
+    _, crop_xy1xy2_norm = history.read("crop_xy1xy2_norm")
+    (crop_y_slice, crop_x_slice), crop_xy1xy2_norm = run_crop_ui(init_image_bgr, crop_xy1xy2_norm)
+    init_image_bgr = init_image_bgr[crop_y_slice, crop_x_slice]
+    history.store(crop_xy1xy2_norm=crop_xy1xy2_norm)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -282,11 +298,14 @@ with window.auto_close():
         _, (thresh_min, thresh_max) = threshold_slider.read()
         _, use_high_contrast = high_contrast_btn.read()
         _, use_reverse_colors = reverse_colors_btn.read()
-        is_file_changed, _, file_select_path = img_selector.read()
+        is_file_changed, _, _ = img_selector.read()
 
         # Load new image
         if is_file_changed:
-            file_select_path, img_bgr = img_selector.load_next_valid(load_valid_image)
+            loaded_img_path, img_bgr = img_selector.load_next_valid(load_valid_image)
+            if enable_crop_step:
+                y_crop_slice, x_crop_slice = make_crop_slices_from_xy1xy2_norm(img_bgr.shape, crop_xy1xy2_norm)
+                img_bgr = img_bgr[y_crop_slice, x_crop_slice]
             img_elem.set_image(img_bgr)
 
         # Update display sizing (mostly a display optimization when handling large images)
@@ -340,8 +359,8 @@ with window.auto_close():
 
             # Save data!
             save_folder = osp.join("saved_images", "run_image")
-            _, _ = save_image(display_frame, image_path, save_folder, append_to_name="_display")
-            ok_img_save, save_img_path = save_image(depth_color, image_path, save_folder)
+            _, _ = save_image(display_frame, loaded_img_path, save_folder, append_to_name="_display")
+            ok_img_save, save_img_path = save_image(depth_color, loaded_img_path, save_folder)
             ok_npy_save, save_npy_path = save_numpy_array(npy_prediction, save_img_path)
             ok_uint16_save, save_uint16_path = save_uint16(npy_prediction, save_img_path)
             if any((ok_img_save, ok_npy_save, ok_uint16_save)):

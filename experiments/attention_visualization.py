@@ -31,6 +31,7 @@ import muggled_dpt.demo_helpers.toadui as ui
 from muggled_dpt.demo_helpers.toadui.helpers.sizing import get_image_hw_for_max_side_length
 from muggled_dpt.demo_helpers.toadui.helpers.data_management import ValueChangeTracker
 
+from muggled_dpt.demo_helpers.crop_ui import run_crop_ui
 from muggled_dpt.demo_helpers.history_keeper import HistoryKeeper
 from muggled_dpt.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from muggled_dpt.demo_helpers.saving import save_image, save_numpy_array
@@ -111,6 +112,12 @@ parser.add_argument(
     action="store_true",
     help="Show selected patch row/column indexing",
 )
+parser.add_argument(
+    "--crop",
+    default=False,
+    action="store_true",
+    help="Crop image (interactively) before depth prediction",
+)
 
 # For convenience
 args = parser.parse_args()
@@ -124,6 +131,7 @@ model_base_size = args.base_size_px
 log_contrast = args.contrast
 cls_border_size = max(0, args.cls_border)
 show_patch_index = args.patch
+enable_crop_step = args.crop
 
 # Build pathing to repo-root, so we can search model weights properly
 root_path = osp.dirname(osp.dirname(__file__))
@@ -297,6 +305,14 @@ dpt_model.to(**device_config_dict)
 # Load image
 input_image_bgr = cv2.imread(image_path)
 assert input_image_bgr is not None, f"Error loading image: {image_path}"
+
+# Apply cropping if needed
+crop_xy1xy2_norm = ((0, 0), (1, 1))
+if enable_crop_step:
+    _, crop_xy1xy2_norm = history.read("crop_xy1xy2_norm")
+    (crop_y_slice, crop_x_slice), crop_xy1xy2_norm = run_crop_ui(input_image_bgr, crop_xy1xy2_norm)
+    input_image_bgr = input_image_bgr[crop_y_slice, crop_x_slice]
+    history.store(crop_xy1xy2_norm=crop_xy1xy2_norm)
 
 # Get model info for feedback
 model_name, devdtype_str, header_color = make_header_strings(model_path, device_config_dict)
