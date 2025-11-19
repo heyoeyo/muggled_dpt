@@ -52,6 +52,17 @@ pip3 install torch --index-url https://download.pytorch.org/whl/cu121
 
 </details>
 
+#### Alternative installations
+
+This repo can be installed directly from Github, allowing it to be used as a library in other projects. This can be done using:
+
+```bash
+# Be sure to activate a virtual environment before installing!
+pip install git+https://github.com/heyoeyo/muggled_dpt
+```
+
+It's should also be possible to install using other package managers (like [uv](https://docs.astral.sh/uv/) or [conda](https://docs.conda.io/en/latest/)) though these may require slightly different commands.
+
 ### Model Weights
 
 Before you can run a model, you'll need to download it's weights.
@@ -124,7 +135,7 @@ The `run_image.py` script will run the depth prediction model on a single image.
 ```bash
 python run_image.py
 ```
-You can also add  `--help` to the end of this command to see a list of additional flags you can set when running this script. One especially interesting flag is `-b`, which allows for processing images at higher resolutions.
+You can also add  `--help` to the end of this command to see a list of additional flags you can set when running this script. One especially interesting flag is `--crop`, which will allow for interactively cropping the input before performing a depth prediction. Cropping can often improve prediction results over smaller regions of the image.
 
 If you don't provide an image path (using the `-i` flag), then you will be asked to provide one when you run the script, likewise for a path to the model weights. Afterwards, a window will pop-up with various sliders that can be used to modify the depth visualization. These let you adjust the contrast of the depth visualization, as well as remove a plane-of-best-fit, which can often remove the 'floor' from the depth prediction. Additionally, there are a number of keyboard shortcuts that will be printed in the terminal.
 
@@ -160,7 +171,7 @@ The `-l` flag will launch a browser window, you can leave this out if you prefer
 The web interface provides support for visualizing depth data as a 3D model by displacing a dense plane mesh using depth predictions. There are controls for setting the scaling factors needed to [properly interpret](https://github.com/heyoeyo/muggled_dpt?tab=readme-ov-file#note-on-depth-results) the (inverse relative) depth estimate. There are also some controls bound to keypresses, for example the `~` key, which enables recording. An `info` page is available (via a link on the UI) that explains the controls and other available options in more detail. It's possible to save the resulting 3D model and import it into 3D editing software, such as [Blender](https://www.blender.org/).
 
 > [!Note]
-> This server is very basic in order to avoid the need for external dependencies. As a result, it is only meant for local-use and is not suitable for deployment in a production environment!
+> This server is very basic in order to avoid the need for external dependencies. It's meant for local-use and is not suitable for deployment in a production environment!
 
 
 ## Note on depth results
