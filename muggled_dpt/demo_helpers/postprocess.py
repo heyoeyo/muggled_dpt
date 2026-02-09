@@ -104,6 +104,7 @@ def convert_to_uint8(depth_prediction_tensor: Tensor) -> Tensor:
 
 # .....................................................................................................................
 
+
 def histogram_equalization(depth_uint8: np.ndarray, min_pct: float = 0.0, max_pct: float = 1.0) -> np.ndarray:
     """
     Function used to perform histogram equalization on a depth image.
@@ -127,7 +128,8 @@ def histogram_equalization(depth_uint8: np.ndarray, min_pct: float = 0.0, max_pc
 
     # Compute histogram of input
     num_bins = 1 + max_value - min_value
-    bin_counts, _ = np.histogram(depth_uint8, num_bins, range=(min_value, max_value))
+    bins = np.linspace(min_value, max_value, num_bins)
+    bin_counts, _ = np.histogram(depth_uint8, bins)
 
     # Compute cdf of histogram counts
     cdf = bin_counts.cumsum()
@@ -137,7 +139,7 @@ def histogram_equalization(depth_uint8: np.ndarray, min_pct: float = 0.0, max_pc
 
     # Extend cdf to match 256 lut sizing, in case we skipped min/max value ranges
     low_end = np.zeros(min_value, dtype=np.uint8)
-    high_end = np.full(255 - max_value, 255, dtype=np.uint8)
+    high_end = np.full(256 - max_value, 255, dtype=np.uint8)
     equalization_lut = np.concatenate((low_end, cdf_uint8, high_end))
 
     # Apply LUT mapping to input
