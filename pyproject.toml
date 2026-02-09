@@ -8,11 +8,14 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-	"opencv-python   >=4.5, <4.13",
-	"numpy           >=1.21, <2.3",
-	"torch           >=2.1, <2.10",
+	"opencv-python   >=4.5, <4.14",
+	"numpy           >=1.21, <2.5",
+	"torch           >=2.1, <2.11",
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.black]
+line-length = 120
