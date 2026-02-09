@@ -340,7 +340,7 @@ cmap_bar = ui.ColormapsBar(cv2.COLORMAP_VIRIDIS, cv2.COLORMAP_MAGMA, cv2.COLORMA
 # Set up text displays
 block_txt = ui.PrefixedTextBlock("Block: ", 0)
 min_txt = ui.PrefixedTextBlock("Min: ", "-")
-max_txt = ui.PrefixedTextBlock("Min: ", "-")
+max_txt = ui.PrefixedTextBlock("Max: ", "-")
 show_orig_btn = ui.ToggleButton("Image", default_state=False, text_scale=0.35, color_on=(75, 120, 35))
 show_norm_btn = ui.ToggleButton("Norm", default_state=True, text_scale=0.35, color_on=(35, 75, 200))
 show_channels_btn = ui.ToggleButton("Channel", default_state=False, text_scale=0.35, color_on=(135, 105, 90))
