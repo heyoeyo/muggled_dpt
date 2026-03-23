@@ -179,6 +179,7 @@ function run_vertex_shader_cpu(vertex_xy_list, shader_uniforms, depth_image_data
 	const _invrel_depth = d => 1.0 / (a_param + b_param * d);
 	const calc_depth = is_metric_depth ? _metric_depth : _invrel_depth;
 
+	const [scale_total, scale_r, scale_g, scale_b] = [2**24, 2**16, 2**8, 2**0];
 	const vertex_is_valid = [];
 	const vertex_uv_list = [];
 	const vertex_xyz_list = [];
@@ -191,7 +192,7 @@ function run_vertex_shader_cpu(vertex_xy_list, shader_uniforms, depth_image_data
 		// Convert 24-bit depth image (+ 8bit mask) to a 0-to-1 depth value
 		// (unlike shader code, RGBA values are uint8!)
 		const [d_red, d_green, d_blue, d_alpha] = _uv_sample_texture(uv_val, depth_image_data);
-		const depth_norm = ((d_red << 16) + (d_green << 8) + d_blue) / (2**24);
+		const depth_norm = ((d_red * scale_r) + (d_green * scale_g) + (d_blue * scale_b)) / scale_total;
 		const depth_value = calc_depth(depth_norm);
 
 		// Check edge thresholding. Unlike shader code, we don't use varyings, just a flag for filtering later
